@@ -6,7 +6,7 @@
 
 **Şu an neredeyiz:** Faz 1 / Adım 1 tamamlandı. Faz 1 / Adım 2'de “görev atandı”, “SKS durumu değişti”, “bağımlı görev aktifleşti”, “etkinlik tarihi değişti”, “görev gecikti” ve “görev son tarihi yaklaşıyor” kuralları, push abonelik altyapısı, `pg_cron` zamanlamaları ve ayrı test senaryoları eklendi; gerçek Supabase projesinde uygulama ve işlev testleri başarıyla tamamlandı. İlk migration'lar için Supabase CLI bağlantısı ve uzak migration geçmişi baseline senkronizasyonu da tamamlandı. E-posta/push kayıtlarını gerçek kanallara teslim edecek katman henüz yazılmadı.
 
-**Henüz kurulmadı:** Uygulama istemcisi, canlı ortam değişkenleri, e-posta teslimat katmanı ve gerçek tarayıcı push gönderimi.
+**Henüz kurulmadı:** Canlı ortam değişkenleri, e-posta teslimat katmanı ve gerçek tarayıcı push gönderimi. Uygulama istemcisinin Faz 1 web temeli kuruldu: Vite + React + TypeScript + Tailwind CSS ile mobil uyumlu giriş, magic-link dönüşü ve korumalı uygulama kabuğu hazırdır; etkinlik/görev ekranları henüz yoktur.
 
 **Yeni bir Claude/GPT sohbetine bu projeyi anlatman gerekirse:** bu dokümanı yükle + "MUPSA projesine devam ediyoruz, bu dokümanı oku, Güncel Durum bölümünden devam et" de. GitHub repo: `https://github.com/onndd/mupsa-ekip-koordinasyon`.
 
@@ -29,6 +29,7 @@ Excel dosyası (`MUPSA_2026-2027_ETKINLIK_VE_GOREV_TAKIP.xlsx`) veri kaynağı o
 | Veritabanı + Dosya | Supabase (ücretsiz katman: 500MB DB, 1GB depolama) |
 | E-posta | Kulübün SMTP'si (Roundcube arkası) varsa o, yoksa Resend (ücretsiz, ayda 3000 mail) |
 | Push bildirim | PWA Web Push — **baştan dahil**, ikinci aşamaya ertelenmiyor |
+| Frontend | Vite + React + TypeScript + Tailwind CSS |
 | Maliyet | 0 TL (opsiyonel: özel alan adı) |
 
 **Basitleştirildi:** Kullanıcı deneyimini gereksiz zorlaştırmamak için Cloudflare Access **zorunlu ikinci giriş kapısı olarak kullanılmayacak.** Supabase Auth zaten kişisel hesaplı, gerçek bir giriş sistemi olduğu için tek başına yeterli. Cloudflare Access, istenirse ileride ek bir ağ güvenliği katmanı olarak ayrıca değerlendirilebilir, ama MVP'de yok.
@@ -65,6 +66,8 @@ Excel dosyası (`MUPSA_2026-2027_ETKINLIK_VE_GOREV_TAKIP.xlsx`) veri kaynağı o
 ## 5. Kullanıcı Hesap Modeli — KARARLAŞTIRILDI
 
 **Kişisel e-posta ile hesap.** Ortak kulüp e-postası normal kullanıcı hesabı olarak kullanılmayacak (yalnızca bildirim gönderici adresi / kurtarma adresi olabilir).
+
+**Giriş yöntemi:** Supabase Auth magic link (tek kullanımlık e-posta bağlantısı). Kullanıcı parolası oluşturmaz. Giriş bağlantısı yalnızca Başkan veya IT tarafından önceden davet edilmiş hesaba gönderilir; uygulama ekranı yeni hesap oluşturamaz.
 
 Gerekçe: ortak hesapta "bu değişikliği kim yaptı" belirsizleşir, şifre devri güvenlik riski oluşturur, bildirim kişiye değil hesaba gider. Kişisel hesapla değişiklik geçmişinde kişi adı görünür, görev gerçekten kişiye atanır.
 
