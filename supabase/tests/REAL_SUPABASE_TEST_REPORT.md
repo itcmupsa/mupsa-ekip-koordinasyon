@@ -29,6 +29,17 @@ Doğrulananlar:
 - Push aboneliklerinde aynı kullanıcı için iki farklı cihaz kaydı tutuldu; aynı `endpoint` ikinci kez eklenemedi.
 - Push abonelik anahtarlarının `audit_logs` tablosuna yazılmadığı doğrulandı.
 
+## SKS durum bildirimi testi
+
+`20260802160000_queue_sks_status_changed_notifications.sql` gerçek veritabanına uygulandıktan sonra, geri alınan tek işlem içinde test edildi:
+
+- Üç aktif ve bir pasif dönem üyesiyle SKS durumu `Başvuru Hazırlanıyor`dan `Onaylandı`ya değiştirildi.
+- Aktif üyelerin her biri için uygulama içi ve e-posta olmak üzere toplam **6** `queued` bildirim oluştu; pasif üyeye bildirim oluşmadı.
+- Etkinlik adı, eski/yeni SKS durumu ve değişikliği yapan kişi metadata ile doğrulandı.
+- Etkinlik sahibinin yalnızca mekân alanını değiştirmesi yeni SKS bildirimi üretmedi.
+- SKS durumu geri alındığında ikinci, ayrı bir değişiklik için tekrar **6** bildirim oluştu.
+- İşlem sonundaki `ROLLBACK` ile test verileri kalıcı olarak bırakılmadı.
+
 ## Henüz test edilmemiş olanlar
 
 - RLS'nin gerçek giriş yapmış normal kullanıcı / süper yönetici rollerindeki ekran davranışı
