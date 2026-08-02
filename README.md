@@ -35,6 +35,8 @@ Giriş, yalnızca önceden davet edilmiş kullanıcılar için kişisel e-posta 
 
 `public/_redirects`, doğrudan `/app` ve `/auth/callback` adreslerine gidildiğinde yönlendirmenin çalışması içindir.
 
+**Yayınlama:** Adım adım, teknik bilgi gerektirmeyen yayın rehberi için [Cloudflare Pages yayın rehberine](docs/CLOUDFLARE_PAGES_YAYIN_REHBERI.md) bakın.
+
 ## Kontroller
 
 ```bash
