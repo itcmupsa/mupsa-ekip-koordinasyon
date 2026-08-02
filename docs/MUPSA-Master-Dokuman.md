@@ -2,7 +2,7 @@
 
 ## 🔄 Güncel Durum (her önemli adımda buradan güncellenir)
 
-**Son güncelleme:** Faz 1 / Adım 1 tamamlandı. Supabase migration dosyası; kullanıcı profilleri ve roller, dönemler, etkinlikler, görevler, çok kişili atamalar, yapılandırılmış bağımlılıklar, bildirim kuyruğu, dönem kilidi, geri alınabilir silme, audit geçmişi ve Row Level Security kurallarıyla oluşturuldu. Migration henüz gerçek bir Supabase projesinde çalıştırılmadı.
+**Son güncelleme:** Faz 1 / Adım 1 tamamlandı. Supabase migration dosyaları; kullanıcı profilleri ve roller, dönemler, etkinlikler, görevler, çok kişili atamalar, yapılandırılmış bağımlılıklar, bildirim kuyruğu, dönem kilidi, geri alınabilir silme, audit geçmişi ve Row Level Security kurallarıyla oluşturuldu. Ek audit migration'ı; dönem üyeliğindeki rol, süper yönetici, aktif/pasif ve üyelik değişikliklerini de audit geçmişine ekler. Migration'lar henüz gerçek bir Supabase projesinde çalıştırılmadı.
 
 **Şu an neredeyiz:** Faz 1 / Adım 1 tamamlandı. Sıradaki adım, Supabase projesi oluşturulduğunda migration'ı güvenli şekilde uygulamak ve ardından Faz 1'in uygulama iskeletine geçmek.
 
@@ -117,6 +117,15 @@ Bağımlı görev/kayıtlarda "beklenmeyen" durumlar için tek bir genel kural �
 - **Etkinlik ertelenirse:** tarih bazlı görevlerin tarihi **otomatik kaymaz**; ilgili görev sorumlularına "etkinlik tarihi değişti, görev tarihini gözden geçir" bildirimi gider, tarihi kendileri günceller.
 
 Bu, Başkan/ekiple netleşmemiş bir varsayım — istenirse (örn. "SKS reddedilirse bağlı görevler otomatik iptal olsun") değiştirilebilir, sadece ilk sürüm için güvenli/tutucu tarafta kalmayı öneriyorum.
+
+### 7.2 Zamanlanmış Bildirim Kontrolleri — KARARLAŞTIRILDI
+
+Zamanlanmış kontroller için uygulamanın ana altyapısındaki **Supabase Cron (`pg_cron`)** kullanılacak. Cron yalnızca veritabanındaki güvenli fonksiyonları çalıştırıp `notifications` kuyruğuna kayıt üretecek; e-posta ve push gönderimi ayrı bir teslimat katmanında yapılacak. Böylece bildirim üretimi ile gönderim hataları birbirinden ayrılır ve tekrar deneme güvenli yapılır.
+
+- **Gecikme taraması:** Her 15 dakikada bir çalışır. Son tarihi geçen ve tamamlanmamış görev için ilk gecikme kaydını üretir; 24 saat sonra hâlâ tamamlanmamışsa, aynı görev için yalnızca bir kez ikinci hatırlatmayı üretir.
+- **Günlük tarama:** Her gün Türkiye saatine göre belirlenecek sabah saatinde çalışır; yaklaşan son tarih, hazırlık başlangıcı ve rapor/link/belge eksikliği gibi kuralları kontrol eder.
+- Her tarama, benzersiz `dedupe_key` kullanır. Aynı olay aynı kişiye tekrar tekrar bildirilmez.
+- Cron çalışmaları Supabase panelinden izlenebilir. Cloudflare Worker veya GitHub Actions, bu iş için ilk tercih değildir; sadece ileride harici sistem çağrısı ya da yedekleme otomasyonu gerekirse değerlendirilir.
 
 ## 8. Etkinlik Yaşam Döngüsü
 
