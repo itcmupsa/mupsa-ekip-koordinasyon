@@ -40,6 +40,16 @@ Doğrulananlar:
 - SKS durumu geri alındığında ikinci, ayrı bir değişiklik için tekrar **6** bildirim oluştu.
 - İşlem sonundaki `ROLLBACK` ile test verileri kalıcı olarak bırakılmadı.
 
+## Bağımlı görev aktivasyonu testi
+
+`20260802170000_activate_dependent_tasks.sql` gerçek veritabanına uygulandıktan sonra, geri alınan tek işlem içinde test edildi:
+
+- Kaynak görev tamamlanınca ona bağlı Taslak görev Aktif oldu ve yalnızca atanmış kişiye iki adet (`in_app` + `email`) `dependency_activated` bildirimi üretildi.
+- Hem kaynak görev hem SKS onayına bağlı görev, ilk koşul sağlandığında Taslak kaldı; ikinci koşul da sağlanınca Aktif oldu.
+- SKS onayına bağlı bağımsız görev de SKS `Onaylandı` olduğunda Aktif oldu; üç aktive olan görev için toplam **6** kuyruk bildirimi doğrulandı.
+- Tarih bazlı bağımlılık anlık tetikleyicilerle aktifleşmedi; bu aktivasyon sonraki `pg_cron` adımına bırakıldı.
+- Test sonunda `ROLLBACK` kullanıldı; geçici kullanıcı, etkinlik, görev, bağımlılık ve bildirim kayıtları kalıcı olarak bırakılmadı.
+
 ## Henüz test edilmemiş olanlar
 
 - RLS'nin gerçek giriş yapmış normal kullanıcı / süper yönetici rollerindeki ekran davranışı

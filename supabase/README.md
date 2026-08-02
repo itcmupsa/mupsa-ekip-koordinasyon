@@ -17,8 +17,10 @@ Sonraki migration'lar bu iskeleti bozmadan eklenir:
 - `20260802130000_add_period_membership_audit.sql`: donem uyeligi, rol ve yetki degisikliklerini audit gecmisine ekler.
 - `20260802140000_queue_task_assigned_notifications.sql`: yeni gorev atamasinda uygulama ici ve e-posta bildirim kuyrugu kayitlarini uretir. E-posta gonderimi bu asamada henuz yapilmaz.
 - `20260802150000_add_push_subscriptions.sql`: kullanicilarin birden fazla cihaz/tarayici icin push aboneliklerini ve gerekli teknik anahtarlarini saklar. Abonelik anahtarlari audit gecmisine yazilmaz.
+- `20260802160000_queue_sks_status_changed_notifications.sql`: SKS durumu degisince etkinligin aktif donemindeki tum ekibe uygulama ici ve e-posta bildirim kuyrugu kayitlari uretir.
+- `20260802170000_activate_dependent_tasks.sql`: SKS onayi veya kaynak gorevin tamamlanmasi sonrasinda tum kosullari saglanan Taslak gorevleri Aktif yapar ve yalnizca atanmislarina bildirim uretir. Tarih tabanli kosullar pg_cron adiminda ayri calisacaktir.
 
-Bildirim ve push altyapisinin test senaryolari `tests/` klasorunde tutulur. Ilk senaryolar: `tests/notification_task_assigned_scenarios.md` ve `tests/push_subscriptions_scenarios.md`.
+Bildirim ve push altyapisinin test senaryolari `tests/` klasorunde tutulur. Bunlara `notification_task_assigned_scenarios.md`, `notification_sks_status_changed_scenarios.md`, `dependency_activation_scenarios.md` ve `push_subscriptions_scenarios.md` dahildir.
 
 2 Agustos 2026'da bu dort migration gercek Supabase projesinde SQL Editor ile uygulanmis ve temel bildirim/push senaryolari test edilmistir. Ayrintilar: `tests/REAL_SUPABASE_TEST_REPORT.md`.
 
