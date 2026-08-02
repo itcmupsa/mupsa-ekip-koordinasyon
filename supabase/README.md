@@ -1,0 +1,21 @@
+# Supabase veritabani
+
+Bu klasor Faz 1 / Adim 1 veritabani iskeletini icerir.
+
+`migrations/20260802120000_faz1_database_skeleton.sql` dosyasi sunlari kurar:
+
+- Supabase Auth ile bagli kullanici profilleri ve donem uyelikleri
+- Koordinatorlukler, donemler ve Super Yonetici rol modeli
+- Etkinlikler, surec sorumlulari ve ekip uyeleri
+- Cok kisili gorev atamasi ve yapilandirilmis gorev bagimliliklari
+- Uygulama ici/e-posta/push bildirim kuyrugu
+- Geri alinabilir silme, donem kilidi ve audit gecmisi
+- Row Level Security (RLS) politikalarinin ilk surumu
+
+Migration uygulandiginda etkinlik, gorev veya kullanici kaydi olusturulmaz. Yalnizca master dokumanda tanimlanan sabit durumlar, koordinatorlukler ve 2026-2027 donemi eklenir.
+
+## Ilk canli yonetici kurulumu
+
+Supabase Auth uzerinden ilk kullanici davet edildikten sonra, ilk Super Yonetici uyeligi Supabase SQL Editor veya guvenli yonetim araci ile olusturulmalidir. Bu islem uygulama arayuzu gelmeden once bir kez yapilir. Sonraki kullanici ve rol yonetimi uygulamanin yonetici ekraniyla yapilacaktir.
+
+E-posta adresleri `auth.users` tablosunda kalir; `public.profiles` tablosunda ekip listesinde gorunen ad tutulur. Bu nedenle kullanicilar birbirlerinin e-posta adreslerini uygulama veritabanisi sorgularindan goremez.

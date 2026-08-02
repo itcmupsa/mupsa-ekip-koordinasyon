@@ -2,13 +2,13 @@
 
 ## 🔄 Güncel Durum (her önemli adımda buradan güncellenir)
 
-**Son güncelleme:** GPT'nin üçüncü inceleme turu işlendi: bağımlılık istisnaları (görev iptali/SKS reddi/etkinlik ertelenmesi durumları — "otomatik iptal yok, gözden geçir'e al" kuralı) eklendi, silme mekanizması geri alınabilir hale getirildi, Etkinlik Sahibi'nin yetki sınırları netleştirildi, tablo biçimlendirmesi düzeltildi. **GPT açıkça belirtti: bu inceleme kodlamaya başlama onayı değil, sen onay vermeden kodlamaya başlamayacak.**
+**Son güncelleme:** Faz 1 / Adım 1 tamamlandı. Supabase migration dosyası; kullanıcı profilleri ve roller, dönemler, etkinlikler, görevler, çok kişili atamalar, yapılandırılmış bağımlılıklar, bildirim kuyruğu, dönem kilidi, geri alınabilir silme, audit geçmişi ve Row Level Security kurallarıyla oluşturuldu. Migration henüz gerçek bir Supabase projesinde çalıştırılmadı.
 
-**Şu an neredeyiz:** Doküman teknik ve işlevsel açıdan kodlamaya hazır durumda. Sıradaki adım: sen GPT'ye açıkça "başla" onayı vermek, ardından **Faz 1 / Adım 1 (Supabase veritabanı iskeleti)** ile başlaması.
+**Şu an neredeyiz:** Faz 1 / Adım 1 tamamlandı. Sıradaki adım, Supabase projesi oluşturulduğunda migration'ı güvenli şekilde uygulamak ve ardından Faz 1'in uygulama iskeletine geçmek.
 
-**Henüz kurulmadı:** GitHub reposu (kod için) — bir sonraki adımda kurulması öneriliyor.
+**Henüz kurulmadı:** Gerçek Supabase projesi ve canlı ortam değişkenleri.
 
-**Yeni bir Claude/GPT sohbetine bu projeyi anlatman gerekirse:** bu dokümanı yükle + "MUPSA projesine devam ediyoruz, bu dokümanı oku, Güncel Durum bölümünden devam et" de. Kod üretimi başladıktan sonra ayrıca GitHub repo linkini de ekle.
+**Yeni bir Claude/GPT sohbetine bu projeyi anlatman gerekirse:** bu dokümanı yükle + "MUPSA projesine devam ediyoruz, bu dokümanı oku, Güncel Durum bölümünden devam et" de. GitHub repo: `https://github.com/onndd/mupsa-ekip-koordinasyon`.
 
 ---
 
