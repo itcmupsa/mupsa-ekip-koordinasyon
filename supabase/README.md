@@ -18,12 +18,15 @@ Sonraki migration'lar bu iskeleti bozmadan eklenir:
 - `20260802140000_queue_task_assigned_notifications.sql`: yeni gorev atamasinda uygulama ici ve e-posta bildirim kuyrugu kayitlarini uretir. E-posta gonderimi bu asamada henuz yapilmaz.
 - `20260802150000_add_push_subscriptions.sql`: kullanicilarin birden fazla cihaz/tarayici icin push aboneliklerini ve gerekli teknik anahtarlarini saklar. Abonelik anahtarlari audit gecmisine yazilmaz.
 - `20260802160000_queue_sks_status_changed_notifications.sql`: SKS durumu degisince etkinligin aktif donemindeki tum ekibe uygulama ici ve e-posta bildirim kuyrugu kayitlari uretir.
-- `20260802170000_activate_dependent_tasks.sql`: SKS onayi veya kaynak gorevin tamamlanmasi sonrasinda tum kosullari saglanan Taslak gorevleri Aktif yapar ve yalnizca atanmislarina bildirim uretir. Tarih tabanli kosullar pg_cron adiminda ayri calisacaktir.
+- `20260802170000_activate_dependent_tasks.sql`: SKS onayi veya kaynak gorevin tamamlanmasi sonrasinda tum kosullari saglanan Taslak gorevleri Aktif yapar ve yalnizca atanmislarina bildirim uretir. Tarih tabanli kosullar sonraki `pg_cron` migration'inda tamamlanir.
 - `20260802180000_queue_event_date_changed_notifications.sql`: etkinligin tarih alanlari degisince etkinlik sahibi, etkinlik/surec uyeleri ve gorev atanan aktif kisilere bildirim uretir; gorev tarihlerini otomatik kaydirmaz.
+- `20260802190000_schedule_task_reminders_and_date_dependencies.sql`: `pg_cron` ile geciken aktif gorevleri her 15 dakikada bir tarar (ilk bildirim + 24 saat sonra bir kez hatirlatma); her gun Turkiye saatiyle 09.00'da sonraki 24 saat icindeki gorevleri ve tarih tabanli bagimliliklari kontrol eder. Gecikme bildirimi etkinlik sahibi, asil/destek atananlar, Baskan ve Super Yoneticilere gider. Tarih bagimliliginda kesin tarih, yoksa tahmini tarih kullanilir.
 
-Bildirim ve push altyapisinin test senaryolari `tests/` klasorunde tutulur. Bunlara `notification_task_assigned_scenarios.md`, `notification_sks_status_changed_scenarios.md`, `dependency_activation_scenarios.md`, `notification_event_date_changed_scenarios.md` ve `push_subscriptions_scenarios.md` dahildir.
+Bildirim ve push altyapisinin test senaryolari `tests/` klasorunde tutulur. Bunlara `notification_task_assigned_scenarios.md`, `notification_sks_status_changed_scenarios.md`, `dependency_activation_scenarios.md`, `notification_event_date_changed_scenarios.md`, `scheduled_task_notifications_scenarios.md`, `scheduled_task_notifications_live_test.sql` ve `push_subscriptions_scenarios.md` dahildir.
 
-2 Agustos 2026'da bu dort migration gercek Supabase projesinde SQL Editor ile uygulanmis ve temel bildirim/push senaryolari test edilmistir. Ayrintilar: `tests/REAL_SUPABASE_TEST_REPORT.md`.
+2 Agustos 2026'da migration'lar gercek Supabase projesinde SQL Editor ile uygulanmis ve temel bildirim/push senaryolari test edilmistir. Ayrintilar: `tests/REAL_SUPABASE_TEST_REPORT.md`.
+
+> `20260802190000` uygulanmadan once Supabase Dashboard > Database > Extensions bolumunden `pg_cron` etkinlestirilmelidir. Bu uzanti, Supabase tarafindan proje duzeyinde kurulur; migration bu ayari kendisi yapmaz.
 
 > Baseline durumu: 2 Agustos 2026'da proje Supabase CLI ile baglandi; ilk dort migration `migration repair --status applied` ile uzak kayit defterinde isaretlendi. `supabase migration list` yerel ve uzak surumlerin tamamini eslesmis, `supabase db push --dry-run` ise veritabanini guncel olarak dogruladi.
 

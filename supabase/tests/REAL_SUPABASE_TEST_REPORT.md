@@ -60,11 +60,23 @@ Doğrulananlar:
 - Sadece mekân değişikliği yeni tarih bildirimi üretmedi ve görev durumu değişmedi.
 - Test sonunda `ROLLBACK` kullanıldı; geçici kayıtlar kalıcı olarak bırakılmadı.
 
+## Zamanlanmış görev bildirimleri ve tarih bağımlılığı testi
+
+`20260802190000_schedule_task_reminders_and_date_dependencies.sql` uygulanmadan önce proje düzeyinde `pg_cron` uzantısı etkinleştirildi. Migration, ardından gerçek veritabanında tek işlem içinde test edildi:
+
+- Gecikmiş görev için etkinlik sahibi, asıl sorumlu, Başkan ve Süper Yöneticiye toplam **8** ilk gecikme kaydı (4 kişi × uygulama içi/e-posta) üretildi.
+- İlk kayıtların zamanı test içinde 25 saat geriye alındığında, aynı dört kişiye toplam **8** adet tek seferlik ikinci hatırlatma üretildi. Görev tamamlandıktan sonra yeni kayıt oluşmadı.
+- Son tarihi 12 saat içindeki görev için etkinlik sahibi ve asıl sorumluya toplam **4** `task_due_soon` kaydı üretildi. Fonksiyon tekrar çalıştırıldığında yinelenen kayıt oluşmadı.
+- Kesin tarihe ve kesin tarih yokken tahmini tarihe bağlı iki taslak görev Aktif oldu; her biri için iki `dependency_activated` kaydı üretildi. Tarih eşiği gelmiş olsa bile ek SKS onay koşulu sağlanmamış görev Taslak kaldı.
+- `cron.job` içinde 15 dakikalık gecikme taraması ile Türkiye saatiyle 09.00 günlük tarama olmak üzere iki kayıt doğrulandı.
+- Test sonunda `ROLLBACK` kullanıldı; geçici kullanıcı, etkinlik, görev, bildirim ve audit kayıtları kalıcı olarak bırakılmadı.
+
 ## Henüz test edilmemiş olanlar
 
 - RLS'nin gerçek giriş yapmış normal kullanıcı / süper yönetici rollerindeki ekran davranışı
 - Gerçek e-posta gönderimi (şu an yalnızca kuyruk üretimi var)
 - Gerçek tarayıcı push aboneliği ve cihazlara push teslimatı
+- Kuyruktaki e-posta ve push kayıtlarını gerçek kanallara teslim edecek gönderim katmanı
 
 ## Migration baseline sonucu
 
