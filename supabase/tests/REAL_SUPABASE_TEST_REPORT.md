@@ -35,6 +35,13 @@ Doğrulananlar:
 - Gerçek e-posta gönderimi (şu an yalnızca kuyruk üretimi var)
 - Gerçek tarayıcı push aboneliği ve cihazlara push teslimatı
 
-## Önemli operasyon notu
+## Migration baseline sonucu
 
-Bu ilk dört dosya SQL Editor ile elle uygulandı. Bu yöntem Supabase'in CLI migration geçmişine otomatik kayıt oluşturmaz. Yeni migration'lar eklenmeden önce proje, Supabase CLI ile repoya bağlanıp bu dört migration için güvenli bir başlangıç/baseline kaydı oluşturulmalıdır; aksi halde ileride `db push` ilk migration'ı yeniden çalıştırmaya kalkabilir.
+İlk dört dosya SQL Editor ile elle uygulandığı için başlangıçta Supabase CLI migration geçmişinde kayıtlı değildi. Aynı gün proje Supabase CLI ile repoya bağlandı ve aşağıdaki sürümler, SQL yeniden çalıştırılmadan `migration repair --status applied` ile uzak kayıt defterinde işaretlendi:
+
+1. `20260802120000`
+2. `20260802130000`
+3. `20260802140000`
+4. `20260802150000`
+
+Son doğrulamada `supabase migration list` her sürüm için yerel ve uzak kayıtların eşleştiğini, `supabase db push --dry-run` ise bekleyen migration olmadığını gösterdi. Bundan sonra yeni migration'lar güvenli biçimde CLI ile uygulanabilir.

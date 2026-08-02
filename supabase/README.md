@@ -22,7 +22,7 @@ Bildirim ve push altyapisinin test senaryolari `tests/` klasorunde tutulur. Ilk 
 
 2 Agustos 2026'da bu dort migration gercek Supabase projesinde SQL Editor ile uygulanmis ve temel bildirim/push senaryolari test edilmistir. Ayrintilar: `tests/REAL_SUPABASE_TEST_REPORT.md`.
 
-> Onemli: Ilk migration'lar SQL Editor ile elle uygulandigi icin Supabase CLI migration gecmisinde henuz kayitli degildir. Yeni migration eklemeden once proje CLI ile repoya baglanip güvenli bir baseline olusturulmalidir.
+> Baseline durumu: 2 Agustos 2026'da proje Supabase CLI ile baglandi; ilk dort migration `migration repair --status applied` ile uzak kayit defterinde isaretlendi. `supabase migration list` yerel ve uzak surumlerin tamamini eslesmis, `supabase db push --dry-run` ise veritabanini guncel olarak dogruladi.
 
 Migration uygulandiginda etkinlik, gorev veya kullanici kaydi olusturulmaz. Yalnizca master dokumanda tanimlanan sabit durumlar, koordinatorlukler ve 2026-2027 donemi eklenir.
 
