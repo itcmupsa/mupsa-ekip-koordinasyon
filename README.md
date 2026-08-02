@@ -33,7 +33,7 @@ Giriş, yalnızca önceden davet edilmiş kullanıcılar için kişisel e-posta 
 - Build command: `npm run build`
 - Build output directory: `dist`
 
-`public/_redirects`, doğrudan `/app` ve `/auth/callback` adreslerine gidildiğinde yönlendirmenin çalışması içindir.
+Cloudflare Pages, bu uygulamada `/app` ve `/auth/callback` gibi istemci tarafı adresleri için kendi SPA geri dönüşünü kullanır.
 
 **Yayınlama:** Adım adım, teknik bilgi gerektirmeyen yayın rehberi için [Cloudflare Pages yayın rehberine](docs/CLOUDFLARE_PAGES_YAYIN_REHBERI.md) bakın.
 

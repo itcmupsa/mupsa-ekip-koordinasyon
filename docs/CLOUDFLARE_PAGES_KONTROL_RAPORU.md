@@ -7,11 +7,7 @@
 
 Uygulama `npm run build` ile `dist/` klasörüne statik dosyalar üretir. Sunucu tarafı çalışma zamanına ihtiyaç duymaz ve Cloudflare Pages için uygundur.
 
-`public/_redirects` dosyasındaki aşağıdaki kural, React Router adreslerinin doğrudan açılmasını ve sayfa yenilemesini destekler:
-
-```text
-/*    /index.html   200
-```
+Cloudflare Pages, bu projede React Router adreslerini otomatik SPA geri dönüş mekanizmasıyla destekler. Eski `_redirects` kuralı Cloudflare tarafından döngü riskiyle yok sayıldığı için projede tutulmaz.
 
 ## Ortam değişkenleri
 

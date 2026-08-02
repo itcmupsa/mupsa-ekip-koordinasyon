@@ -71,6 +71,8 @@ Magic Link e-postasının doğru adrese dönmesi için:
 4. Gelen bağlantıyı aç. Uygulama seni `/app` ekranına yönlendirmelidir.
 5. Aktif dönem üyeliği varsa kullanıcı dönem bilgisini görür. Yoksa hesabın açık ancak aktif dönem yetkisinin tanımlanmadığını belirten mesaj görünür; bu bir hata değildir.
 
+Cloudflare Pages, bu projede istemci tarafı yönlendirmeleri için otomatik SPA geri dönüşünü kullanır. Bu nedenle ayrıca bir `_redirects` dosyası eklemeyin.
+
 ## 7. Güvenlik hatırlatması
 
 - `.env.local` dosyasını GitHub'a yükleme. Projedeki `.gitignore` bunu normalde engeller.
