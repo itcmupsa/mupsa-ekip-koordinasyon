@@ -16,8 +16,13 @@ Sonraki migration'lar bu iskeleti bozmadan eklenir:
 
 - `20260802130000_add_period_membership_audit.sql`: donem uyeligi, rol ve yetki degisikliklerini audit gecmisine ekler.
 - `20260802140000_queue_task_assigned_notifications.sql`: yeni gorev atamasinda uygulama ici ve e-posta bildirim kuyrugu kayitlarini uretir. E-posta gonderimi bu asamada henuz yapilmaz.
+- `20260802150000_add_push_subscriptions.sql`: kullanicilarin birden fazla cihaz/tarayici icin push aboneliklerini ve gerekli teknik anahtarlarini saklar. Abonelik anahtarlari audit gecmisine yazilmaz.
 
-Bildirim tetikleyicilerinin test senaryolari `tests/` klasorunde tutulur. Ilk senaryo: `tests/notification_task_assigned_scenarios.md`.
+Bildirim ve push altyapisinin test senaryolari `tests/` klasorunde tutulur. Ilk senaryolar: `tests/notification_task_assigned_scenarios.md` ve `tests/push_subscriptions_scenarios.md`.
+
+2 Agustos 2026'da bu dort migration gercek Supabase projesinde SQL Editor ile uygulanmis ve temel bildirim/push senaryolari test edilmistir. Ayrintilar: `tests/REAL_SUPABASE_TEST_REPORT.md`.
+
+> Onemli: Ilk migration'lar SQL Editor ile elle uygulandigi icin Supabase CLI migration gecmisinde henuz kayitli degildir. Yeni migration eklemeden once proje CLI ile repoya baglanip güvenli bir baseline olusturulmalidir.
 
 Migration uygulandiginda etkinlik, gorev veya kullanici kaydi olusturulmaz. Yalnizca master dokumanda tanimlanan sabit durumlar, koordinatorlukler ve 2026-2027 donemi eklenir.
 
