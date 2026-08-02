@@ -50,6 +50,16 @@ Doğrulananlar:
 - Tarih bazlı bağımlılık anlık tetikleyicilerle aktifleşmedi; bu aktivasyon sonraki `pg_cron` adımına bırakıldı.
 - Test sonunda `ROLLBACK` kullanıldı; geçici kullanıcı, etkinlik, görev, bağımlılık ve bildirim kayıtları kalıcı olarak bırakılmadı.
 
+## Etkinlik tarihi değişikliği testi
+
+`20260802180000_queue_event_date_changed_notifications.sql` gerçek veritabanına uygulandıktan sonra, geri alınan tek işlem içinde test edildi:
+
+- Etkinlik sahibi, etkinlik üyesi, süreç üyesi ve görev sorumlusu için toplam **8** (`in_app` + `email`) `event_date_changed` bildirimi oluştu.
+- Pasif dönem üyesi, etkinlikte görevi olsa bile bildirim almadı.
+- Aynı değişiklikte güncellenen tahmini ve kesin tarihlerin eski/yeni değerleri metadata'ya yazıldı; bildirim gövdesinde iki alan da belirtildi.
+- Sadece mekân değişikliği yeni tarih bildirimi üretmedi ve görev durumu değişmedi.
+- Test sonunda `ROLLBACK` kullanıldı; geçici kayıtlar kalıcı olarak bırakılmadı.
+
 ## Henüz test edilmemiş olanlar
 
 - RLS'nin gerçek giriş yapmış normal kullanıcı / süper yönetici rollerindeki ekran davranışı
