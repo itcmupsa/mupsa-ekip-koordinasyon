@@ -12,6 +12,13 @@ Bu klasor Faz 1 / Adim 1 veritabani iskeletini icerir.
 - Geri alinabilir silme, donem kilidi ve audit gecmisi
 - Row Level Security (RLS) politikalarinin ilk surumu
 
+Sonraki migration'lar bu iskeleti bozmadan eklenir:
+
+- `20260802130000_add_period_membership_audit.sql`: donem uyeligi, rol ve yetki degisikliklerini audit gecmisine ekler.
+- `20260802140000_queue_task_assigned_notifications.sql`: yeni gorev atamasinda uygulama ici ve e-posta bildirim kuyrugu kayitlarini uretir. E-posta gonderimi bu asamada henuz yapilmaz.
+
+Bildirim tetikleyicilerinin test senaryolari `tests/` klasorunde tutulur. Ilk senaryo: `tests/notification_task_assigned_scenarios.md`.
+
 Migration uygulandiginda etkinlik, gorev veya kullanici kaydi olusturulmaz. Yalnizca master dokumanda tanimlanan sabit durumlar, koordinatorlukler ve 2026-2027 donemi eklenir.
 
 ## Ilk canli yonetici kurulumu

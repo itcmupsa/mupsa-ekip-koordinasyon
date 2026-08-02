@@ -2,9 +2,9 @@
 
 ## 🔄 Güncel Durum (her önemli adımda buradan güncellenir)
 
-**Son güncelleme:** Faz 1 / Adım 1 tamamlandı. Supabase migration dosyaları; kullanıcı profilleri ve roller, dönemler, etkinlikler, görevler, çok kişili atamalar, yapılandırılmış bağımlılıklar, bildirim kuyruğu, dönem kilidi, geri alınabilir silme, audit geçmişi ve Row Level Security kurallarıyla oluşturuldu. Ek audit migration'ı; dönem üyeliğindeki rol, süper yönetici, aktif/pasif ve üyelik değişikliklerini de audit geçmişine ekler. Migration'lar henüz gerçek bir Supabase projesinde çalıştırılmadı.
+**Son güncelleme:** Faz 1 / Adım 1 tamamlandı. Faz 1 / Adım 2 (bildirim motoru) kademeli olarak başladı: ilk parça, yeni görev atamasında atanan kişiye uygulama içi ve e-posta teslimat kuyruğu kaydı üretir. Supabase migration dosyaları; kullanıcı profilleri ve roller, dönemler, etkinlikler, görevler, çok kişili atamalar, yapılandırılmış bağımlılıklar, bildirim kuyruğu, dönem kilidi, geri alınabilir silme, audit geçmişi ve Row Level Security kurallarıyla oluşturuldu. Ek audit migration'ı; dönem üyeliğindeki rol, süper yönetici, aktif/pasif ve üyelik değişikliklerini de audit geçmişine ekler. Migration'lar henüz gerçek bir Supabase projesinde çalıştırılmadı.
 
-**Şu an neredeyiz:** Faz 1 / Adım 1 tamamlandı. Sıradaki adım, Supabase projesi oluşturulduğunda migration'ı güvenli şekilde uygulamak ve ardından Faz 1'in uygulama iskeletine geçmek.
+**Şu an neredeyiz:** Faz 1 / Adım 1 tamamlandı. Faz 1 / Adım 2'de yalnızca “görev atandı” tetikleyicisi ve onun test senaryosu eklendi. Sıradaki bildirim parçası SKS durum değişikliği; ardından bağımlılık aktivasyonu ve zamanlanmış kontroller ayrı ayrı eklenecek. Supabase projesi oluşturulduğunda tüm migration'lar güvenli şekilde gerçek veritabanında da çalıştırılacak.
 
 **Henüz kurulmadı:** Gerçek Supabase projesi ve canlı ortam değişkenleri.
 
