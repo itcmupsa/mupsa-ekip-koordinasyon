@@ -287,26 +287,28 @@ export default function EventsList({ session }: { session: Session }) {
         ) : (
           <ul className="mt-6 space-y-3">
             {events.map((event) => (
-              <li key={event.id} className="rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card">
-                <p className="text-base font-semibold text-ink">{event.title}</p>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                  <span className="rounded-full bg-accent-soft px-2 py-1 font-medium text-ink">
-                    {event.eventStatus}
-                  </span>
-                  <span className="rounded-full bg-canvas px-2 py-1 font-medium text-ink-soft">
-                    Sorumlu: {event.ownerName}
-                  </span>
-                </div>
-                <dl className="mt-4 space-y-1 text-sm text-ink-soft">
-                  <div>
-                    <dt className="inline font-medium text-ink">Planlama: </dt>
-                    <dd className="inline">{formatDate(event.planningDate)}</dd>
+              <li key={event.id} className="rounded-lg border border-canvas-border bg-canvas-surface shadow-card">
+                <Link to={`/app/etkinlikler/${event.id}`} className="block p-4">
+                  <p className="text-base font-semibold text-ink">{event.title}</p>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-full bg-accent-soft px-2 py-1 font-medium text-ink">
+                      {event.eventStatus}
+                    </span>
+                    <span className="rounded-full bg-canvas px-2 py-1 font-medium text-ink-soft">
+                      Sorumlu: {event.ownerName}
+                    </span>
                   </div>
-                  <div>
-                    <dt className="inline font-medium text-ink">Tahmini tarih: </dt>
-                    <dd className="inline">{formatDate(event.estimatedDate ?? event.confirmedDate)}</dd>
-                  </div>
-                </dl>
+                  <dl className="mt-4 space-y-1 text-sm text-ink-soft">
+                    <div>
+                      <dt className="inline font-medium text-ink">Planlama: </dt>
+                      <dd className="inline">{formatDate(event.planningDate)}</dd>
+                    </div>
+                    <div>
+                      <dt className="inline font-medium text-ink">Tahmini tarih: </dt>
+                      <dd className="inline">{formatDate(event.estimatedDate ?? event.confirmedDate)}</dd>
+                    </div>
+                  </dl>
+                </Link>
               </li>
             ))}
           </ul>

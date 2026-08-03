@@ -48,6 +48,7 @@ Bildirim altyapısı şu anda veritabanında `notifications` kuyruğuna kayıt �
 - Süper Yönetici için mevcut üyeyi düzenleme ve pasifleştirme ekranı
 - Aktif dönem etkinliklerini listeleme ekranı (`/app/etkinlikler`)
 - Aktif dönemde temel etkinlik oluşturma formu
+- Etkinlik detay route iskeleti (`/app/etkinlikler/:eventId`)
 - Cloudflare Pages üzerinde canlı yayın
 
 Cloudflare Pages için iki Supabase yayınlanabilir ortam değişkeni tanımlandı. Gizli anahtar kullanılmadı.
@@ -83,7 +84,7 @@ Henüz yapılmayan ana özellikler:
 
 ## Şu anki sıradaki küçük görev
 
-**Etkinlik detay ekranı — üçüncü küçük frontend adımı.**
+**Etkinlik detay ekranı — ikinci küçük frontend adımı: temel bilgileri okuma.**
 
 Hedef:
 
@@ -95,6 +96,8 @@ Hedef:
 - Silme yerine pasifleştirme ilkesi korunur.
 - Etkinlik listeleme adımı tamamlandı: aktif üyeler `/app/etkinlikler` üzerinden silinmemiş etkinlikleri görebilir.
 - Etkinlik oluşturma adımı tamamlandı: aktif üye etkinlik adı, açıklama, planlama ve tahmini tarihi girerek etkinlik oluşturabilir; oluşturan kişi otomatik etkinlik sahibi olur.
+- Etkinlik detay route adımı tamamlandı: etkinlik kartları `/app/etkinlikler/:eventId` adresine gider ve geçici detay sayfası açılır.
+- Sıradaki küçük adımda yalnızca etkinlik adı ve açıklaması Supabase’ten okunacak.
 - Bu adımda etkinlik düzenleme, SKS ve görev alanları kapsam dışıdır.
 
 Bu görev şunları **kapsamaz**:
