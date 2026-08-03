@@ -43,6 +43,7 @@ Bildirim altyapısı şu anda veritabanında `notifications` kuyruğuna kayıt �
 - Oturum kontrolü ve çıkış yapma
 - `/login`, `/auth/callback`, `/app` route'ları
 - Aktif dönem üyeliği olmayan kullanıcı için açıklayıcı uyarı ekranı
+- Süper Yönetici için aktif dönem üyelerini görüntüleme ekranı
 - Cloudflare Pages üzerinde canlı yayın
 
 Cloudflare Pages için iki Supabase yayınlanabilir ortam değişkeni tanımlandı. Gizli anahtar kullanılmadı.
@@ -62,7 +63,7 @@ Bu test, giriş akışının çalıştığını doğrular. Henüz uygulama işle
 Henüz yapılmayan ana özellikler:
 
 - İlk Süper Yönetici başlangıç ataması
-- Dönem üyeliği/yetki yönetim ekranı
+- Dönem üyeliği/yetki yönetim ekranında üye ekleme ve güncelleme
 - Etkinlik oluşturma, listeleme ve düzenleme ekranları
 - Görev oluşturma, atama, destekleyen kişi ve bağımlılık ekranları
 - SKS süreç yönetimi ekranları
@@ -75,15 +76,15 @@ Henüz yapılmayan ana özellikler:
 
 ## Şu anki sıradaki küçük görev
 
-**Süper Yönetici için aktif dönem üyeliği yönetim ekranı.**
+**Süper Yönetici için aktif dönem üyeliği yönetim ekranı — Adım 2: üye ekleme.**
 
 Hedef:
 
 - Sadece Süper Yönetici erişebilsin.
-- Aktif dönemdeki üyeleri, koordinatörlüklerini, uygulama rollerini ve aktif/pasif durumlarını göstersin.
-- Var olan davetli `profiles` kayıtlarını aktif döneme ekleyebilsin.
-- Koordinatörlük, `super_admin`/`coordinator` rolü ve aktiflik değiştirilebilsin.
-- Silme yerine pasifleştirme kullanılsın.
+- Adım 1 tamamlandı: Süper Yönetici aktif dönemdeki üyeleri, koordinatörlüklerini, uygulama rollerini ve aktif/pasif durumlarını görüntüleyebilir.
+- Bu adımda yalnızca var olan davetli `profiles` kayıtlarını aktif döneme ekleyebilsin.
+- Koordinatörlük, `super_admin`/`coordinator` rolü ve aktiflik güncellemesi sonraki küçük adımlarda ele alınsın.
+- Silme yerine pasifleştirme ilkesi korunur.
 
 Bu görev şunları **kapsamaz**:
 
