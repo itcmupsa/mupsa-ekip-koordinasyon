@@ -57,6 +57,10 @@ Cloudflare Pages için iki Supabase yayınlanabilir ortam değişkeni tanımland
 - Kullanıcı canlı sitede başarıyla oturum açtı.
 - Magic Link dönüşü doğru çalıştı.
 - Kullanıcıya henüz dönem üyeliği verilmediği için beklenen “aktif dönem yetkin henüz tanımlanmamış” mesajı görüntülendi.
+- İlk yönetici ataması yapıldı: `odsnmn27@gmail.com` hesabı 2026–2027 döneminde Bilişim Teknolojileri Koordinatörü ve `super_admin` olarak aktif.
+- Canlı `/app` ve `/app/yonetim/uyeler` ekranları açıldı; yönetici üyelik kartı, “Üye ekle” ve “Düzenle” seçenekleri doğrulandı.
+- “Üye ekle” panelinin boş liste davranışı doğrulandı. Başka aktif dönem profili olmadığı için boş liste mesajı beklenen şekilde gösterildi.
+- Yanlışlıkla davet edilen `nmnods27@gmail.com` Auth kullanıcısı silindi. Doğru test adresi `nmnod27@gmail.com` için yeni davet gönderimi e-posta hız sınırına takıldığı için beklemede.
 
 Bu test, giriş akışının çalıştığını doğrular. Henüz uygulama işlevlerinin tamamlandığı anlamına gelmez.
 
@@ -64,8 +68,7 @@ Bu test, giriş akışının çalıştığını doğrular. Henüz uygulama işle
 
 Henüz yapılmayan ana özellikler:
 
-- İlk Süper Yönetici başlangıç ataması
-- İlk Süper Yönetici ataması ve üyelik yönetiminin canlı uçtan uca testi
+- İkinci test kullanıcısının davet edilmesi ve üyelik ekleme akışının canlı testi
 - Etkinlik oluşturma, listeleme ve düzenleme ekranları
 - Görev oluşturma, atama, destekleyen kişi ve bağımlılık ekranları
 - SKS süreç yönetimi ekranları
@@ -78,16 +81,17 @@ Henüz yapılmayan ana özellikler:
 
 ## Şu anki sıradaki küçük görev
 
-**İlk Süper Yönetici ataması ve üyelik yönetiminin canlı uçtan uca testi.**
+**Etkinlik listeleme ekranı — ilk küçük frontend adımı.**
 
 Hedef:
 
 - Sadece Süper Yönetici erişebilsin.
-- Adım 1 tamamlandı: Süper Yönetici aktif dönemdeki üyeleri, koordinatörlüklerini, uygulama rollerini ve aktif/pasif durumlarını görüntüleyebilir.
-- Adım 2 tamamlandı: Süper Yönetici, mevcut bir `profiles` kaydını koordinatörlük ve uygulama rolü seçerek aktif döneme ekleyebilir.
-- Adım 3 kod olarak tamamlandı: mevcut üyenin koordinatörlüğü, `super_admin`/`coordinator` rolü ve aktiflik durumu güncellenebilir.
+- Üyelik Adım 1 tamamlandı: Aktif dönem üyeleri görüntülenebilir.
+- Üyelik Adım 2 tamamlandı: Davetli bir profil aktif döneme eklenebilir.
+- Üyelik Adım 3 tamamlandı: Mevcut üyenin koordinatörlüğü, rolü ve aktifliği güncellenebilir.
 - Kendini pasifleştirme, kendi süper yönetici rolünü kaldırma ve son aktif süper yöneticiyi etkisiz bırakma arayüz düzeyinde engellenir.
 - Silme yerine pasifleştirme ilkesi korunur.
+- Sıradaki etkinlik adımında yalnızca aktif dönemdeki etkinlikler listelenecek; oluşturma ve düzenleme ayrı görevlere bölünecek.
 
 Bu görev şunları **kapsamaz**:
 
@@ -96,7 +100,7 @@ Bu görev şunları **kapsamaz**:
 - Migration/RLS değişikliği
 - Etkinlik, görev veya bildirim ekranları
 
-Üyelik yönetimi Adım 1–3 kod ve derleme düzeyinde doğrulanmıştır. Gerçek Supabase üzerinde uçtan uca test için önce ilk test kullanıcısı kontrollü bir SQL işlemiyle 2026–2027 dönemi için `super_admin` ve Bilişim Teknolojileri Koordinatörü olarak atanmalıdır. Bu tek seferlik başlangıç ataması olmadan RLS gereği hiç kimse uygulama içinden üyelik yönetemez.
+Üyelik yönetimi Adım 1–3 kod ve derleme düzeyinde doğrulanmış, ilk süper yönetici ataması ve yönetici ekranının canlı açılışı test edilmiştir. İkinci kullanıcı ekleme testi, Supabase’in yerleşik e-posta sağlayıcısındaki hız sınırı nedeniyle beklemededir.
 
 ## Son teknik değişiklikler
 
