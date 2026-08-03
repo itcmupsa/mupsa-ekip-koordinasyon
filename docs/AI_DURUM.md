@@ -1,0 +1,110 @@
+# MUPSA — Güncel Geliştirme Durumu
+
+Bu dosya, proje bağlamının güncel durum kaydıdır. Bir görev tamamlandığında yalnızca bu dosyadaki ilgili bölümleri güncelle; `AI_BAGLAM.md` dosyasını yalnızca kalıcı karar değiştiğinde değiştir.
+
+**Son güncelleme:** 3 Ağustos 2026
+
+## Canlı sistem
+
+- Canlı web adresi: https://mupsa-ekip-koordinasyon.pages.dev
+- Barındırma: Cloudflare Pages
+- Kaynak dal: GitHub `main`
+- İlk canlı derleme başarılı oldu.
+- Canlı giriş ekranı ve `/auth/callback` route'u test edildi.
+
+## Tamamlananlar
+
+### Supabase ve veritabanı
+
+Supabase projesi açıldı ve Faz 1 veritabanı altyapısı gerçek projeye uygulandı.
+
+Uygulanan migration konuları:
+
+1. Temel veritabanı şeması, referans veriler ve RLS
+2. `period_memberships` değişiklikleri için audit kaydı
+3. Görev ataması bildirimi
+4. Web Push aboneliği için `push_subscriptions` tablosu
+5. SKS durum değişikliği bildirimi
+6. Bağımlı görevin etkinleşmesi bildirimi
+7. Etkinlik tarihi değişikliği bildirimi
+8. Zamanlanmış gecikme, yaklaşan tarih ve tarih bağımlılığı taraması
+
+Tüm migration'lar yerel Supabase CLI kayıtları ile uzak veritabanı kayıtlarında eşitlenmiş ve doğrulanmıştır. `pg_cron` etkinleştirilmiştir.
+
+Bildirim altyapısı şu anda veritabanında `notifications` kuyruğuna kayıt üretir. Gerçek e-posta gönderimi ve gerçek web push gönderimi henüz yapılmadı.
+
+### Web temeli
+
+Şu özellikler çalışır durumda:
+
+- Vite + React + TypeScript + Tailwind uygulaması
+- Magic Link giriş formu
+- Yalnızca davetli kullanıcılar için giriş (`shouldCreateUser: false`)
+- Oturum kontrolü ve çıkış yapma
+- `/login`, `/auth/callback`, `/app` route'ları
+- Aktif dönem üyeliği olmayan kullanıcı için açıklayıcı uyarı ekranı
+- Cloudflare Pages üzerinde canlı yayın
+
+Cloudflare Pages için iki Supabase yayınlanabilir ortam değişkeni tanımlandı. Gizli anahtar kullanılmadı.
+
+### Gerçek canlı test
+
+- Test kullanıcısı Supabase'e davet edildi.
+- Davet kabul edildi.
+- Kullanıcı canlı sitede başarıyla oturum açtı.
+- Magic Link dönüşü doğru çalıştı.
+- Kullanıcıya henüz dönem üyeliği verilmediği için beklenen “aktif dönem yetkin henüz tanımlanmamış” mesajı görüntülendi.
+
+Bu test, giriş akışının çalıştığını doğrular. Henüz uygulama işlevlerinin tamamlandığı anlamına gelmez.
+
+## Bilinen eksikler
+
+Henüz yapılmayan ana özellikler:
+
+- İlk Süper Yönetici başlangıç ataması
+- Dönem üyeliği/yetki yönetim ekranı
+- Etkinlik oluşturma, listeleme ve düzenleme ekranları
+- Görev oluşturma, atama, destekleyen kişi ve bağımlılık ekranları
+- SKS süreç yönetimi ekranları
+- Kararlar, notlar, raporlar ve dosya ekranları
+- Uygulama içi bildirim merkezi
+- Gerçek e-posta teslimat katmanı
+- Gerçek web push teslimat katmanı
+- Dışa aktarım ve dönem arşivi ekranları
+- Tam PWA kurulumu: manifest, service worker, kurulum/offline davranışı
+
+## Şu anki sıradaki küçük görev
+
+**Süper Yönetici için aktif dönem üyeliği yönetim ekranı.**
+
+Hedef:
+
+- Sadece Süper Yönetici erişebilsin.
+- Aktif dönemdeki üyeleri, koordinatörlüklerini, uygulama rollerini ve aktif/pasif durumlarını göstersin.
+- Var olan davetli `profiles` kayıtlarını aktif döneme ekleyebilsin.
+- Koordinatörlük, `super_admin`/`coordinator` rolü ve aktiflik değiştirilebilsin.
+- Silme yerine pasifleştirme kullanılsın.
+
+Bu görev şunları **kapsamaz**:
+
+- Yeni dönem oluşturma
+- Kullanıcıya e-posta daveti gönderme
+- Migration/RLS değişikliği
+- Etkinlik, görev veya bildirim ekranları
+
+Bu yönetim ekranı tamamlandıktan sonra, ilk test kullanıcısı kontrollü bir SQL işlemiyle 2026–2027 dönemi için `super_admin` ve Bilişim Teknolojileri Koordinatörü olarak atanmalıdır. Bu tek seferlik başlangıç ataması olmadan RLS gereği hiç kimse uygulama içinden üyelik yönetemez.
+
+## Son teknik değişiklikler
+
+- Cloudflare Pages'in eski `_redirects` kuralını döngü riskiyle yok saydığı canlı derleme logunda görüldü.
+- `public/_redirects` dosyası kaldırıldı.
+- Cloudflare Pages'in otomatik SPA geri dönüşü, `/auth/callback` adresinde canlı olarak doğrulandı.
+- Bu düzeltme GitHub `main` dalına gönderildi ve Cloudflare otomatik yeniden yayın yapar.
+
+## Kullanım talimatı — yeni yapay zekâ sohbeti
+
+1. Önce `AI_BAGLAM.md` ve bu dosyayı yükle veya paylaş.
+2. “Bu iki dosyayı oku, henüz kod yazma; anladığını kısa biçimde doğrula.” de.
+3. Sonra yalnızca tek küçük görev ver.
+4. Teslimde kaynak dosyaları içeren ZIP iste; ZIP'te `node_modules`, `dist` veya `.env.local` bulunmamalı.
+5. ZIP teknik inceleme, entegrasyon, test ve GitHub işlemleri için ana teknik asistana verilir.
