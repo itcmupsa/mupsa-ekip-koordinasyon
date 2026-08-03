@@ -103,7 +103,7 @@ RLS önemlidir:
 - Süper Yöneticiler dönem, koordinatörlük ve dönem üyeliklerini yönetebilir.
 - Sıradan kullanıcı kendi kendini Süper Yönetici yapamaz.
 - İlk Süper Yönetici ataması uygulama arayüzüyle değil, kontrollü bir yönetici/SQL işlemiyle yapılır.
-- Süper Yönetici üyelik ekranında mevcut davetli kullanıcı aktif döneme eklenebilir. Mevcut üyeyi güncelleme ve pasifleştirme ayrı bir sonraki adımdır.
+- Süper Yönetici üyelik ekranında mevcut davetli kullanıcı aktif döneme eklenebilir; mevcut üyelerin koordinatörlüğü, uygulama rolü ve aktifliği de güncellenebilir. Silme yerine pasifleştirme kullanılır.
 
 ## 7. Çalışma ve teslim kuralları
 
