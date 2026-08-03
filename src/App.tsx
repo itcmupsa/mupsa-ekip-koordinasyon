@@ -4,6 +4,7 @@ import Login from './pages/Login'
 import AuthCallback from './pages/AuthCallback'
 import AppHome from './pages/AppHome'
 import AdminMembers from './pages/AdminMembers'
+import EventsList from './pages/EventsList'
 
 export default function App() {
   const { session, loading } = useSession()
@@ -12,6 +13,7 @@ export default function App() {
     <Route path="/login" element={session ? <Navigate to="/app" replace /> : <Login />} />
     <Route path="/auth/callback" element={<AuthCallback />} />
     <Route path="/app" element={session ? <AppHome session={session} /> : <Navigate to="/login" replace />} />
+    <Route path="/app/etkinlikler" element={session ? <EventsList session={session} /> : <Navigate to="/login" replace />} />
     <Route path="/app/yonetim/uyeler" element={session ? <AdminMembers session={session} /> : <Navigate to="/login" replace />} />
     <Route path="*" element={<Navigate to={session ? '/app' : '/login'} replace />} />
   </Routes>

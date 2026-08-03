@@ -46,6 +46,7 @@ Bildirim altyapısı şu anda veritabanında `notifications` kuyruğuna kayıt �
 - Süper Yönetici için aktif dönem üyelerini görüntüleme ekranı
 - Süper Yönetici için mevcut kullanıcıyı aktif döneme ekleme ekranı
 - Süper Yönetici için mevcut üyeyi düzenleme ve pasifleştirme ekranı
+- Aktif dönem etkinliklerini listeleme ekranı (`/app/etkinlikler`)
 - Cloudflare Pages üzerinde canlı yayın
 
 Cloudflare Pages için iki Supabase yayınlanabilir ortam değişkeni tanımlandı. Gizli anahtar kullanılmadı.
@@ -69,7 +70,7 @@ Bu test, giriş akışının çalıştığını doğrular. Henüz uygulama işle
 Henüz yapılmayan ana özellikler:
 
 - İkinci test kullanıcısının davet edilmesi ve üyelik ekleme akışının canlı testi
-- Etkinlik oluşturma, listeleme ve düzenleme ekranları
+- Etkinlik oluşturma ve düzenleme ekranları
 - Görev oluşturma, atama, destekleyen kişi ve bağımlılık ekranları
 - SKS süreç yönetimi ekranları
 - Kararlar, notlar, raporlar ve dosya ekranları
@@ -81,7 +82,7 @@ Henüz yapılmayan ana özellikler:
 
 ## Şu anki sıradaki küçük görev
 
-**Etkinlik listeleme ekranı — ilk küçük frontend adımı.**
+**Etkinlik oluşturma ekranı — ikinci küçük frontend adımı.**
 
 Hedef:
 
@@ -91,7 +92,8 @@ Hedef:
 - Üyelik Adım 3 tamamlandı: Mevcut üyenin koordinatörlüğü, rolü ve aktifliği güncellenebilir.
 - Kendini pasifleştirme, kendi süper yönetici rolünü kaldırma ve son aktif süper yöneticiyi etkisiz bırakma arayüz düzeyinde engellenir.
 - Silme yerine pasifleştirme ilkesi korunur.
-- Sıradaki etkinlik adımında yalnızca aktif dönemdeki etkinlikler listelenecek; oluşturma ve düzenleme ayrı görevlere bölünecek.
+- Etkinlik listeleme adımı tamamlandı: aktif üyeler `/app/etkinlikler` üzerinden silinmemiş etkinlikleri görebilir.
+- Bu adımda etkinlik oluşturma, düzenleme, SKS ve görev alanları kapsam dışıdır.
 
 Bu görev şunları **kapsamaz**:
 
@@ -100,7 +102,7 @@ Bu görev şunları **kapsamaz**:
 - Migration/RLS değişikliği
 - Etkinlik, görev veya bildirim ekranları
 
-Üyelik yönetimi Adım 1–3 kod ve derleme düzeyinde doğrulanmış, ilk süper yönetici ataması ve yönetici ekranının canlı açılışı test edilmiştir. İkinci kullanıcı ekleme testi, Supabase’in yerleşik e-posta sağlayıcısındaki hız sınırı nedeniyle beklemededir.
+Üyelik yönetimi Adım 1–3 ve etkinlik listeleme kod/derleme düzeyinde doğrulanmış, ilk süper yönetici ataması ve yönetici ekranının canlı açılışı test edilmiştir. İkinci kullanıcı ekleme testi, Supabase’in yerleşik e-posta sağlayıcısındaki hız sınırı nedeniyle beklemededir. Etkinlik listeleme ekranının canlı testi bir sonraki Cloudflare yayınından sonra yapılacaktır.
 
 ## Son teknik değişiklikler
 

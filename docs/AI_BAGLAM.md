@@ -75,6 +75,7 @@ Frontend istemcisi yalnızca yayınlanabilir Supabase anahtarını kullanır. `s
 - `/auth/callback`
 - `/app`
 - `/app/yonetim/uyeler` (yalnızca Süper Yönetici)
+- `/app/etkinlikler` (aktif dönem üyeleri)
 
 Cloudflare Pages istemci tarafı route'lar için otomatik SPA geri dönüşünü kullanır. Eski `_redirects` kuralı bu nedenle projede kullanılmaz.
 
