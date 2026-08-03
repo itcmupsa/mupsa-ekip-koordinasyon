@@ -47,6 +47,7 @@ Bildirim altyapısı şu anda veritabanında `notifications` kuyruğuna kayıt �
 - Süper Yönetici için mevcut kullanıcıyı aktif döneme ekleme ekranı
 - Süper Yönetici için mevcut üyeyi düzenleme ve pasifleştirme ekranı
 - Aktif dönem etkinliklerini listeleme ekranı (`/app/etkinlikler`)
+- Aktif dönemde temel etkinlik oluşturma formu
 - Cloudflare Pages üzerinde canlı yayın
 
 Cloudflare Pages için iki Supabase yayınlanabilir ortam değişkeni tanımlandı. Gizli anahtar kullanılmadı.
@@ -70,7 +71,7 @@ Bu test, giriş akışının çalıştığını doğrular. Henüz uygulama işle
 Henüz yapılmayan ana özellikler:
 
 - İkinci test kullanıcısının davet edilmesi ve üyelik ekleme akışının canlı testi
-- Etkinlik oluşturma ve düzenleme ekranları
+- Etkinlik düzenleme ekranı
 - Görev oluşturma, atama, destekleyen kişi ve bağımlılık ekranları
 - SKS süreç yönetimi ekranları
 - Kararlar, notlar, raporlar ve dosya ekranları
@@ -82,7 +83,7 @@ Henüz yapılmayan ana özellikler:
 
 ## Şu anki sıradaki küçük görev
 
-**Etkinlik oluşturma ekranı — ikinci küçük frontend adımı.**
+**Etkinlik detay ekranı — üçüncü küçük frontend adımı.**
 
 Hedef:
 
@@ -93,7 +94,8 @@ Hedef:
 - Kendini pasifleştirme, kendi süper yönetici rolünü kaldırma ve son aktif süper yöneticiyi etkisiz bırakma arayüz düzeyinde engellenir.
 - Silme yerine pasifleştirme ilkesi korunur.
 - Etkinlik listeleme adımı tamamlandı: aktif üyeler `/app/etkinlikler` üzerinden silinmemiş etkinlikleri görebilir.
-- Bu adımda etkinlik oluşturma, düzenleme, SKS ve görev alanları kapsam dışıdır.
+- Etkinlik oluşturma adımı tamamlandı: aktif üye etkinlik adı, açıklama, planlama ve tahmini tarihi girerek etkinlik oluşturabilir; oluşturan kişi otomatik etkinlik sahibi olur.
+- Bu adımda etkinlik düzenleme, SKS ve görev alanları kapsam dışıdır.
 
 Bu görev şunları **kapsamaz**:
 

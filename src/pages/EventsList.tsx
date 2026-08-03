@@ -25,6 +25,7 @@ interface StatusRow {
 }
 
 type LoadState = 'loading' | 'ready' | 'error'
+type CreateState = 'closed' | 'open' | 'submitting'
 
 function formatDate(value: string | null) {
   if (!value) return 'Tarih henüz belirlenmedi'
@@ -44,10 +45,18 @@ function CenteredMessage({ text }: { text: string }) {
 }
 
 export default function EventsList({ session }: { session: Session }) {
-  const { hasActiveMembership, periodId, periodLabel, loading: statusLoading } =
+  const { hasActiveMembership, profileId, periodId, periodLabel, loading: statusLoading } =
     useMembershipStatus(session)
   const [events, setEvents] = useState<EventRow[]>([])
   const [loadState, setLoadState] = useState<LoadState>('loading')
+  const [reloadKey, setReloadKey] = useState(0)
+  const [createState, setCreateState] = useState<CreateState>('closed')
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [planningDate, setPlanningDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [estimatedDate, setEstimatedDate] = useState('')
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
     if (statusLoading) return
@@ -115,7 +124,59 @@ export default function EventsList({ session }: { session: Session }) {
     return () => {
       isMounted = false
     }
-  }, [hasActiveMembership, periodId, statusLoading])
+  }, [hasActiveMembership, periodId, reloadKey, statusLoading])
+
+  function openCreateForm() {
+    setSuccessMessage(null)
+    setCreateError(null)
+    setCreateState('open')
+  }
+
+  function closeCreateForm() {
+    setCreateState('closed')
+    setCreateError(null)
+  }
+
+  async function handleCreateEvent() {
+    setCreateError(null)
+    if (!periodId || !profileId) {
+      setCreateError('Aktif dönem veya kullanıcı bilgisi bulunamadı.')
+      return
+    }
+    if (!title.trim()) {
+      setCreateError('Etkinlik adı zorunludur.')
+      return
+    }
+    if (!planningDate) {
+      setCreateError('Planlama tarihi zorunludur.')
+      return
+    }
+
+    setCreateState('submitting')
+    const { error } = await supabase.from('events').insert({
+      period_id: periodId,
+      title: title.trim(),
+      description: description.trim() || null,
+      created_by: profileId,
+      owner_id: profileId,
+      planning_date: planningDate,
+      estimated_date: estimatedDate || null,
+    })
+
+    if (error) {
+      setCreateState('open')
+      setCreateError('Etkinlik oluşturulamadı. Yetki veya dönem durumunu kontrol et.')
+      return
+    }
+
+    setTitle('')
+    setDescription('')
+    setPlanningDate(new Date().toISOString().slice(0, 10))
+    setEstimatedDate('')
+    setCreateState('closed')
+    setSuccessMessage('Etkinlik başarıyla oluşturuldu.')
+    setReloadKey((current) => current + 1)
+  }
 
   if (statusLoading || loadState === 'loading') return <CenteredMessage text="Etkinlikler yükleniyor…" />
   if (!hasActiveMembership) return <CenteredMessage text="Bu sayfaya erişim yetkin yok." />
@@ -137,7 +198,87 @@ export default function EventsList({ session }: { session: Session }) {
       </header>
       <main className="mx-auto max-w-3xl px-4 py-8">
         <p className="text-sm text-ink-soft">{periodLabel ? `Aktif dönem: ${periodLabel}` : 'Aktif dönem'}</p>
-        <h1 className="mt-1 text-xl font-semibold text-ink">Etkinlikler</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="mt-1 text-xl font-semibold text-ink">Etkinlikler</h1>
+          {createState === 'closed' && (
+            <button
+              type="button"
+              onClick={openCreateForm}
+              className="rounded-lg bg-accent-soft px-3 py-2 text-sm font-medium text-ink"
+            >
+              Etkinlik oluştur
+            </button>
+          )}
+        </div>
+
+        {successMessage && (
+          <p className="mt-4 rounded-lg border border-canvas-border bg-accent-soft px-3 py-2 text-sm text-ink">
+            {successMessage}
+          </p>
+        )}
+
+        {createState !== 'closed' && (
+          <section className="mt-4 rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-ink">Yeni etkinlik</h2>
+              <button type="button" onClick={closeCreateForm} className="text-xs font-medium text-ink-soft">
+                Kapat
+              </button>
+            </div>
+            <div className="mt-4 space-y-3">
+              <label className="block text-sm">
+                <span className="mb-1 block font-medium text-ink">Etkinlik adı</span>
+                <input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                  placeholder="Örn. Dünya Sağlık Günü etkinliği"
+                  disabled={createState === 'submitting'}
+                />
+              </label>
+              <label className="block text-sm">
+                <span className="mb-1 block font-medium text-ink">Açıklama (isteğe bağlı)</span>
+                <textarea
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  className="min-h-24 w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                  disabled={createState === 'submitting'}
+                />
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block text-sm">
+                  <span className="mb-1 block font-medium text-ink">Planlama tarihi</span>
+                  <input
+                    type="date"
+                    value={planningDate}
+                    onChange={(event) => setPlanningDate(event.target.value)}
+                    className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                    disabled={createState === 'submitting'}
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="mb-1 block font-medium text-ink">Tahmini etkinlik tarihi</span>
+                  <input
+                    type="date"
+                    value={estimatedDate}
+                    onChange={(event) => setEstimatedDate(event.target.value)}
+                    className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                    disabled={createState === 'submitting'}
+                  />
+                </label>
+              </div>
+              {createError && <p className="text-sm text-red-600">{createError}</p>}
+              <button
+                type="button"
+                onClick={handleCreateEvent}
+                disabled={createState === 'submitting'}
+                className="w-full rounded-lg bg-accent-soft px-3 py-2 text-sm font-medium text-ink disabled:opacity-60"
+              >
+                {createState === 'submitting' ? 'Oluşturuluyor…' : 'Etkinliği oluştur'}
+              </button>
+            </div>
+          </section>
+        )}
 
         {events.length === 0 ? (
           <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
