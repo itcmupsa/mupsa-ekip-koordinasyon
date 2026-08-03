@@ -44,6 +44,7 @@ Bildirim altyapısı şu anda veritabanında `notifications` kuyruğuna kayıt �
 - `/login`, `/auth/callback`, `/app` route'ları
 - Aktif dönem üyeliği olmayan kullanıcı için açıklayıcı uyarı ekranı
 - Süper Yönetici için aktif dönem üyelerini görüntüleme ekranı
+- Süper Yönetici için mevcut kullanıcıyı aktif döneme ekleme ekranı
 - Cloudflare Pages üzerinde canlı yayın
 
 Cloudflare Pages için iki Supabase yayınlanabilir ortam değişkeni tanımlandı. Gizli anahtar kullanılmadı.
@@ -63,7 +64,7 @@ Bu test, giriş akışının çalıştığını doğrular. Henüz uygulama işle
 Henüz yapılmayan ana özellikler:
 
 - İlk Süper Yönetici başlangıç ataması
-- Dönem üyeliği/yetki yönetim ekranında üye ekleme ve güncelleme
+- Dönem üyeliği/yetki yönetim ekranında mevcut üyenin rol/koordinatörlük güncellemesi ve pasifleştirilmesi
 - Etkinlik oluşturma, listeleme ve düzenleme ekranları
 - Görev oluşturma, atama, destekleyen kişi ve bağımlılık ekranları
 - SKS süreç yönetimi ekranları
@@ -76,14 +77,14 @@ Henüz yapılmayan ana özellikler:
 
 ## Şu anki sıradaki küçük görev
 
-**Süper Yönetici için aktif dönem üyeliği yönetim ekranı — Adım 2: üye ekleme.**
+**Süper Yönetici için aktif dönem üyeliği yönetim ekranı — Adım 3: mevcut üyeyi güncelleme/pasifleştirme.**
 
 Hedef:
 
 - Sadece Süper Yönetici erişebilsin.
 - Adım 1 tamamlandı: Süper Yönetici aktif dönemdeki üyeleri, koordinatörlüklerini, uygulama rollerini ve aktif/pasif durumlarını görüntüleyebilir.
-- Bu adımda yalnızca var olan davetli `profiles` kayıtlarını aktif döneme ekleyebilsin.
-- Koordinatörlük, `super_admin`/`coordinator` rolü ve aktiflik güncellemesi sonraki küçük adımlarda ele alınsın.
+- Adım 2 tamamlandı: Süper Yönetici, mevcut bir `profiles` kaydını koordinatörlük ve uygulama rolü seçerek aktif döneme ekleyebilir.
+- Bu adımda mevcut üyenin koordinatörlüğü, `super_admin`/`coordinator` rolü ve aktiflik durumu güncellenebilsin.
 - Silme yerine pasifleştirme ilkesi korunur.
 
 Bu görev şunları **kapsamaz**:
@@ -93,7 +94,7 @@ Bu görev şunları **kapsamaz**:
 - Migration/RLS değişikliği
 - Etkinlik, görev veya bildirim ekranları
 
-Bu yönetim ekranı tamamlandıktan sonra, ilk test kullanıcısı kontrollü bir SQL işlemiyle 2026–2027 dönemi için `super_admin` ve Bilişim Teknolojileri Koordinatörü olarak atanmalıdır. Bu tek seferlik başlangıç ataması olmadan RLS gereği hiç kimse uygulama içinden üyelik yönetemez.
+Üye ekleme arayüzü kod ve derleme düzeyinde doğrulanmıştır. Gerçek Supabase üzerinde uçtan uca test için önce ilk test kullanıcısı kontrollü bir SQL işlemiyle 2026–2027 dönemi için `super_admin` ve Bilişim Teknolojileri Koordinatörü olarak atanmalıdır. Bu tek seferlik başlangıç ataması olmadan RLS gereği hiç kimse uygulama içinden üyelik yönetemez.
 
 ## Son teknik değişiklikler
 

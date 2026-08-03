@@ -74,6 +74,7 @@ Frontend istemcisi yalnızca yayınlanabilir Supabase anahtarını kullanır. `s
 - `/login`
 - `/auth/callback`
 - `/app`
+- `/app/yonetim/uyeler` (yalnızca Süper Yönetici)
 
 Cloudflare Pages istemci tarafı route'lar için otomatik SPA geri dönüşünü kullanır. Eski `_redirects` kuralı bu nedenle projede kullanılmaz.
 
@@ -102,6 +103,7 @@ RLS önemlidir:
 - Süper Yöneticiler dönem, koordinatörlük ve dönem üyeliklerini yönetebilir.
 - Sıradan kullanıcı kendi kendini Süper Yönetici yapamaz.
 - İlk Süper Yönetici ataması uygulama arayüzüyle değil, kontrollü bir yönetici/SQL işlemiyle yapılır.
+- Süper Yönetici üyelik ekranında mevcut davetli kullanıcı aktif döneme eklenebilir. Mevcut üyeyi güncelleme ve pasifleştirme ayrı bir sonraki adımdır.
 
 ## 7. Çalışma ve teslim kuralları
 
