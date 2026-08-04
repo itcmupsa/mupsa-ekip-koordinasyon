@@ -51,6 +51,7 @@ Bildirim altyapısı şu anda veritabanında `notifications` kuyruğuna kayıt �
 - Etkinlik detay route iskeleti (`/app/etkinlikler/:eventId`)
 - Etkinlik detayında temel bilgi okuma (ad ve açıklama)
 - Etkinlik detayında durum etiketi ve tarihleri okuma
+- Etkinlik detayında sorumlu, mekân ve sonraki işlem bilgilerini okuma
 - Cloudflare Pages üzerinde canlı yayın
 
 Cloudflare Pages için iki Supabase yayınlanabilir ortam değişkeni tanımlandı. Gizli anahtar kullanılmadı.
@@ -86,7 +87,7 @@ Henüz yapılmayan ana özellikler:
 
 ## Şu anki sıradaki küçük görev
 
-**Etkinlik detay ekranı — dördüncü küçük frontend adımı: sorumlu ve ek temel alanlar.**
+**Etkinlik detay ekranı — beşinci küçük frontend adımı.**
 
 Hedef:
 
@@ -101,7 +102,8 @@ Hedef:
 - Etkinlik detay route adımı tamamlandı: etkinlik kartları `/app/etkinlikler/:eventId` adresine gider ve geçici detay sayfası açılır.
 - Etkinlik detay temel bilgi adımı tamamlandı: aktif üye, kendi aktif dönemindeki etkinliğin adını ve açıklamasını okuyabilir.
 - Etkinlik detay durum/tarih adımı tamamlandı: aktif üye etkinliğin durum etiketini ve planlama, hazırlık başlangıcı, tahmini ve kesinleşen tarihlerini okuyabilir.
-- Sıradaki küçük adımda yalnızca sorumlu kişi, mekân ve sonraki işlem alanları gösterilecek.
+- Etkinlik detay süreç bilgileri adımı tamamlandı: aktif üye sorumlu kişiyi, mekânı ve sonraki işlemi okuyabilir.
+- Sıradaki küçük adım başlamadan önce etkinlik detay akışının canlı görünümü kontrol edilecek.
 - Bu adımda etkinlik düzenleme, SKS ve görev alanları kapsam dışıdır.
 
 Bu görev şunları **kapsamaz**:

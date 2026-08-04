@@ -12,9 +12,14 @@ interface EventBasicInfo {
   preparationStartDate: string | null
   estimatedDate: string | null
   confirmedDate: string | null
+  ownerId: string | null
+  venue: string | null
+  nextAction: string | null
 }
 
 type LoadState = 'loading' | 'ready' | 'not_found' | 'error'
+
+const NOT_SPECIFIED = 'Henüz belirtilmedi'
 
 function CenteredMessage({ text }: { text: string }) {
   return (
@@ -52,6 +57,7 @@ export default function EventDetail() {
   const [loadState, setLoadState] = useState<LoadState>('loading')
   const [event, setEvent] = useState<EventBasicInfo | null>(null)
   const [statusLabel, setStatusLabel] = useState<string | null>(null)
+  const [ownerName, setOwnerName] = useState<string | null>(null)
 
   useEffect(() => {
     if (statusLoading) return
@@ -67,7 +73,7 @@ export default function EventDetail() {
       const { data, error } = await supabase
         .from('events')
         .select(
-          'title, description, event_status, planning_date, preparation_start_date, estimated_date, confirmed_date',
+          'title, description, event_status, planning_date, preparation_start_date, estimated_date, confirmed_date, owner_id, venue, next_action',
         )
         .eq('id', eventId)
         .eq('period_id', periodId)
@@ -85,6 +91,7 @@ export default function EventDetail() {
       }
 
       const eventStatus = (data.event_status as string | null) ?? null
+      const ownerId = (data.owner_id as string | null) ?? null
       setEvent({
         title: data.title as string,
         description: (data.description as string | null) ?? null,
@@ -93,6 +100,9 @@ export default function EventDetail() {
         preparationStartDate: (data.preparation_start_date as string | null) ?? null,
         estimatedDate: (data.estimated_date as string | null) ?? null,
         confirmedDate: (data.confirmed_date as string | null) ?? null,
+        ownerId,
+        venue: (data.venue as string | null) ?? null,
+        nextAction: (data.next_action as string | null) ?? null,
       })
       setLoadState('ready')
 
@@ -107,6 +117,19 @@ export default function EventDetail() {
         setStatusLabel((statusData?.label as string | null) ?? null)
       } else {
         setStatusLabel(null)
+      }
+
+      if (ownerId) {
+        const { data: ownerData } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('id', ownerId)
+          .maybeSingle()
+
+        if (!isMounted) return
+        setOwnerName((ownerData?.display_name as string | null) ?? null)
+      } else {
+        setOwnerName(null)
       }
     }
 
@@ -135,6 +158,9 @@ export default function EventDetail() {
   if (loadState === 'not_found' || !event) return <CenteredMessage text="Etkinlik bulunamadı." />
 
   const displayedStatus = statusLabel ?? event.eventStatus ?? 'Durum belirtilmemiş'
+  const displayedOwner = event.ownerId ? ownerName ?? NOT_SPECIFIED : NOT_SPECIFIED
+  const displayedVenue = event.venue || NOT_SPECIFIED
+  const displayedNextAction = event.nextAction || NOT_SPECIFIED
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -152,6 +178,14 @@ export default function EventDetail() {
             <DetailRow label="Hazırlık başlangıç tarihi" value={formatDate(event.preparationStartDate)} />
             <DetailRow label="Tahmini etkinlik tarihi" value={formatDate(event.estimatedDate)} />
             <DetailRow label="Kesinleşmiş tarih" value={formatDate(event.confirmedDate)} />
+          </div>
+        </div>
+        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+          <h2 className="text-sm font-semibold text-ink">Süreç bilgileri</h2>
+          <div className="mt-3 divide-y divide-canvas-border">
+            <DetailRow label="Sorumlu" value={displayedOwner} />
+            <DetailRow label="Mekân" value={displayedVenue} />
+            <DetailRow label="Sonraki işlem" value={displayedNextAction} />
           </div>
         </div>
       </main>
