@@ -103,7 +103,7 @@ Hedef:
 - Etkinlik detay temel bilgi adımı tamamlandı: aktif üye, kendi aktif dönemindeki etkinliğin adını ve açıklamasını okuyabilir.
 - Etkinlik detay durum/tarih adımı tamamlandı: aktif üye etkinliğin durum etiketini ve planlama, hazırlık başlangıcı, tahmini ve kesinleşen tarihlerini okuyabilir.
 - Etkinlik detay süreç bilgileri adımı tamamlandı: aktif üye sorumlu kişiyi, mekânı ve sonraki işlemi okuyabilir.
-- Sıradaki küçük adım başlamadan önce etkinlik detay akışının canlı görünümü kontrol edilecek.
+- Etkinlik detay akışının canlı görünümü kontrol edildi: test etkinliği, durum/tarihler ve süreç bilgileri doğru gösterildi.
 - Bu adımda etkinlik düzenleme, SKS ve görev alanları kapsam dışıdır.
 
 Bu görev şunları **kapsamaz**:
@@ -113,7 +113,7 @@ Bu görev şunları **kapsamaz**:
 - Migration/RLS değişikliği
 - Etkinlik, görev veya bildirim ekranları
 
-Üyelik yönetimi Adım 1–3 ve etkinlik listeleme kod/derleme düzeyinde doğrulanmış, ilk süper yönetici ataması ve yönetici ekranının canlı açılışı test edilmiştir. İkinci kullanıcı ekleme testi, Supabase’in yerleşik e-posta sağlayıcısındaki hız sınırı nedeniyle beklemededir. Etkinlik listeleme ekranının canlı testi bir sonraki Cloudflare yayınından sonra yapılacaktır.
+Üyelik yönetimi Adım 1–3 ve etkinlik listeleme kod/derleme düzeyinde doğrulanmış, ilk süper yönetici ataması ve yönetici ekranının canlı açılışı test edilmiştir. İkinci kullanıcı ekleme testi, Supabase’in yerleşik e-posta sağlayıcısındaki hız sınırı nedeniyle beklemededir. Etkinlik oluşturma ve etkinlik detayının durum/tarih-süreç bilgileri canlıda doğrulanmıştır.
 
 ## Son teknik değişiklikler
 
