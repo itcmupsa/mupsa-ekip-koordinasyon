@@ -52,12 +52,18 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 export default function EventDetail() {
   const { eventId } = useParams<{ eventId: string }>()
   const { session } = useSession()
-  const { hasActiveMembership, periodId, loading: statusLoading } =
+  const { hasActiveMembership, periodId, profileId, appRole, loading: statusLoading } =
     useMembershipStatus(session)
   const [loadState, setLoadState] = useState<LoadState>('loading')
   const [event, setEvent] = useState<EventBasicInfo | null>(null)
   const [statusLabel, setStatusLabel] = useState<string | null>(null)
   const [ownerName, setOwnerName] = useState<string | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
     if (statusLoading) return
@@ -139,6 +145,74 @@ export default function EventDetail() {
     }
   }, [hasActiveMembership, periodId, eventId, statusLoading])
 
+  const isOwner = !!event && !!profileId && event.ownerId === profileId
+  const isSuperAdmin = appRole === 'super_admin'
+  const canEdit = isOwner || isSuperAdmin
+
+  function startEditing() {
+    if (!event) return
+    setEditTitle(event.title)
+    setEditDescription(event.description ?? '')
+    setSaveError(null)
+    setSuccessMessage(null)
+    setIsEditing(true)
+  }
+
+  function cancelEditing() {
+    setIsEditing(false)
+    setSaveError(null)
+    if (event) {
+      setEditTitle(event.title)
+      setEditDescription(event.description ?? '')
+    }
+  }
+
+  async function handleSave() {
+    if (!eventId || !periodId) return
+    const trimmedTitle = editTitle.trim()
+    if (!trimmedTitle) {
+      setSaveError('Etkinlik adı boş olamaz.')
+      return
+    }
+
+    setIsSaving(true)
+    setSaveError(null)
+    const trimmedDescription = editDescription.trim()
+    const nextDescription = trimmedDescription.length > 0 ? trimmedDescription : null
+
+    const { data, error } = await supabase
+      .from('events')
+      .update({ title: trimmedTitle, description: nextDescription })
+      .eq('id', eventId)
+      .eq('period_id', periodId)
+      .is('deleted_at', null)
+      .select('title, description')
+      .maybeSingle()
+
+    setIsSaving(false)
+
+    if (error) {
+      setSaveError('Değişiklikler kaydedilirken bir hata oluştu.')
+      return
+    }
+    if (!data) {
+      setSaveError('Etkinlik güncellenemedi. Lütfen sayfayı yenileyip tekrar deneyin.')
+      return
+    }
+
+    setEvent((current) =>
+      current
+        ? {
+            ...current,
+            title: (data.title as string) ?? trimmedTitle,
+            description: (data.description as string | null) ?? nextDescription,
+          }
+        : current,
+    )
+    setIsEditing(false)
+    setSuccessMessage('Etkinlik başarıyla güncellendi.')
+  }
+
   const header = (
     <header className="border-b border-canvas-border bg-canvas-surface">
       <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
@@ -166,10 +240,85 @@ export default function EventDetail() {
     <div className="min-h-screen bg-canvas">
       {header}
       <main className="mx-auto max-w-3xl px-4 py-8">
-        <h1 className="text-xl font-semibold text-ink">{event.title}</h1>
-        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
-          <p className="text-sm text-ink-soft">{event.description || 'Açıklama eklenmemiş'}</p>
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="text-xl font-semibold text-ink">{event.title}</h1>
+          {canEdit && !isEditing && (
+            <button
+              type="button"
+              onClick={startEditing}
+              className="shrink-0 rounded-md border border-canvas-border bg-canvas-surface px-3 py-1.5 text-sm font-medium text-ink hover:bg-canvas"
+            >
+              Düzenle
+            </button>
+          )}
         </div>
+
+        {successMessage && !isEditing && (
+          <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+            {successMessage}
+          </p>
+        )}
+
+        {isEditing ? (
+          <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+            <h2 className="text-sm font-semibold text-ink">Etkinliği düzenle</h2>
+            <div className="mt-4 flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <label htmlFor="event-title" className="text-sm font-medium text-ink-soft">
+                  Etkinlik adı
+                </label>
+                <input
+                  id="event-title"
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  disabled={isSaving}
+                  className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="event-description" className="text-sm font-medium text-ink-soft">
+                  Açıklama
+                </label>
+                <textarea
+                  id="event-description"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  disabled={isSaving}
+                  rows={4}
+                  className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                />
+              </div>
+              {saveError && (
+                <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {saveError}
+                </p>
+              )}
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
+                >
+                  {isSaving ? 'Kaydediliyor…' : 'Kaydet'}
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelEditing}
+                  disabled={isSaving}
+                  className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
+                >
+                  İptal
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+            <p className="text-sm text-ink-soft">{event.description || 'Açıklama eklenmemiş'}</p>
+          </div>
+        )}
         <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
           <h2 className="text-sm font-semibold text-ink">Durum ve tarihler</h2>
           <div className="mt-3 divide-y divide-canvas-border">
