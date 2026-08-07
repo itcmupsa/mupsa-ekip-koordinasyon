@@ -33,6 +33,8 @@
 - Ana sorumlu ataması kaldırıldı; sayfa yenileme sonrası `Atanan kişi yok` durumu korundu.
 - `Destekleyen` ve `Bilgilendirilen` atama türleri canlıda başarıyla eklendi.
 - Bu iki atama türü de daha sonra kaldırıldı; kaldırma işlemi ve sayfa yenileme sonrası temiz durum doğrulandı.
+- Süper yönetici olarak görev durumu `Tamamlandı` seçildi ve başarıyla kaydedildi.
+- Sayfa yenilendikten sonra görev durumu `Tamamlandı` olarak korunarak kalıcılık doğrulandı.
 
 ## Bekleyen kontrol
 
