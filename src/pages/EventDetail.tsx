@@ -26,6 +26,16 @@ interface TaskAssigneeInfo {
   assignmentType: string
 }
 
+interface TaskDependency {
+  id: string
+  dependencyType: string
+  sourceEventId: string | null
+  sourceTaskId: string | null
+  requiredSksStatus: string | null
+  requiredTaskProgressStatus: string | null
+  offsetDays: number | null
+}
+
 interface TaskItem {
   id: string
   title: string
@@ -37,6 +47,7 @@ interface TaskItem {
   notes: string | null
   deletedAt: string | null
   assignees: TaskAssigneeInfo[]
+  dependencies: TaskDependency[]
 }
 
 type TasksLoadState = 'loading' | 'ready' | 'error'
@@ -47,6 +58,11 @@ interface PeriodMemberOption {
 }
 
 interface TaskProgressStatusOption {
+  slug: string
+  label: string
+}
+
+interface SksStatusOption {
   slug: string
   label: string
 }
@@ -167,7 +183,9 @@ function groupAssigneesByType(assignees: TaskAssigneeInfo[]): Array<{ type: stri
 }
 
 interface TaskCardProps {
+  eventId: string
   task: TaskItem
+  allTasks: TaskItem[]
   isSuperAdmin: boolean
   canEditTask: boolean
   canManageAssignments: boolean
@@ -177,6 +195,7 @@ interface TaskCardProps {
   members: PeriodMemberOption[]
   membersLoadState: PeriodMembersLoadState
   availableTaskStatuses: TaskProgressStatusOption[]
+  availableSksStatuses: SksStatusOption[]
   selectedProfileId: string
   onSelectedProfileIdChange: (value: string) => void
   selectedAssignmentType: string
@@ -206,10 +225,26 @@ interface TaskCardProps {
   onDeactivateTask: (taskId: string) => void
   onReactivateTask: (taskId: string) => void
   isProcessingActiveStatus: boolean
+  onAddDependency: (
+    taskId: string,
+    payload: {
+      dependencyType: string
+      sourceEventId: string | null
+      sourceTaskId: string | null
+      requiredSksStatus: string | null
+      requiredTaskProgressStatus: string | null
+      offsetDays: number | null
+    },
+  ) => Promise<boolean>
+  onDeleteDependency: (dependencyId: string) => Promise<boolean>
+  isProcessingDependency: boolean
+  dependencyError: string | null
 }
 
 function TaskCard({
+  eventId,
   task,
+  allTasks,
   isSuperAdmin,
   canEditTask,
   canManageAssignments,
@@ -219,6 +254,7 @@ function TaskCard({
   members,
   membersLoadState,
   availableTaskStatuses,
+  availableSksStatuses,
   selectedProfileId,
   onSelectedProfileIdChange,
   selectedAssignmentType,
@@ -242,6 +278,10 @@ function TaskCard({
   onDeactivateTask,
   onReactivateTask,
   isProcessingActiveStatus,
+  onAddDependency,
+  onDeleteDependency,
+  isProcessingDependency,
+  dependencyError,
 }: TaskCardProps) {
   const [isEditingTask, setIsEditingTask] = useState(false)
   const [editTitle, setEditTitle] = useState('')
@@ -250,6 +290,14 @@ function TaskCard({
   const [editPriority, setEditPriority] = useState('normal')
   const [isEditingNote, setIsEditingNote] = useState(false)
   const [noteInputValue, setNoteInputValue] = useState(task.notes ?? '')
+  const [isAddingDependency, setIsAddingDependency] = useState(false)
+  const [dependencyType, setDependencyType] = useState('sks_status')
+  const [sourceTaskId, setSourceTaskId] = useState('')
+  const [requiredSksStatus, setRequiredSksStatus] = useState('')
+  const [requiredTaskProgressStatus, setRequiredTaskProgressStatus] = useState('')
+  const [offsetDays, setOffsetDays] = useState<number | ''>('')
+  const [dependencyFormError, setDependencyFormError] = useState<string | null>(null)
+  const [deletingDependencyId, setDeletingDependencyId] = useState<string | null>(null)
   const isDeactivated = !!task.deletedAt
   const effectiveCanEditTask = canEditTask && !isDeactivated
   const effectiveCanUpdateStatus = canUpdateStatus && !isDeactivated
@@ -275,6 +323,66 @@ function TaskCard({
   async function handleSaveTaskInfo() {
     const success = await onUpdateTaskInfo(task.id, editTitle, editDescription, editDeadline, editPriority)
     if (success) setIsEditingTask(false)
+  }
+
+  async function handleSaveDependency() {
+    setDependencyFormError(null)
+    if (dependencyType === 'sks_status' && !requiredSksStatus) {
+      setDependencyFormError('Lütfen gerekli SKS durumunu seçin.')
+      return
+    }
+    if (dependencyType === 'task_progress' && (!sourceTaskId || !requiredTaskProgressStatus)) {
+      setDependencyFormError('Lütfen kaynak görevi ve beklenen durumu seçin.')
+      return
+    }
+    if (dependencyType === 'event_date_offset' && offsetDays === '') {
+      setDependencyFormError('Lütfen gün farkını girin.')
+      return
+    }
+
+    const success = await onAddDependency(task.id, {
+      dependencyType,
+      sourceEventId: dependencyType === 'task_progress' ? null : eventId,
+      sourceTaskId: dependencyType === 'task_progress' ? sourceTaskId : null,
+      requiredSksStatus: dependencyType === 'sks_status' ? requiredSksStatus : null,
+      requiredTaskProgressStatus: dependencyType === 'task_progress' ? requiredTaskProgressStatus : null,
+      offsetDays: dependencyType === 'event_date_offset' ? Number(offsetDays) : null,
+    })
+
+    if (success) {
+      setIsAddingDependency(false)
+      setDependencyType('sks_status')
+      setSourceTaskId('')
+      setRequiredSksStatus('')
+      setRequiredTaskProgressStatus('')
+      setOffsetDays('')
+    }
+  }
+
+  async function handleDeleteDependency(dependencyId: string) {
+    if (!window.confirm('Bu bağımlılığı silmek istediğinize emin misiniz?')) return
+    setDeletingDependencyId(dependencyId)
+    await onDeleteDependency(dependencyId)
+    setDeletingDependencyId(null)
+  }
+
+  const sksStatusLabels = Object.fromEntries(availableSksStatuses.map((status) => [status.slug, status.label]))
+  const taskStatusLabels = Object.fromEntries(availableTaskStatuses.map((status) => [status.slug, status.label]))
+  const taskTitles = Object.fromEntries(allTasks.map((item) => [item.id, item.title]))
+  const otherTasks = allTasks.filter((item) => item.id !== task.id && !item.deletedAt)
+
+  function dependencyDescription(dependency: TaskDependency): string {
+    if (dependency.dependencyType === 'sks_status') {
+      return `SKS durumu: ${sksStatusLabels[dependency.requiredSksStatus ?? ''] ?? dependency.requiredSksStatus ?? 'Belirtilmemiş'}`
+    }
+    if (dependency.dependencyType === 'task_progress') {
+      const title = taskTitles[dependency.sourceTaskId ?? ''] ?? 'Bilinmeyen görev'
+      const status = taskStatusLabels[dependency.requiredTaskProgressStatus ?? ''] ?? dependency.requiredTaskProgressStatus
+      return `${title} görevi ${status ?? 'belirli duruma'} gelince`
+    }
+    const offset = dependency.offsetDays ?? 0
+    if (offset === 0) return 'Etkinlik günü'
+    return `Etkinlik tarihinden ${Math.abs(offset)} gün ${offset < 0 ? 'önce' : 'sonra'}`
   }
 
   const statusLabel = task.progressStatusLabel ?? task.progressStatusSlug ?? 'Durum belirtilmemiş'
@@ -435,6 +543,165 @@ function TaskCard({
               {ASSIGNMENT_TYPE_LABELS[group.type] ?? group.type}: {group.names.join(', ')}
             </span>
           ))
+        )}
+      </div>
+
+      <div className="mt-4 border-t border-canvas-border pt-3">
+        <div className="flex items-center justify-between">
+          <h5 className="text-sm font-medium text-ink-soft">Bağımlılıklar</h5>
+          {effectiveCanEditTask && !isAddingDependency && (
+            <button
+              type="button"
+              onClick={() => setIsAddingDependency(true)}
+              className="text-xs font-medium text-ink hover:underline"
+            >
+              Bağımlılık ekle
+            </button>
+          )}
+        </div>
+
+        {task.dependencies.length > 0 ? (
+          <ul className="mt-2 flex flex-col gap-2">
+            {task.dependencies.map((dependency) => (
+              <li
+                key={dependency.id}
+                className="flex flex-col gap-2 rounded-md bg-canvas-surface px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <span className="text-xs text-ink">{dependencyDescription(dependency)}</span>
+                {effectiveCanEditTask && (
+                  <button
+                    type="button"
+                    onClick={() => void handleDeleteDependency(dependency.id)}
+                    disabled={deletingDependencyId === dependency.id}
+                    className="shrink-0 text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
+                  >
+                    {deletingDependencyId === dependency.id ? 'Siliniyor…' : 'Sil'}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          !isAddingDependency && <p className="mt-2 text-xs italic text-ink-soft">Bağımlılık eklenmemiş.</p>
+        )}
+
+        {isAddingDependency && effectiveCanEditTask && (
+          <div className="mt-3 flex flex-col gap-3 rounded-md border border-canvas-border p-3">
+            <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
+              Bağımlılık türü
+              <select
+                value={dependencyType}
+                onChange={(event) => {
+                  setDependencyType(event.target.value)
+                  setDependencyFormError(null)
+                }}
+                disabled={isProcessingDependency}
+                className="rounded-md border border-canvas-border bg-canvas px-2 py-1.5 text-xs text-ink"
+              >
+                <option value="sks_status">SKS durumu</option>
+                <option value="task_progress">Görev durumu</option>
+                <option value="event_date_offset">Etkinlik tarih farkı</option>
+              </select>
+            </label>
+
+            {dependencyType === 'sks_status' && (
+              <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
+                Gerekli SKS durumu
+                <select
+                  value={requiredSksStatus}
+                  onChange={(event) => setRequiredSksStatus(event.target.value)}
+                  disabled={isProcessingDependency}
+                  className="rounded-md border border-canvas-border bg-canvas px-2 py-1.5 text-xs text-ink"
+                >
+                  <option value="" disabled>
+                    SKS durumu seçin
+                  </option>
+                  {availableSksStatuses.map((status) => (
+                    <option key={status.slug} value={status.slug}>
+                      {status.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            {dependencyType === 'task_progress' && (
+              <>
+                <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
+                  Kaynak görev
+                  <select
+                    value={sourceTaskId}
+                    onChange={(event) => setSourceTaskId(event.target.value)}
+                    disabled={isProcessingDependency}
+                    className="rounded-md border border-canvas-border bg-canvas px-2 py-1.5 text-xs text-ink"
+                  >
+                    <option value="" disabled>
+                      Görev seçin
+                    </option>
+                    {otherTasks.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
+                  Beklenen durum
+                  <select
+                    value={requiredTaskProgressStatus}
+                    onChange={(event) => setRequiredTaskProgressStatus(event.target.value)}
+                    disabled={isProcessingDependency}
+                    className="rounded-md border border-canvas-border bg-canvas px-2 py-1.5 text-xs text-ink"
+                  >
+                    <option value="" disabled>
+                      Durum seçin
+                    </option>
+                    {availableTaskStatuses.map((status) => (
+                      <option key={status.slug} value={status.slug}>
+                        {status.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            )}
+
+            {dependencyType === 'event_date_offset' && (
+              <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
+                Gün farkı (- önce, + sonra)
+                <input
+                  type="number"
+                  value={offsetDays}
+                  onChange={(event) => setOffsetDays(event.target.value === '' ? '' : Number(event.target.value))}
+                  disabled={isProcessingDependency}
+                  placeholder="Örn: -3, 0 veya 5"
+                  className="rounded-md border border-canvas-border bg-canvas px-2 py-1.5 text-xs text-ink"
+                />
+              </label>
+            )}
+
+            {(dependencyFormError || dependencyError) && (
+              <p className="text-xs text-red-600">{dependencyFormError ?? dependencyError}</p>
+            )}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void handleSaveDependency()}
+                disabled={isProcessingDependency}
+                className="rounded-md bg-ink px-3 py-1.5 text-xs font-medium text-canvas-surface disabled:opacity-60"
+              >
+                {isProcessingDependency ? 'Kaydediliyor…' : 'Kaydet'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsAddingDependency(false)}
+                disabled={isProcessingDependency}
+                className="rounded-md border border-canvas-border px-3 py-1.5 text-xs font-medium text-ink-soft disabled:opacity-60"
+              >
+                İptal
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
@@ -668,6 +935,9 @@ export default function EventDetail() {
   const [updatingTaskInfoId, setUpdatingTaskInfoId] = useState<string | null>(null)
   const [updateTaskInfoErrorMap, setUpdateTaskInfoErrorMap] = useState<Record<string, string>>({})
   const [processingActiveStatusTaskId, setProcessingActiveStatusTaskId] = useState<string | null>(null)
+  const [availableSksStatuses, setAvailableSksStatuses] = useState<SksStatusOption[]>([])
+  const [processingDependencyTaskId, setProcessingDependencyTaskId] = useState<string | null>(null)
+  const [dependencyErrorMap, setDependencyErrorMap] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (statusLoading) return
@@ -767,7 +1037,18 @@ export default function EventDetail() {
       setAvailableTaskStatuses((data ?? []) as TaskProgressStatusOption[])
     }
 
+    async function loadSksStatuses() {
+      const { data, error } = await supabase
+        .from('sks_statuses')
+        .select('slug, label')
+        .order('sort_order', { ascending: true })
+
+      if (!isMounted || error) return
+      setAvailableSksStatuses((data ?? []) as SksStatusOption[])
+    }
+
     void loadTaskStatuses()
+    void loadSksStatuses()
     return () => {
       isMounted = false
     }
@@ -816,6 +1097,7 @@ export default function EventDetail() {
         notes: (row.notes as string | null) ?? null,
         deletedAt: (row.deleted_at as string | null) ?? null,
         assignees: [],
+        dependencies: [],
       }))
 
       if (baseTasks.length === 0) {
@@ -874,11 +1156,35 @@ export default function EventDetail() {
         })
       }
 
+      const { data: dependencyRows } = await supabase
+        .from('task_dependencies')
+        .select(
+          'id, task_id, dependency_type, source_event_id, source_task_id, required_sks_status, required_task_progress_status, offset_days',
+        )
+        .in('task_id', taskIds)
+
+      if (!isMounted) return
+      const dependenciesByTask: Record<string, TaskDependency[]> = {}
+      for (const row of dependencyRows ?? []) {
+        const targetTaskId = row.task_id as string
+        if (!dependenciesByTask[targetTaskId]) dependenciesByTask[targetTaskId] = []
+        dependenciesByTask[targetTaskId].push({
+          id: row.id as string,
+          dependencyType: row.dependency_type as string,
+          sourceEventId: (row.source_event_id as string | null) ?? null,
+          sourceTaskId: (row.source_task_id as string | null) ?? null,
+          requiredSksStatus: (row.required_sks_status as string | null) ?? null,
+          requiredTaskProgressStatus: (row.required_task_progress_status as string | null) ?? null,
+          offsetDays: typeof row.offset_days === 'number' ? row.offset_days : null,
+        })
+      }
+
       setTasks(
         baseTasks.map((task) => ({
           ...task,
           progressStatusLabel: task.progressStatusSlug ? statusLabelMap[task.progressStatusSlug] ?? null : null,
           assignees: assigneesByTask[task.id] ?? [],
+          dependencies: dependenciesByTask[task.id] ?? [],
         })),
       )
       setTasksLoadState('ready')
@@ -1108,6 +1414,63 @@ export default function EventDetail() {
       return
     }
     setTasksRefreshKey((current) => current + 1)
+  }
+
+  async function handleAddDependency(
+    taskId: string,
+    payload: {
+      dependencyType: string
+      sourceEventId: string | null
+      sourceTaskId: string | null
+      requiredSksStatus: string | null
+      requiredTaskProgressStatus: string | null
+      offsetDays: number | null
+    },
+  ): Promise<boolean> {
+    if (!profileId) return false
+
+    setProcessingDependencyTaskId(taskId)
+    setDependencyErrorMap((previous) => {
+      const next = { ...previous }
+      delete next[taskId]
+      return next
+    })
+
+    const { error } = await supabase.from('task_dependencies').insert({
+      task_id: taskId,
+      dependency_type: payload.dependencyType,
+      source_event_id: payload.sourceEventId,
+      source_task_id: payload.sourceTaskId,
+      required_sks_status: payload.requiredSksStatus,
+      required_task_progress_status: payload.requiredTaskProgressStatus,
+      offset_days: payload.offsetDays,
+      created_by: profileId,
+    })
+
+    setProcessingDependencyTaskId(null)
+    if (error) {
+      setDependencyErrorMap((previous) => ({
+        ...previous,
+        [taskId]: 'Bağımlılık eklenirken bir hata oluştu.',
+      }))
+      return false
+    }
+
+    setTaskSuccessMessage('Bağımlılık başarıyla eklendi.')
+    setTasksRefreshKey((current) => current + 1)
+    return true
+  }
+
+  async function handleDeleteDependency(dependencyId: string): Promise<boolean> {
+    const { error } = await supabase.from('task_dependencies').delete().eq('id', dependencyId)
+    if (error) {
+      setTaskSuccessMessage('Bağımlılık silinemedi.')
+      return false
+    }
+
+    setTaskSuccessMessage('Bağımlılık başarıyla silindi.')
+    setTasksRefreshKey((current) => current + 1)
+    return true
   }
 
   const isOwner = !!event && !!profileId && event.ownerId === profileId
@@ -1651,7 +2014,9 @@ export default function EventDetail() {
                 return (
                   <TaskCard
                     key={task.id}
+                    eventId={eventId ?? ''}
                     task={task}
+                    allTasks={tasks}
                     isSuperAdmin={isSuperAdmin}
                     canEditTask={canEdit}
                     canManageAssignments={canEdit}
@@ -1661,6 +2026,7 @@ export default function EventDetail() {
                     members={periodMembers}
                     membersLoadState={periodMembersLoadState}
                     availableTaskStatuses={availableTaskStatuses}
+                    availableSksStatuses={availableSksStatuses}
                     selectedProfileId={openAssignmentTaskId === task.id ? selectedAssigneeProfileId : ''}
                     onSelectedProfileIdChange={setSelectedAssigneeProfileId}
                     selectedAssignmentType={selectedAssignmentType}
@@ -1684,6 +2050,10 @@ export default function EventDetail() {
                     onDeactivateTask={handleDeactivateTask}
                     onReactivateTask={handleReactivateTask}
                     isProcessingActiveStatus={processingActiveStatusTaskId === task.id}
+                    onAddDependency={handleAddDependency}
+                    onDeleteDependency={handleDeleteDependency}
+                    isProcessingDependency={processingDependencyTaskId === task.id}
+                    dependencyError={dependencyErrorMap[task.id] ?? null}
                   />
                 )
               })}
