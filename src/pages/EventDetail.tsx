@@ -19,7 +19,33 @@ interface EventBasicInfo {
 
 type LoadState = 'loading' | 'ready' | 'not_found' | 'error'
 
+interface TaskAssigneeInfo {
+  profileId: string
+  displayName: string
+  assignmentType: string
+}
+
+interface TaskItem {
+  id: string
+  title: string
+  progressStatusSlug: string | null
+  progressStatusLabel: string | null
+  deadlineAt: string | null
+  priority: string | null
+  assignees: TaskAssigneeInfo[]
+}
+
+type TasksLoadState = 'loading' | 'ready' | 'error'
+
 const NOT_SPECIFIED = 'Henüz belirtilmedi'
+const TASKS_NOT_FOUND_MESSAGE = 'Bu etkinlik için henüz görev oluşturulmamış.'
+const TASKS_ERROR_MESSAGE = 'Görevler yüklenirken bir hata oluştu.'
+
+const ASSIGNMENT_TYPE_LABELS: Record<string, string> = {
+  primary: 'Ana sorumlu',
+  supporting: 'Destekleyen',
+  informed: 'Bilgilendirilen',
+}
 
 function extractDateOnly(value: string | null): string {
   if (!value) return ''
@@ -57,6 +83,62 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   )
 }
 
+function formatDeadline(value: string | null): string {
+  if (!value) return 'Son tarih belirtilmedi'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'Son tarih belirtilmedi'
+  return parsed.toLocaleDateString('tr-TR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
+function groupAssigneesByType(assignees: TaskAssigneeInfo[]): Array<{ type: string; names: string[] }> {
+  const order: string[] = []
+  const groups: Record<string, string[]> = {}
+  for (const assignee of assignees) {
+    if (!groups[assignee.assignmentType]) {
+      groups[assignee.assignmentType] = []
+      order.push(assignee.assignmentType)
+    }
+    groups[assignee.assignmentType].push(assignee.displayName)
+  }
+  return order.map((type) => ({ type, names: groups[type] }))
+}
+
+function TaskCard({ task }: { task: TaskItem }) {
+  const statusLabel = task.progressStatusLabel ?? task.progressStatusSlug ?? 'Durum belirtilmemiş'
+  const priorityLabel = task.priority && task.priority.trim().length > 0 ? task.priority : 'Belirtilmemiş'
+  const assigneeGroups = groupAssigneesByType(task.assignees)
+
+  return (
+    <div className="rounded-md border border-canvas-border bg-canvas px-4 py-3">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-sm font-semibold text-ink">{task.title}</span>
+        <span className="inline-flex w-fit items-center rounded-full border border-canvas-border bg-canvas-surface px-2 py-0.5 text-xs font-medium text-ink-soft">
+          {statusLabel}
+        </span>
+      </div>
+      <div className="mt-2 flex flex-col gap-1 text-sm text-ink-soft sm:flex-row sm:flex-wrap sm:gap-4">
+        <span>Son tarih: {formatDeadline(task.deadlineAt)}</span>
+        <span>Öncelik: {priorityLabel}</span>
+      </div>
+      <div className="mt-2 flex flex-col gap-1 text-sm text-ink-soft">
+        {assigneeGroups.length === 0 ? (
+          <span>Atanan kişi yok</span>
+        ) : (
+          assigneeGroups.map((group) => (
+            <span key={group.type}>
+              {ASSIGNMENT_TYPE_LABELS[group.type] ?? group.type}: {group.names.join(', ')}
+            </span>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function EventDetail() {
   const { eventId } = useParams<{ eventId: string }>()
   const { session } = useSession()
@@ -76,6 +158,9 @@ export default function EventDetail() {
   const [editPreparationStartDate, setEditPreparationStartDate] = useState('')
   const [editEstimatedDate, setEditEstimatedDate] = useState('')
   const [editConfirmedDate, setEditConfirmedDate] = useState('')
+  const [tasksLoadState, setTasksLoadState] = useState<TasksLoadState>('loading')
+  const [tasks, setTasks] = useState<TaskItem[]>([])
+  const [tasksError, setTasksError] = useState<string | null>(null)
 
   useEffect(() => {
     if (statusLoading) return
@@ -156,6 +241,114 @@ export default function EventDetail() {
       isMounted = false
     }
   }, [hasActiveMembership, periodId, eventId, statusLoading])
+
+  useEffect(() => {
+    if (statusLoading) return
+    if (!hasActiveMembership || !eventId) {
+      setTasksLoadState('ready')
+      setTasks([])
+      return
+    }
+
+    let isMounted = true
+    async function loadTasks() {
+      setTasksLoadState('loading')
+      setTasksError(null)
+
+      const { data: taskRows, error: tasksErr } = await supabase
+        .from('tasks')
+        .select('id, title, progress_status, deadline_at, priority')
+        .eq('event_id', eventId)
+        .is('deleted_at', null)
+        .order('deadline_at', { ascending: true, nullsFirst: false })
+
+      if (!isMounted) return
+      if (tasksErr) {
+        setTasksError(TASKS_ERROR_MESSAGE)
+        setTasksLoadState('error')
+        return
+      }
+
+      const baseTasks: TaskItem[] = (taskRows ?? []).map((row) => ({
+        id: row.id as string,
+        title: row.title as string,
+        progressStatusSlug: (row.progress_status as string | null) ?? null,
+        progressStatusLabel: null,
+        deadlineAt: (row.deadline_at as string | null) ?? null,
+        priority: (row.priority as string | null) ?? null,
+        assignees: [],
+      }))
+
+      if (baseTasks.length === 0) {
+        setTasks([])
+        setTasksLoadState('ready')
+        return
+      }
+
+      const statusLabelMap: Record<string, string> = {}
+      const slugs = Array.from(
+        new Set(baseTasks.map((task) => task.progressStatusSlug).filter((slug): slug is string => !!slug)),
+      )
+      if (slugs.length > 0) {
+        const { data: statusRows } = await supabase
+          .from('task_progress_statuses')
+          .select('slug, label')
+          .in('slug', slugs)
+
+        if (!isMounted) return
+        for (const statusRow of statusRows ?? []) {
+          statusLabelMap[statusRow.slug as string] = statusRow.label as string
+        }
+      }
+
+      const assigneesByTask: Record<string, TaskAssigneeInfo[]> = {}
+      const taskIds = baseTasks.map((task) => task.id)
+      const { data: assigneeRows } = await supabase
+        .from('task_assignees')
+        .select('task_id, profile_id, assignment_type')
+        .in('task_id', taskIds)
+
+      if (!isMounted) return
+      const profileIds = Array.from(new Set((assigneeRows ?? []).map((row) => row.profile_id as string)))
+      const profileNameMap: Record<string, string> = {}
+      if (profileIds.length > 0) {
+        const { data: profileRows } = await supabase
+          .from('profiles')
+          .select('id, display_name')
+          .in('id', profileIds)
+
+        if (!isMounted) return
+        for (const profileRow of profileRows ?? []) {
+          profileNameMap[profileRow.id as string] = (profileRow.display_name as string | null) ?? 'İsimsiz üye'
+        }
+      }
+
+      for (const assigneeRow of assigneeRows ?? []) {
+        const taskId = assigneeRow.task_id as string
+        if (!assigneesByTask[taskId]) assigneesByTask[taskId] = []
+        const profileId = assigneeRow.profile_id as string
+        assigneesByTask[taskId].push({
+          profileId,
+          displayName: profileNameMap[profileId] ?? 'İsimsiz üye',
+          assignmentType: assigneeRow.assignment_type as string,
+        })
+      }
+
+      setTasks(
+        baseTasks.map((task) => ({
+          ...task,
+          progressStatusLabel: task.progressStatusSlug ? statusLabelMap[task.progressStatusSlug] ?? null : null,
+          assignees: assigneesByTask[task.id] ?? [],
+        })),
+      )
+      setTasksLoadState('ready')
+    }
+
+    void loadTasks()
+    return () => {
+      isMounted = false
+    }
+  }, [hasActiveMembership, eventId, statusLoading])
 
   const isOwner = !!event && !!profileId && event.ownerId === profileId
   const isSuperAdmin = appRole === 'super_admin'
@@ -425,6 +618,27 @@ export default function EventDetail() {
             <DetailRow label="Mekân" value={displayedVenue} />
             <DetailRow label="Sonraki işlem" value={displayedNextAction} />
           </div>
+        </div>
+        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+          <h2 className="text-sm font-semibold text-ink">Görevler</h2>
+          {tasksLoadState === 'loading' && (
+            <p className="mt-3 text-sm text-ink-soft">Görevler yükleniyor…</p>
+          )}
+          {tasksLoadState === 'error' && (
+            <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {tasksError ?? TASKS_ERROR_MESSAGE}
+            </p>
+          )}
+          {tasksLoadState === 'ready' && tasks.length === 0 && (
+            <p className="mt-3 text-sm text-ink-soft">{TASKS_NOT_FOUND_MESSAGE}</p>
+          )}
+          {tasksLoadState === 'ready' && tasks.length > 0 && (
+            <div className="mt-3 flex flex-col gap-3">
+              {tasks.map((task) => (
+                <TaskCard key={task.id} task={task} />
+              ))}
+            </div>
+          )}
         </div>
       </main>
     </div>

@@ -54,6 +54,7 @@ Bildirim altyapısı şu anda veritabanında `notifications` kuyruğuna kayıt �
 - Etkinlik detayında sorumlu, mekân ve sonraki işlem bilgilerini okuma
 - Etkinlik sahibinin veya süper yöneticinin etkinlik adı/açıklamasını düzenleyebilmesi
 - Etkinlik sahibinin veya süper yöneticinin etkinlik tarihlerini düzenleyebilmesi
+- Etkinlik detayında görevleri salt-okunur listeleme
 - Cloudflare Pages üzerinde canlı yayın
 
 Cloudflare Pages için iki Supabase yayınlanabilir ortam değişkeni tanımlandı. Gizli anahtar kullanılmadı.
@@ -110,7 +111,8 @@ Hedef:
 - Etkinlik düzenleme canlı testi tamamlandı: başlık/açıklama kaydı, sayfa yenileme sonrası kalıcılık ve İptal davranışı doğrulandı.
 - Etkinlik düzenleme tarih adımı tamamlandı: planlama, hazırlık başlangıcı, tahmini ve kesinleşmiş tarihler güncellenebilir.
 - Etkinlik düzenleme tarih canlı testi tamamlandı: tarih kaydı, boş tarihi `null` yapma ve sayfa yenileme sonrası kalıcılık doğrulandı.
-- Sıradaki küçük adımda etkinlik düzenleme alanları tamamlanmış kabul edilerek görev yönetimine geçiş planlanacak.
+- Etkinlik detay görev listesi adımı tamamlandı: görev adı, durum, son tarih, öncelik ve atanan kişiler salt-okunur gösterilebilir.
+- Sıradaki küçük adımda görev listesinin canlı testi yapılacak.
 - Durum, SKS, mekân ve sonraki işlem alanları bu adımda düzenlenemez.
 
 Bu görev şunları **kapsamaz**:
