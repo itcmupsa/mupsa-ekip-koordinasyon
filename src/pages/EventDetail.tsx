@@ -29,6 +29,7 @@ interface TaskAssigneeInfo {
 interface TaskItem {
   id: string
   title: string
+  description: string | null
   progressStatusSlug: string | null
   progressStatusLabel: string | null
   deadlineAt: string | null
@@ -143,6 +144,14 @@ function formatDeadline(value: string | null): string {
   })
 }
 
+function formatDateTimeLocal(value: string | null): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = (part: number) => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 function groupAssigneesByType(assignees: TaskAssigneeInfo[]): Array<{ type: string; names: string[] }> {
   const order: string[] = []
   const groups: Record<string, string[]> = {}
@@ -158,6 +167,7 @@ function groupAssigneesByType(assignees: TaskAssigneeInfo[]): Array<{ type: stri
 
 interface TaskCardProps {
   task: TaskItem
+  canEditTask: boolean
   canManageAssignments: boolean
   canUpdateStatus: boolean
   isPanelOpen: boolean
@@ -182,10 +192,20 @@ interface TaskCardProps {
   isUpdatingNote: boolean
   updateNoteError: string | null
   updateNoteSuccess: string | null
+  onUpdateTaskInfo: (
+    taskId: string,
+    title: string,
+    description: string,
+    deadline: string,
+    priority: string,
+  ) => Promise<boolean>
+  isUpdatingTaskInfo: boolean
+  updateTaskInfoError: string | null
 }
 
 function TaskCard({
   task,
+  canEditTask,
   canManageAssignments,
   canUpdateStatus,
   isPanelOpen,
@@ -210,7 +230,15 @@ function TaskCard({
   isUpdatingNote,
   updateNoteError,
   updateNoteSuccess,
+  onUpdateTaskInfo,
+  isUpdatingTaskInfo,
+  updateTaskInfoError,
 }: TaskCardProps) {
+  const [isEditingTask, setIsEditingTask] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editDeadline, setEditDeadline] = useState('')
+  const [editPriority, setEditPriority] = useState('normal')
   const [isEditingNote, setIsEditingNote] = useState(false)
   const [noteInputValue, setNoteInputValue] = useState(task.notes ?? '')
 
@@ -223,6 +251,19 @@ function TaskCard({
     if (success) setIsEditingNote(false)
   }
 
+  function startEditingTask() {
+    setEditTitle(task.title)
+    setEditDescription(task.description ?? '')
+    setEditDeadline(formatDateTimeLocal(task.deadlineAt))
+    setEditPriority(task.priority ?? 'normal')
+    setIsEditingTask(true)
+  }
+
+  async function handleSaveTaskInfo() {
+    const success = await onUpdateTaskInfo(task.id, editTitle, editDescription, editDeadline, editPriority)
+    if (success) setIsEditingTask(false)
+  }
+
   const statusLabel = task.progressStatusLabel ?? task.progressStatusSlug ?? 'Durum belirtilmemiş'
   const priorityLabel = task.priority
     ? TASK_PRIORITY_LABELS[task.priority] ?? task.priority
@@ -231,9 +272,94 @@ function TaskCard({
 
   return (
     <div className="rounded-md border border-canvas-border bg-canvas px-4 py-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-sm font-semibold text-ink">{task.title}</span>
-        {canUpdateStatus ? (
+      {isEditingTask ? (
+        <div className="mb-4 flex flex-col gap-4 border-b border-canvas-border pb-4">
+          <h4 className="text-sm font-semibold text-ink">Görevi düzenle</h4>
+          <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
+            Görev adı
+            <input
+              value={editTitle}
+              onChange={(event) => setEditTitle(event.target.value)}
+              disabled={isUpdatingTaskInfo}
+              className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-1.5 text-sm text-ink"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
+            Açıklama
+            <textarea
+              value={editDescription}
+              onChange={(event) => setEditDescription(event.target.value)}
+              disabled={isUpdatingTaskInfo}
+              rows={2}
+              className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-1.5 text-sm text-ink"
+            />
+          </label>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
+              Son tarih
+              <input
+                type="datetime-local"
+                value={editDeadline}
+                onChange={(event) => setEditDeadline(event.target.value)}
+                disabled={isUpdatingTaskInfo}
+                className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-1.5 text-sm text-ink"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
+              Öncelik
+              <select
+                value={editPriority}
+                onChange={(event) => setEditPriority(event.target.value)}
+                disabled={isUpdatingTaskInfo}
+                className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-1.5 text-sm text-ink"
+              >
+                {TASK_PRIORITY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          {updateTaskInfoError && <p className="text-xs text-red-600">{updateTaskInfoError}</p>}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void handleSaveTaskInfo()}
+              disabled={isUpdatingTaskInfo}
+              className="rounded-md bg-ink px-4 py-2 text-xs font-medium text-canvas-surface disabled:opacity-60"
+            >
+              {isUpdatingTaskInfo ? 'Kaydediliyor…' : 'Kaydet'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsEditingTask(false)}
+              disabled={isUpdatingTaskInfo}
+              className="rounded-md border border-canvas-border px-4 py-2 text-xs font-medium text-ink-soft disabled:opacity-60"
+            >
+              İptal
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-ink">{task.title}</span>
+                {canEditTask && (
+                  <button
+                    type="button"
+                    onClick={startEditingTask}
+                    className="rounded border border-canvas-border bg-canvas-surface px-2 py-0.5 text-xs font-medium text-ink-soft"
+                  >
+                    Düzenle
+                  </button>
+                )}
+              </div>
+              {task.description && <p className="whitespace-pre-wrap text-sm text-ink-soft">{task.description}</p>}
+            </div>
+            {canUpdateStatus ? (
           <select
             value={task.progressStatusSlug ?? ''}
             onChange={(event) => onUpdateStatus(task.id, event.target.value)}
@@ -249,17 +375,19 @@ function TaskCard({
               </option>
             ))}
           </select>
-        ) : (
+            ) : (
           <span className="inline-flex w-fit items-center rounded-full border border-canvas-border bg-canvas-surface px-2 py-0.5 text-xs font-medium text-ink-soft">
             {statusLabel}
           </span>
-        )}
-      </div>
-      {updateStatusError && <p className="mt-2 text-xs text-red-600">{updateStatusError}</p>}
-      <div className="mt-2 flex flex-col gap-1 text-sm text-ink-soft sm:flex-row sm:flex-wrap sm:gap-4">
-        <span>Son tarih: {formatDeadline(task.deadlineAt)}</span>
-        <span>Öncelik: {priorityLabel}</span>
-      </div>
+            )}
+          </div>
+          {updateStatusError && <p className="mt-2 text-xs text-red-600">{updateStatusError}</p>}
+          <div className="mt-2 flex flex-col gap-1 text-sm text-ink-soft sm:flex-row sm:flex-wrap sm:gap-4">
+            <span>Son tarih: {formatDeadline(task.deadlineAt)}</span>
+            <span>Öncelik: {priorityLabel}</span>
+          </div>
+        </>
+      )}
       <div className="mt-2 flex flex-col gap-1 text-sm text-ink-soft">
         {assigneeGroups.length === 0 ? (
           <span>Atanan kişi yok</span>
@@ -498,6 +626,8 @@ export default function EventDetail() {
   const [updatingNoteTaskId, setUpdatingNoteTaskId] = useState<string | null>(null)
   const [updateNoteErrorMap, setUpdateNoteErrorMap] = useState<Record<string, string>>({})
   const [updateNoteSuccessMap, setUpdateNoteSuccessMap] = useState<Record<string, string>>({})
+  const [updatingTaskInfoId, setUpdatingTaskInfoId] = useState<string | null>(null)
+  const [updateTaskInfoErrorMap, setUpdateTaskInfoErrorMap] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (statusLoading) return
@@ -618,7 +748,7 @@ export default function EventDetail() {
 
       const { data: taskRows, error: tasksErr } = await supabase
         .from('tasks')
-        .select('id, title, progress_status, deadline_at, priority, notes')
+        .select('id, title, description, progress_status, deadline_at, priority, notes')
         .eq('event_id', eventId)
         .is('deleted_at', null)
         .order('deadline_at', { ascending: true, nullsFirst: false })
@@ -633,6 +763,7 @@ export default function EventDetail() {
       const baseTasks: TaskItem[] = (taskRows ?? []).map((row) => ({
         id: row.id as string,
         title: row.title as string,
+        description: (row.description as string | null) ?? null,
         progressStatusSlug: (row.progress_status as string | null) ?? null,
         progressStatusLabel: null,
         deadlineAt: (row.deadline_at as string | null) ?? null,
@@ -837,6 +968,63 @@ export default function EventDetail() {
       ...previous,
       [taskId]: TASK_UPDATE_NOTE_SUCCESS_MESSAGE,
     }))
+    setTasksRefreshKey((current) => current + 1)
+    return true
+  }
+
+  async function handleUpdateTaskInfo(
+    taskId: string,
+    title: string,
+    description: string,
+    deadline: string,
+    priority: string,
+  ): Promise<boolean> {
+    if (!profileId) return false
+
+    const trimmedTitle = title.trim()
+    if (!trimmedTitle) {
+      setUpdateTaskInfoErrorMap((previous) => ({ ...previous, [taskId]: TASK_TITLE_REQUIRED_MESSAGE }))
+      return false
+    }
+
+    let deadlineAt: string | null = null
+    if (deadline) {
+      const parsedDeadline = new Date(deadline)
+      if (Number.isNaN(parsedDeadline.getTime())) {
+        setUpdateTaskInfoErrorMap((previous) => ({ ...previous, [taskId]: 'Son tarih geçerli değil.' }))
+        return false
+      }
+      deadlineAt = parsedDeadline.toISOString()
+    }
+
+    setUpdatingTaskInfoId(taskId)
+    setUpdateTaskInfoErrorMap((previous) => {
+      const next = { ...previous }
+      delete next[taskId]
+      return next
+    })
+    setTaskSuccessMessage(null)
+
+    const { error } = await supabase
+      .from('tasks')
+      .update({
+        title: trimmedTitle,
+        description: description.trim() || null,
+        deadline_at: deadlineAt,
+        priority,
+      })
+      .eq('id', taskId)
+
+    setUpdatingTaskInfoId(null)
+    if (error) {
+      setUpdateTaskInfoErrorMap((previous) => ({
+        ...previous,
+        [taskId]: 'Görev güncellenirken bir hata oluştu.',
+      }))
+      return false
+    }
+
+    setTaskSuccessMessage('Görev başarıyla güncellendi.')
     setTasksRefreshKey((current) => current + 1)
     return true
   }
@@ -1370,6 +1558,7 @@ export default function EventDetail() {
                   <TaskCard
                     key={task.id}
                     task={task}
+                    canEditTask={canEdit}
                     canManageAssignments={canEdit}
                     canUpdateStatus={canUpdateStatus}
                     isPanelOpen={openAssignmentTaskId === task.id}
@@ -1394,6 +1583,9 @@ export default function EventDetail() {
                     isUpdatingNote={updatingNoteTaskId === task.id}
                     updateNoteError={updateNoteErrorMap[task.id] ?? null}
                     updateNoteSuccess={updateNoteSuccessMap[task.id] ?? null}
+                    onUpdateTaskInfo={handleUpdateTaskInfo}
+                    isUpdatingTaskInfo={updatingTaskInfoId === task.id}
+                    updateTaskInfoError={updateTaskInfoErrorMap[task.id] ?? null}
                   />
                 )
               })}
