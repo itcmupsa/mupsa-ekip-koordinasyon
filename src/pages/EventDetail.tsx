@@ -43,6 +43,11 @@ interface PeriodMemberOption {
   displayName: string
 }
 
+interface TaskProgressStatusOption {
+  slug: string
+  label: string
+}
+
 type PeriodMembersLoadState = 'idle' | 'loading' | 'ready' | 'error'
 
 const NOT_SPECIFIED = 'Henüz belirtilmedi'
@@ -51,6 +56,8 @@ const TASKS_ERROR_MESSAGE = 'Görevler yüklenirken bir hata oluştu.'
 const TASK_TITLE_REQUIRED_MESSAGE = 'Görev adı boş olamaz.'
 const TASK_CREATE_ERROR_MESSAGE = 'Görev oluşturulurken bir hata oluştu.'
 const TASK_CREATE_SUCCESS_MESSAGE = 'Görev başarıyla oluşturuldu.'
+const TASK_UPDATE_STATUS_ERROR_MESSAGE = 'Görev durumu güncellenirken bir hata oluştu.'
+const TASK_UPDATE_STATUS_SUCCESS_MESSAGE = 'Görev durumu başarıyla güncellendi.'
 
 const TASK_PRIORITY_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'low', label: 'Düşük' },
@@ -149,10 +156,12 @@ function groupAssigneesByType(assignees: TaskAssigneeInfo[]): Array<{ type: stri
 interface TaskCardProps {
   task: TaskItem
   canManageAssignments: boolean
+  canUpdateStatus: boolean
   isPanelOpen: boolean
   onTogglePanel: () => void
   members: PeriodMemberOption[]
   membersLoadState: PeriodMembersLoadState
+  availableTaskStatuses: TaskProgressStatusOption[]
   selectedProfileId: string
   onSelectedProfileIdChange: (value: string) => void
   selectedAssignmentType: string
@@ -163,15 +172,20 @@ interface TaskCardProps {
   onRemove: (assignee: TaskAssigneeInfo) => void
   removingAssignmentId: string | null
   removeError: string | null
+  onUpdateStatus: (taskId: string, newStatusSlug: string) => void
+  isUpdatingStatus: boolean
+  updateStatusError: string | null
 }
 
 function TaskCard({
   task,
   canManageAssignments,
+  canUpdateStatus,
   isPanelOpen,
   onTogglePanel,
   members,
   membersLoadState,
+  availableTaskStatuses,
   selectedProfileId,
   onSelectedProfileIdChange,
   selectedAssignmentType,
@@ -182,6 +196,9 @@ function TaskCard({
   onRemove,
   removingAssignmentId,
   removeError,
+  onUpdateStatus,
+  isUpdatingStatus,
+  updateStatusError,
 }: TaskCardProps) {
   const statusLabel = task.progressStatusLabel ?? task.progressStatusSlug ?? 'Durum belirtilmemiş'
   const priorityLabel = task.priority
@@ -191,12 +208,31 @@ function TaskCard({
 
   return (
     <div className="rounded-md border border-canvas-border bg-canvas px-4 py-3">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <span className="text-sm font-semibold text-ink">{task.title}</span>
-        <span className="inline-flex w-fit items-center rounded-full border border-canvas-border bg-canvas-surface px-2 py-0.5 text-xs font-medium text-ink-soft">
-          {statusLabel}
-        </span>
+        {canUpdateStatus ? (
+          <select
+            value={task.progressStatusSlug ?? ''}
+            onChange={(event) => onUpdateStatus(task.id, event.target.value)}
+            disabled={isUpdatingStatus || availableTaskStatuses.length === 0}
+            className="w-fit rounded-md border border-canvas-border bg-canvas-surface px-2 py-1 text-xs font-medium text-ink focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink disabled:opacity-60"
+          >
+            <option value="" disabled>
+              Durum seçin
+            </option>
+            {availableTaskStatuses.map((status) => (
+              <option key={status.slug} value={status.slug}>
+                {status.label}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="inline-flex w-fit items-center rounded-full border border-canvas-border bg-canvas-surface px-2 py-0.5 text-xs font-medium text-ink-soft">
+            {statusLabel}
+          </span>
+        )}
       </div>
+      {updateStatusError && <p className="mt-2 text-xs text-red-600">{updateStatusError}</p>}
       <div className="mt-2 flex flex-col gap-1 text-sm text-ink-soft sm:flex-row sm:flex-wrap sm:gap-4">
         <span>Son tarih: {formatDeadline(task.deadlineAt)}</span>
         <span>Öncelik: {priorityLabel}</span>
@@ -369,6 +405,9 @@ export default function EventDetail() {
   const [assignError, setAssignError] = useState<string | null>(null)
   const [removingAssignmentId, setRemovingAssignmentId] = useState<string | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
+  const [availableTaskStatuses, setAvailableTaskStatuses] = useState<TaskProgressStatusOption[]>([])
+  const [updatingStatusTaskId, setUpdatingStatusTaskId] = useState<string | null>(null)
+  const [updateStatusErrorMap, setUpdateStatusErrorMap] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (statusLoading) return
@@ -449,6 +488,30 @@ export default function EventDetail() {
       isMounted = false
     }
   }, [hasActiveMembership, periodId, eventId, statusLoading])
+
+  useEffect(() => {
+    if (statusLoading || !hasActiveMembership) return
+    let isMounted = true
+
+    async function loadTaskStatuses() {
+      const { data, error } = await supabase
+        .from('task_progress_statuses')
+        .select('slug, label')
+        .order('sort_order', { ascending: true })
+
+      if (!isMounted) return
+      if (error) {
+        return
+      }
+
+      setAvailableTaskStatuses((data ?? []) as TaskProgressStatusOption[])
+    }
+
+    void loadTaskStatuses()
+    return () => {
+      isMounted = false
+    }
+  }, [hasActiveMembership, statusLoading])
 
   useEffect(() => {
     if (statusLoading) return
@@ -616,6 +679,36 @@ export default function EventDetail() {
     setNewTaskDeadline('')
     setNewTaskPriority('normal')
     setTaskSuccessMessage(TASK_CREATE_SUCCESS_MESSAGE)
+    setTasksRefreshKey((current) => current + 1)
+  }
+
+  async function handleUpdateTaskStatus(taskId: string, newStatusSlug: string) {
+    if (!profileId || !availableTaskStatuses.some((status) => status.slug === newStatusSlug)) return
+
+    setUpdatingStatusTaskId(taskId)
+    setUpdateStatusErrorMap((previous) => {
+      const next = { ...previous }
+      delete next[taskId]
+      return next
+    })
+    setTaskSuccessMessage(null)
+
+    const { error } = await supabase
+      .from('tasks')
+      .update({ progress_status: newStatusSlug })
+      .eq('id', taskId)
+
+    setUpdatingStatusTaskId(null)
+
+    if (error) {
+      setUpdateStatusErrorMap((previous) => ({
+        ...previous,
+        [taskId]: TASK_UPDATE_STATUS_ERROR_MESSAGE,
+      }))
+      return
+    }
+
+    setTaskSuccessMessage(TASK_UPDATE_STATUS_SUCCESS_MESSAGE)
     setTasksRefreshKey((current) => current + 1)
   }
 
@@ -1136,27 +1229,41 @@ export default function EventDetail() {
           )}
           {tasksLoadState === 'ready' && tasks.length > 0 && (
             <div className="mt-3 flex flex-col gap-3">
-              {tasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  canManageAssignments={canEdit}
-                  isPanelOpen={openAssignmentTaskId === task.id}
-                  onTogglePanel={() => toggleAssignmentPanel(task.id)}
-                  members={periodMembers}
-                  membersLoadState={periodMembersLoadState}
-                  selectedProfileId={openAssignmentTaskId === task.id ? selectedAssigneeProfileId : ''}
-                  onSelectedProfileIdChange={setSelectedAssigneeProfileId}
-                  selectedAssignmentType={selectedAssignmentType}
-                  onSelectedAssignmentTypeChange={setSelectedAssignmentType}
-                  onAssign={() => handleAssignMember(task.id)}
-                  isAssigning={isAssigning && openAssignmentTaskId === task.id}
-                  assignError={openAssignmentTaskId === task.id ? assignError : null}
-                  onRemove={handleRemoveAssignment}
-                  removingAssignmentId={removingAssignmentId}
-                  removeError={openAssignmentTaskId === task.id ? removeError : null}
-                />
-              ))}
+              {tasks.map((task) => {
+                const isTaskAssigneeWithPermission = task.assignees.some(
+                  (assignee) =>
+                    assignee.profileId === profileId &&
+                    (assignee.assignmentType === 'primary' || assignee.assignmentType === 'supporting'),
+                )
+                const canUpdateStatus = isSuperAdmin || isOwner || isTaskAssigneeWithPermission
+
+                return (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    canManageAssignments={canEdit}
+                    canUpdateStatus={canUpdateStatus}
+                    isPanelOpen={openAssignmentTaskId === task.id}
+                    onTogglePanel={() => toggleAssignmentPanel(task.id)}
+                    members={periodMembers}
+                    membersLoadState={periodMembersLoadState}
+                    availableTaskStatuses={availableTaskStatuses}
+                    selectedProfileId={openAssignmentTaskId === task.id ? selectedAssigneeProfileId : ''}
+                    onSelectedProfileIdChange={setSelectedAssigneeProfileId}
+                    selectedAssignmentType={selectedAssignmentType}
+                    onSelectedAssignmentTypeChange={setSelectedAssignmentType}
+                    onAssign={() => handleAssignMember(task.id)}
+                    isAssigning={isAssigning && openAssignmentTaskId === task.id}
+                    assignError={openAssignmentTaskId === task.id ? assignError : null}
+                    onRemove={handleRemoveAssignment}
+                    removingAssignmentId={removingAssignmentId}
+                    removeError={openAssignmentTaskId === task.id ? removeError : null}
+                    onUpdateStatus={handleUpdateTaskStatus}
+                    isUpdatingStatus={updatingStatusTaskId === task.id}
+                    updateStatusError={updateStatusErrorMap[task.id] ?? null}
+                  />
+                )
+              })}
             </div>
           )}
         </div>

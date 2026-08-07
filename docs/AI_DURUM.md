@@ -120,6 +120,8 @@ Hedef:
 - Görev önceliği etiket düzeltmesi tamamlandı: `low`, `normal`, `high`, `urgent` değerleri Türkçe gösteriliyor.
 - Görev atama yönetimi adımı tamamlandı: aktif dönem üyeleri arasından ana sorumlu, destekleyen ve bilgilendirilen kişiler atanabilir veya kaldırılabilir.
 - Görev atama canlı testi tamamlandı: ana sorumlu, destekleyen ve bilgilendirilen atama türleri; ikinci ana sorumlu engeli, ekleme/kaldırma ve sayfa yenileme sonrası kalıcılık doğrulandı.
+- Görev durum güncelleme kodu eklendi: super_admin, etkinlik sahibi, ana sorumlu ve destekleyen kişi mevcut durum seçeneklerinden seçim yaparak `progress_status` güncelleyebilir; bilgilendirilen ve atanmamış kullanıcılar salt-okunur görür.
+- Görev durum güncellemesinde Supabase RLS ve mevcut görev yazma trigger'ı korunuyor; migration değişikliği yapılmadı. Canlı yetki ve kalıcılık testi bekliyor.
 - Durum, SKS, mekân ve sonraki işlem alanları bu adımda düzenlenemez.
 
 Bu görev şunları **kapsamaz**:
