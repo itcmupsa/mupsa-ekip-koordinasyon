@@ -28,6 +28,9 @@
 - Görev adı, `Başlanmadı` durumu ve 15 Ağustos 2026 son tarihi doğru gösterildi.
 - Görev oluşturma başarı mesajı ve görev listesinin kayıt sonrası yenilenmesi doğrulandı.
 - Görev önceliği için teknik slug yerine Türkçe etiket eşlemesi eklendi (`high` → `Yüksek`).
+- Göreve `Yeni Ekip Uyesi` ana sorumlu olarak canlıda başarıyla atandı.
+- Aynı göreve ikinci ana sorumlu ekleme denemesi beklenen Türkçe hata mesajıyla engellendi.
+- Ana sorumlu ataması kaldırıldı; sayfa yenileme sonrası `Atanan kişi yok` durumu korundu.
 
 ## Bekleyen kontrol
 

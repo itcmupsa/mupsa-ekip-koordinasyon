@@ -119,7 +119,8 @@ Hedef:
 - Etkinlik görev oluşturma canlı testi tamamlandı: görev kaydı, başarı mesajı ve kayıt sonrası liste yenileme doğrulandı.
 - Görev önceliği etiket düzeltmesi tamamlandı: `low`, `normal`, `high`, `urgent` değerleri Türkçe gösteriliyor.
 - Görev atama yönetimi adımı tamamlandı: aktif dönem üyeleri arasından ana sorumlu, destekleyen ve bilgilendirilen kişiler atanabilir veya kaldırılabilir.
-- Sıradaki küçük adımda görev atama yönetiminin canlı testi yapılacak.
+- Görev atama canlı testi kısmen tamamlandı: ana sorumlu atama, ikinci ana sorumlu engeli, kaldırma ve kalıcılık doğrulandı.
+- Sıradaki küçük adımda destekleyen ve bilgilendirilen atama türleri test edilecek.
 - Durum, SKS, mekân ve sonraki işlem alanları bu adımda düzenlenemez.
 
 Bu görev şunları **kapsamaz**:
