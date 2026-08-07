@@ -20,6 +20,7 @@ interface EventBasicInfo {
 type LoadState = 'loading' | 'ready' | 'not_found' | 'error'
 
 interface TaskAssigneeInfo {
+  id: string
   profileId: string
   displayName: string
   assignmentType: string
@@ -36,6 +37,13 @@ interface TaskItem {
 }
 
 type TasksLoadState = 'loading' | 'ready' | 'error'
+
+interface PeriodMemberOption {
+  profileId: string
+  displayName: string
+}
+
+type PeriodMembersLoadState = 'idle' | 'loading' | 'ready' | 'error'
 
 const NOT_SPECIFIED = 'Henüz belirtilmedi'
 const TASKS_NOT_FOUND_MESSAGE = 'Bu etkinlik için henüz görev oluşturulmamış.'
@@ -57,6 +65,20 @@ const TASK_PRIORITY_LABELS: Record<string, string> = {
   high: 'Yüksek',
   urgent: 'Acil',
 }
+
+const ASSIGNMENT_TYPE_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'primary', label: 'Ana sorumlu' },
+  { value: 'supporting', label: 'Destekleyen' },
+  { value: 'informed', label: 'Bilgilendirilen' },
+]
+
+const ASSIGNEE_REQUIRED_MESSAGE = 'Lütfen bir üye seçin.'
+const ASSIGNMENT_DUPLICATE_MESSAGE = 'Bu kişi bu atama türüyle zaten atanmış.'
+const ASSIGNMENT_PRIMARY_EXISTS_MESSAGE =
+  'Bu görevin zaten bir ana sorumlusu var. Yeni ana sorumlu atamadan önce mevcut ana sorumluyu kaldırın.'
+const ASSIGNMENT_CREATE_ERROR_MESSAGE = 'Atama yapılırken bir hata oluştu.'
+const ASSIGNMENT_REMOVE_ERROR_MESSAGE = 'Atama kaldırılırken bir hata oluştu.'
+const PERIOD_MEMBERS_ERROR_MESSAGE = 'Üyeler yüklenirken bir hata oluştu.'
 
 const ASSIGNMENT_TYPE_LABELS: Record<string, string> = {
   primary: 'Ana sorumlu',
@@ -124,7 +146,43 @@ function groupAssigneesByType(assignees: TaskAssigneeInfo[]): Array<{ type: stri
   return order.map((type) => ({ type, names: groups[type] }))
 }
 
-function TaskCard({ task }: { task: TaskItem }) {
+interface TaskCardProps {
+  task: TaskItem
+  canManageAssignments: boolean
+  isPanelOpen: boolean
+  onTogglePanel: () => void
+  members: PeriodMemberOption[]
+  membersLoadState: PeriodMembersLoadState
+  selectedProfileId: string
+  onSelectedProfileIdChange: (value: string) => void
+  selectedAssignmentType: string
+  onSelectedAssignmentTypeChange: (value: string) => void
+  onAssign: () => void
+  isAssigning: boolean
+  assignError: string | null
+  onRemove: (assignee: TaskAssigneeInfo) => void
+  removingAssignmentId: string | null
+  removeError: string | null
+}
+
+function TaskCard({
+  task,
+  canManageAssignments,
+  isPanelOpen,
+  onTogglePanel,
+  members,
+  membersLoadState,
+  selectedProfileId,
+  onSelectedProfileIdChange,
+  selectedAssignmentType,
+  onSelectedAssignmentTypeChange,
+  onAssign,
+  isAssigning,
+  assignError,
+  onRemove,
+  removingAssignmentId,
+  removeError,
+}: TaskCardProps) {
   const statusLabel = task.progressStatusLabel ?? task.progressStatusSlug ?? 'Durum belirtilmemiş'
   const priorityLabel = task.priority
     ? TASK_PRIORITY_LABELS[task.priority] ?? task.priority
@@ -154,6 +212,119 @@ function TaskCard({ task }: { task: TaskItem }) {
           ))
         )}
       </div>
+
+      {canManageAssignments && (
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={onTogglePanel}
+            className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-1.5 text-sm font-medium text-ink hover:bg-canvas"
+          >
+            {isPanelOpen ? 'Atama panelini kapat' : 'Atama yönetimi'}
+          </button>
+        </div>
+      )}
+
+      {canManageAssignments && isPanelOpen && (
+        <div className="mt-3 rounded-md border border-canvas-border bg-canvas-surface px-4 py-4">
+          <h4 className="text-sm font-semibold text-ink">Atama yönetimi</h4>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="flex flex-1 flex-col gap-1">
+              <label className="text-sm font-medium text-ink-soft" htmlFor={`assignee-select-${task.id}`}>
+                Üye
+              </label>
+              <select
+                id={`assignee-select-${task.id}`}
+                value={selectedProfileId}
+                onChange={(e) => onSelectedProfileIdChange(e.target.value)}
+                disabled={isAssigning || membersLoadState === 'loading'}
+                className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+              >
+                <option value="">Üye seçin</option>
+                {members.map((member) => (
+                  <option key={member.profileId} value={member.profileId}>
+                    {member.displayName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-1 flex-col gap-1">
+              <label className="text-sm font-medium text-ink-soft" htmlFor={`assignment-type-select-${task.id}`}>
+                Atama türü
+              </label>
+              <select
+                id={`assignment-type-select-${task.id}`}
+                value={selectedAssignmentType}
+                onChange={(e) => onSelectedAssignmentTypeChange(e.target.value)}
+                disabled={isAssigning}
+                className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+              >
+                {ASSIGNMENT_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={onAssign}
+              disabled={isAssigning}
+              className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
+            >
+              {isAssigning ? 'Atanıyor…' : 'Ata'}
+            </button>
+          </div>
+
+          {membersLoadState === 'loading' && (
+            <p className="mt-2 text-sm text-ink-soft">Üyeler yükleniyor…</p>
+          )}
+          {membersLoadState === 'error' && (
+            <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {PERIOD_MEMBERS_ERROR_MESSAGE}
+            </p>
+          )}
+          {assignError && (
+            <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {assignError}
+            </p>
+          )}
+
+          <div className="mt-4">
+            <h5 className="text-sm font-medium text-ink-soft">Mevcut atamalar</h5>
+            {task.assignees.length === 0 ? (
+              <p className="mt-2 text-sm text-ink-soft">Atanan kişi yok</p>
+            ) : (
+              <div className="mt-2 flex flex-col gap-2">
+                {task.assignees.map((assignee) => (
+                  <div
+                    key={assignee.id}
+                    className="flex items-center justify-between gap-2 rounded-md border border-canvas-border bg-canvas px-3 py-2"
+                  >
+                    <span className="text-sm text-ink">
+                      {ASSIGNMENT_TYPE_LABELS[assignee.assignmentType] ?? assignee.assignmentType}:{' '}
+                      {assignee.displayName}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onRemove(assignee)}
+                      disabled={removingAssignmentId === assignee.id}
+                      className="shrink-0 rounded-md border border-canvas-border px-3 py-1 text-xs font-medium text-ink-soft disabled:opacity-60"
+                    >
+                      {removingAssignmentId === assignee.id ? 'Kaldırılıyor…' : 'Kaldır'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {removeError && (
+              <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {removeError}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -189,6 +360,15 @@ export default function EventDetail() {
   const [isCreatingTask, setIsCreatingTask] = useState(false)
   const [createTaskError, setCreateTaskError] = useState<string | null>(null)
   const [taskSuccessMessage, setTaskSuccessMessage] = useState<string | null>(null)
+  const [periodMembers, setPeriodMembers] = useState<PeriodMemberOption[]>([])
+  const [periodMembersLoadState, setPeriodMembersLoadState] = useState<PeriodMembersLoadState>('idle')
+  const [openAssignmentTaskId, setOpenAssignmentTaskId] = useState<string | null>(null)
+  const [selectedAssigneeProfileId, setSelectedAssigneeProfileId] = useState('')
+  const [selectedAssignmentType, setSelectedAssignmentType] = useState('primary')
+  const [isAssigning, setIsAssigning] = useState(false)
+  const [assignError, setAssignError] = useState<string | null>(null)
+  const [removingAssignmentId, setRemovingAssignmentId] = useState<string | null>(null)
+  const [removeError, setRemoveError] = useState<string | null>(null)
 
   useEffect(() => {
     if (statusLoading) return
@@ -333,7 +513,7 @@ export default function EventDetail() {
       const taskIds = baseTasks.map((task) => task.id)
       const { data: assigneeRows } = await supabase
         .from('task_assignees')
-        .select('task_id, profile_id, assignment_type')
+        .select('id, task_id, profile_id, assignment_type')
         .in('task_id', taskIds)
 
       if (!isMounted) return
@@ -356,6 +536,7 @@ export default function EventDetail() {
         if (!assigneesByTask[taskId]) assigneesByTask[taskId] = []
         const profileId = assigneeRow.profile_id as string
         assigneesByTask[taskId].push({
+          id: assigneeRow.id as string,
           profileId,
           displayName: profileNameMap[profileId] ?? 'İsimsiz üye',
           assignmentType: assigneeRow.assignment_type as string,
@@ -441,6 +622,131 @@ export default function EventDetail() {
   const isOwner = !!event && !!profileId && event.ownerId === profileId
   const isSuperAdmin = appRole === 'super_admin'
   const canEdit = isOwner || isSuperAdmin
+
+  useEffect(() => {
+    if (!canEdit || !periodId) {
+      setPeriodMembers([])
+      setPeriodMembersLoadState('idle')
+      return
+    }
+
+    let isMounted = true
+    async function loadPeriodMembers() {
+      setPeriodMembersLoadState('loading')
+      const { data: membershipRows, error: membershipError } = await supabase
+        .from('period_memberships')
+        .select('profile_id')
+        .eq('period_id', periodId)
+        .eq('is_active', true)
+
+      if (!isMounted) return
+      if (membershipError) {
+        setPeriodMembers([])
+        setPeriodMembersLoadState('error')
+        return
+      }
+
+      const profileIds = Array.from(new Set((membershipRows ?? []).map((row) => row.profile_id as string)))
+      if (profileIds.length === 0) {
+        setPeriodMembers([])
+        setPeriodMembersLoadState('ready')
+        return
+      }
+
+      const { data: profileRows, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, display_name')
+        .in('id', profileIds)
+
+      if (!isMounted) return
+      if (profilesError) {
+        setPeriodMembers([])
+        setPeriodMembersLoadState('error')
+        return
+      }
+
+      setPeriodMembers(
+        (profileRows ?? []).map((row) => ({
+          profileId: row.id as string,
+          displayName: (row.display_name as string | null) ?? 'İsimsiz üye',
+        })),
+      )
+      setPeriodMembersLoadState('ready')
+    }
+
+    void loadPeriodMembers()
+    return () => {
+      isMounted = false
+    }
+  }, [canEdit, periodId])
+
+  function toggleAssignmentPanel(taskId: string) {
+    if (openAssignmentTaskId === taskId) {
+      setOpenAssignmentTaskId(null)
+      setAssignError(null)
+      setRemoveError(null)
+      return
+    }
+    setOpenAssignmentTaskId(taskId)
+    setSelectedAssigneeProfileId('')
+    setSelectedAssignmentType('primary')
+    setAssignError(null)
+    setRemoveError(null)
+  }
+
+  async function handleAssignMember(taskId: string) {
+    if (!profileId) return
+    const task = tasks.find((item) => item.id === taskId)
+    if (!task) return
+    if (!selectedAssigneeProfileId) {
+      setAssignError(ASSIGNEE_REQUIRED_MESSAGE)
+      return
+    }
+
+    const isDuplicate = task.assignees.some(
+      (assignee) =>
+        assignee.profileId === selectedAssigneeProfileId &&
+        assignee.assignmentType === selectedAssignmentType,
+    )
+    if (isDuplicate) {
+      setAssignError(ASSIGNMENT_DUPLICATE_MESSAGE)
+      return
+    }
+    if (selectedAssignmentType === 'primary' && task.assignees.some((assignee) => assignee.assignmentType === 'primary')) {
+      setAssignError(ASSIGNMENT_PRIMARY_EXISTS_MESSAGE)
+      return
+    }
+
+    setIsAssigning(true)
+    setAssignError(null)
+    const { error } = await supabase.from('task_assignees').insert({
+      task_id: taskId,
+      profile_id: selectedAssigneeProfileId,
+      assignment_type: selectedAssignmentType,
+      assigned_by: profileId,
+    })
+    setIsAssigning(false)
+
+    if (error) {
+      setAssignError(ASSIGNMENT_CREATE_ERROR_MESSAGE)
+      return
+    }
+    setSelectedAssigneeProfileId('')
+    setTasksRefreshKey((current) => current + 1)
+  }
+
+  async function handleRemoveAssignment(assignee: TaskAssigneeInfo) {
+    setRemovingAssignmentId(assignee.id)
+    setRemoveError(null)
+    const { error } = await supabase.from('task_assignees').delete().eq('id', assignee.id)
+    setRemovingAssignmentId(null)
+
+    if (error) {
+      setRemoveError(ASSIGNMENT_REMOVE_ERROR_MESSAGE)
+      return
+    }
+    setTasksRefreshKey((current) => current + 1)
+  }
 
   function startEditing() {
     if (!event) return
@@ -831,7 +1137,25 @@ export default function EventDetail() {
           {tasksLoadState === 'ready' && tasks.length > 0 && (
             <div className="mt-3 flex flex-col gap-3">
               {tasks.map((task) => (
-                <TaskCard key={task.id} task={task} />
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  canManageAssignments={canEdit}
+                  isPanelOpen={openAssignmentTaskId === task.id}
+                  onTogglePanel={() => toggleAssignmentPanel(task.id)}
+                  members={periodMembers}
+                  membersLoadState={periodMembersLoadState}
+                  selectedProfileId={openAssignmentTaskId === task.id ? selectedAssigneeProfileId : ''}
+                  onSelectedProfileIdChange={setSelectedAssigneeProfileId}
+                  selectedAssignmentType={selectedAssignmentType}
+                  onSelectedAssignmentTypeChange={setSelectedAssignmentType}
+                  onAssign={() => handleAssignMember(task.id)}
+                  isAssigning={isAssigning && openAssignmentTaskId === task.id}
+                  assignError={openAssignmentTaskId === task.id ? assignError : null}
+                  onRemove={handleRemoveAssignment}
+                  removingAssignmentId={removingAssignmentId}
+                  removeError={openAssignmentTaskId === task.id ? removeError : null}
+                />
               ))}
             </div>
           )}
