@@ -21,6 +21,12 @@ type LoadState = 'loading' | 'ready' | 'not_found' | 'error'
 
 const NOT_SPECIFIED = 'Henüz belirtilmedi'
 
+function extractDateOnly(value: string | null): string {
+  if (!value) return ''
+  const match = value.match(/^(\d{4}-\d{2}-\d{2})/)
+  return match ? match[1] : ''
+}
+
 function CenteredMessage({ text }: { text: string }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
@@ -30,8 +36,10 @@ function CenteredMessage({ text }: { text: string }) {
 }
 
 function formatDate(value: string | null): string {
-  if (!value) return 'Tarih henüz belirlenmedi'
-  const parsed = new Date(value)
+  const dateOnly = extractDateOnly(value)
+  if (!dateOnly) return 'Tarih henüz belirlenmedi'
+  const [year, month, day] = dateOnly.split('-').map(Number)
+  const parsed = new Date(year, month - 1, day)
   if (Number.isNaN(parsed.getTime())) return 'Tarih henüz belirlenmedi'
   return parsed.toLocaleDateString('tr-TR', {
     day: 'numeric',
@@ -64,6 +72,10 @@ export default function EventDetail() {
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [editPlanningDate, setEditPlanningDate] = useState('')
+  const [editPreparationStartDate, setEditPreparationStartDate] = useState('')
+  const [editEstimatedDate, setEditEstimatedDate] = useState('')
+  const [editConfirmedDate, setEditConfirmedDate] = useState('')
 
   useEffect(() => {
     if (statusLoading) return
@@ -153,6 +165,10 @@ export default function EventDetail() {
     if (!event) return
     setEditTitle(event.title)
     setEditDescription(event.description ?? '')
+    setEditPlanningDate(extractDateOnly(event.planningDate))
+    setEditPreparationStartDate(extractDateOnly(event.preparationStartDate))
+    setEditEstimatedDate(extractDateOnly(event.estimatedDate))
+    setEditConfirmedDate(extractDateOnly(event.confirmedDate))
     setSaveError(null)
     setSuccessMessage(null)
     setIsEditing(true)
@@ -164,6 +180,10 @@ export default function EventDetail() {
     if (event) {
       setEditTitle(event.title)
       setEditDescription(event.description ?? '')
+      setEditPlanningDate(extractDateOnly(event.planningDate))
+      setEditPreparationStartDate(extractDateOnly(event.preparationStartDate))
+      setEditEstimatedDate(extractDateOnly(event.estimatedDate))
+      setEditConfirmedDate(extractDateOnly(event.confirmedDate))
     }
   }
 
@@ -179,14 +199,25 @@ export default function EventDetail() {
     setSaveError(null)
     const trimmedDescription = editDescription.trim()
     const nextDescription = trimmedDescription.length > 0 ? trimmedDescription : null
+    const nextPlanningDate = editPlanningDate || null
+    const nextPreparationStartDate = editPreparationStartDate || null
+    const nextEstimatedDate = editEstimatedDate || null
+    const nextConfirmedDate = editConfirmedDate || null
 
     const { data, error } = await supabase
       .from('events')
-      .update({ title: trimmedTitle, description: nextDescription })
+      .update({
+        title: trimmedTitle,
+        description: nextDescription,
+        planning_date: nextPlanningDate,
+        preparation_start_date: nextPreparationStartDate,
+        estimated_date: nextEstimatedDate,
+        confirmed_date: nextConfirmedDate,
+      })
       .eq('id', eventId)
       .eq('period_id', periodId)
       .is('deleted_at', null)
-      .select('title, description')
+      .select('title, description, planning_date, preparation_start_date, estimated_date, confirmed_date')
       .maybeSingle()
 
     setIsSaving(false)
@@ -206,6 +237,10 @@ export default function EventDetail() {
             ...current,
             title: (data.title as string) ?? trimmedTitle,
             description: (data.description as string | null) ?? nextDescription,
+            planningDate: (data.planning_date as string | null) ?? nextPlanningDate,
+            preparationStartDate: (data.preparation_start_date as string | null) ?? nextPreparationStartDate,
+            estimatedDate: (data.estimated_date as string | null) ?? nextEstimatedDate,
+            confirmedDate: (data.confirmed_date as string | null) ?? nextConfirmedDate,
           }
         : current,
     )
@@ -288,6 +323,60 @@ export default function EventDetail() {
                   rows={4}
                   className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
                 />
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="event-planning-date" className="text-sm font-medium text-ink-soft">
+                    Planlama tarihi
+                  </label>
+                  <input
+                    id="event-planning-date"
+                    type="date"
+                    value={editPlanningDate}
+                    onChange={(e) => setEditPlanningDate(e.target.value)}
+                    disabled={isSaving}
+                    className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="event-preparation-start-date" className="text-sm font-medium text-ink-soft">
+                    Hazırlık başlangıç tarihi
+                  </label>
+                  <input
+                    id="event-preparation-start-date"
+                    type="date"
+                    value={editPreparationStartDate}
+                    onChange={(e) => setEditPreparationStartDate(e.target.value)}
+                    disabled={isSaving}
+                    className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="event-estimated-date" className="text-sm font-medium text-ink-soft">
+                    Tahmini etkinlik tarihi
+                  </label>
+                  <input
+                    id="event-estimated-date"
+                    type="date"
+                    value={editEstimatedDate}
+                    onChange={(e) => setEditEstimatedDate(e.target.value)}
+                    disabled={isSaving}
+                    className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="event-confirmed-date" className="text-sm font-medium text-ink-soft">
+                    Kesinleşmiş tarih
+                  </label>
+                  <input
+                    id="event-confirmed-date"
+                    type="date"
+                    value={editConfirmedDate}
+                    onChange={(e) => setEditConfirmedDate(e.target.value)}
+                    disabled={isSaving}
+                    className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                  />
+                </div>
               </div>
               {saveError && (
                 <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
