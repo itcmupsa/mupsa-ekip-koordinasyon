@@ -35,6 +35,7 @@ interface TaskItem {
   deadlineAt: string | null
   priority: string | null
   notes: string | null
+  deletedAt: string | null
   assignees: TaskAssigneeInfo[]
 }
 
@@ -167,6 +168,7 @@ function groupAssigneesByType(assignees: TaskAssigneeInfo[]): Array<{ type: stri
 
 interface TaskCardProps {
   task: TaskItem
+  isSuperAdmin: boolean
   canEditTask: boolean
   canManageAssignments: boolean
   canUpdateStatus: boolean
@@ -201,10 +203,14 @@ interface TaskCardProps {
   ) => Promise<boolean>
   isUpdatingTaskInfo: boolean
   updateTaskInfoError: string | null
+  onDeactivateTask: (taskId: string) => void
+  onReactivateTask: (taskId: string) => void
+  isProcessingActiveStatus: boolean
 }
 
 function TaskCard({
   task,
+  isSuperAdmin,
   canEditTask,
   canManageAssignments,
   canUpdateStatus,
@@ -233,6 +239,9 @@ function TaskCard({
   onUpdateTaskInfo,
   isUpdatingTaskInfo,
   updateTaskInfoError,
+  onDeactivateTask,
+  onReactivateTask,
+  isProcessingActiveStatus,
 }: TaskCardProps) {
   const [isEditingTask, setIsEditingTask] = useState(false)
   const [editTitle, setEditTitle] = useState('')
@@ -241,6 +250,10 @@ function TaskCard({
   const [editPriority, setEditPriority] = useState('normal')
   const [isEditingNote, setIsEditingNote] = useState(false)
   const [noteInputValue, setNoteInputValue] = useState(task.notes ?? '')
+  const isDeactivated = !!task.deletedAt
+  const effectiveCanEditTask = canEditTask && !isDeactivated
+  const effectiveCanUpdateStatus = canUpdateStatus && !isDeactivated
+  const effectiveCanManageAssignments = canManageAssignments && !isDeactivated
 
   useEffect(() => {
     if (!isEditingNote) setNoteInputValue(task.notes ?? '')
@@ -347,7 +360,12 @@ function TaskCard({
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-ink">{task.title}</span>
-                {canEditTask && (
+                {isDeactivated && (
+                  <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                    Pasif görev
+                  </span>
+                )}
+                {effectiveCanEditTask && (
                   <button
                     type="button"
                     onClick={startEditingTask}
@@ -356,10 +374,30 @@ function TaskCard({
                     Düzenle
                   </button>
                 )}
+                {isSuperAdmin && !isDeactivated && (
+                  <button
+                    type="button"
+                    onClick={() => onDeactivateTask(task.id)}
+                    disabled={isProcessingActiveStatus}
+                    className="rounded border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 disabled:opacity-60"
+                  >
+                    Pasifleştir
+                  </button>
+                )}
+                {isSuperAdmin && isDeactivated && (
+                  <button
+                    type="button"
+                    onClick={() => onReactivateTask(task.id)}
+                    disabled={isProcessingActiveStatus}
+                    className="rounded border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 disabled:opacity-60"
+                  >
+                    Yeniden aktifleştir
+                  </button>
+                )}
               </div>
               {task.description && <p className="whitespace-pre-wrap text-sm text-ink-soft">{task.description}</p>}
             </div>
-            {canUpdateStatus ? (
+            {effectiveCanUpdateStatus ? (
           <select
             value={task.progressStatusSlug ?? ''}
             onChange={(event) => onUpdateStatus(task.id, event.target.value)}
@@ -402,7 +440,7 @@ function TaskCard({
 
       <div className="mt-4 border-t border-canvas-border pt-3">
         <h5 className="text-sm font-medium text-ink-soft">Görev Notu</h5>
-        {canUpdateStatus ? (
+        {effectiveCanUpdateStatus ? (
           isEditingNote ? (
             <div className="mt-2 flex flex-col gap-2">
               <textarea
@@ -464,7 +502,7 @@ function TaskCard({
         {updateNoteSuccess && !isEditingNote && <p className="mt-2 text-xs text-green-600">{updateNoteSuccess}</p>}
       </div>
 
-      {canManageAssignments && (
+      {effectiveCanManageAssignments && (
         <div className="mt-4">
           <button
             type="button"
@@ -476,7 +514,7 @@ function TaskCard({
         </div>
       )}
 
-      {canManageAssignments && isPanelOpen && (
+      {effectiveCanManageAssignments && isPanelOpen && (
         <div className="mt-3 rounded-md border border-canvas-border bg-canvas-surface px-4 py-4">
           <h4 className="text-sm font-semibold text-ink">Atama yönetimi</h4>
           <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -603,6 +641,7 @@ export default function EventDetail() {
   const [tasks, setTasks] = useState<TaskItem[]>([])
   const [tasksError, setTasksError] = useState<string | null>(null)
   const [tasksRefreshKey, setTasksRefreshKey] = useState(0)
+  const [showInactiveTasks, setShowInactiveTasks] = useState(false)
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskDescription, setNewTaskDescription] = useState('')
@@ -628,6 +667,7 @@ export default function EventDetail() {
   const [updateNoteSuccessMap, setUpdateNoteSuccessMap] = useState<Record<string, string>>({})
   const [updatingTaskInfoId, setUpdatingTaskInfoId] = useState<string | null>(null)
   const [updateTaskInfoErrorMap, setUpdateTaskInfoErrorMap] = useState<Record<string, string>>({})
+  const [processingActiveStatusTaskId, setProcessingActiveStatusTaskId] = useState<string | null>(null)
 
   useEffect(() => {
     if (statusLoading) return
@@ -746,12 +786,17 @@ export default function EventDetail() {
       setTasksLoadState('loading')
       setTasksError(null)
 
-      const { data: taskRows, error: tasksErr } = await supabase
+      let tasksQuery = supabase
         .from('tasks')
-        .select('id, title, description, progress_status, deadline_at, priority, notes')
+        .select('id, title, description, progress_status, deadline_at, priority, notes, deleted_at')
         .eq('event_id', eventId)
-        .is('deleted_at', null)
         .order('deadline_at', { ascending: true, nullsFirst: false })
+
+      if (appRole !== 'super_admin' || !showInactiveTasks) {
+        tasksQuery = tasksQuery.is('deleted_at', null)
+      }
+
+      const { data: taskRows, error: tasksErr } = await tasksQuery
 
       if (!isMounted) return
       if (tasksErr) {
@@ -769,6 +814,7 @@ export default function EventDetail() {
         deadlineAt: (row.deadline_at as string | null) ?? null,
         priority: (row.priority as string | null) ?? null,
         notes: (row.notes as string | null) ?? null,
+        deletedAt: (row.deleted_at as string | null) ?? null,
         assignees: [],
       }))
 
@@ -842,7 +888,7 @@ export default function EventDetail() {
     return () => {
       isMounted = false
     }
-  }, [hasActiveMembership, eventId, statusLoading, tasksRefreshKey])
+  }, [hasActiveMembership, eventId, statusLoading, tasksRefreshKey, appRole, showInactiveTasks])
 
   function openTaskForm() {
     setNewTaskTitle('')
@@ -1027,6 +1073,41 @@ export default function EventDetail() {
     setTaskSuccessMessage('Görev başarıyla güncellendi.')
     setTasksRefreshKey((current) => current + 1)
     return true
+  }
+
+  async function handleDeactivateTask(taskId: string) {
+    if (!profileId || !isSuperAdmin) return
+    if (!window.confirm('Bu görevi pasifleştirmek istediğinize emin misiniz?')) return
+
+    setProcessingActiveStatusTaskId(taskId)
+    const { error } = await supabase
+      .from('tasks')
+      .update({ deleted_at: new Date().toISOString(), deleted_by: profileId })
+      .eq('id', taskId)
+
+    setProcessingActiveStatusTaskId(null)
+    if (error) {
+      setTaskSuccessMessage('Görev pasifleştirilemedi.')
+      return
+    }
+    setTasksRefreshKey((current) => current + 1)
+  }
+
+  async function handleReactivateTask(taskId: string) {
+    if (!profileId || !isSuperAdmin) return
+
+    setProcessingActiveStatusTaskId(taskId)
+    const { error } = await supabase
+      .from('tasks')
+      .update({ deleted_at: null, deleted_by: null })
+      .eq('id', taskId)
+
+    setProcessingActiveStatusTaskId(null)
+    if (error) {
+      setTaskSuccessMessage('Görev yeniden aktifleştirilemedi.')
+      return
+    }
+    setTasksRefreshKey((current) => current + 1)
   }
 
   const isOwner = !!event && !!profileId && event.ownerId === profileId
@@ -1424,8 +1505,21 @@ export default function EventDetail() {
           </div>
         </div>
         <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
-          <div className="flex items-start justify-between gap-4">
-            <h2 className="text-sm font-semibold text-ink">Görevler</h2>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <h2 className="text-sm font-semibold text-ink">Görevler</h2>
+              {isSuperAdmin && (
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
+                  <input
+                    type="checkbox"
+                    checked={showInactiveTasks}
+                    onChange={(event) => setShowInactiveTasks(event.target.checked)}
+                    className="rounded border-canvas-border text-ink focus:ring-ink"
+                  />
+                  Pasif görevleri göster
+                </label>
+              )}
+            </div>
             {canEdit && !isTaskFormOpen && (
               <button
                 type="button"
@@ -1558,6 +1652,7 @@ export default function EventDetail() {
                   <TaskCard
                     key={task.id}
                     task={task}
+                    isSuperAdmin={isSuperAdmin}
                     canEditTask={canEdit}
                     canManageAssignments={canEdit}
                     canUpdateStatus={canUpdateStatus}
@@ -1586,6 +1681,9 @@ export default function EventDetail() {
                     onUpdateTaskInfo={handleUpdateTaskInfo}
                     isUpdatingTaskInfo={updatingTaskInfoId === task.id}
                     updateTaskInfoError={updateTaskInfoErrorMap[task.id] ?? null}
+                    onDeactivateTask={handleDeactivateTask}
+                    onReactivateTask={handleReactivateTask}
+                    isProcessingActiveStatus={processingActiveStatusTaskId === task.id}
                   />
                 )
               })}
