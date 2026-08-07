@@ -126,7 +126,7 @@ Hedef:
 - Görev notu canlı testi tamamlandı: not ekleme, düzenleme, boşaltma ve sayfa yenileme sonrası kalıcılık doğrulandı.
 - Görev düzenleme kodu eklendi: etkinlik sahibi ve `super_admin` görev adı, açıklama, son tarih ve önceliği güncelleyebilir; durum, not ve atamalar korunur. Lint/build başarılı, canlı görev düzenleme testi bekliyor.
 - Görev yaşam döngüsü adımı tamamlandı: `super_admin` görevleri `deleted_at` ile pasifleştirebilir, pasif görevleri ayrı filtreyle görebilir ve yeniden aktifleştirebilir. Canlı pasifleştirme, gizleme, filtreleme ve geri alma testi başarılı; migration/RLS değişikliği yapılmadı.
-- Görev bağımlılıkları kodu eklendi: SKS durumu, başka görevin ilerleme durumu ve etkinlik tarih farkı bağımlılıkları yapılandırılmış alanlarla eklenip silinebiliyor; mevcut bağımlılıklar okunabiliyor. Gemini kodundaki Supabase hata mesajı eksikliği tamamlandı. Lint/build başarılı, canlı bağımlılık testi bekliyor.
+- Görev bağımlılıkları altyapısı korunuyor ancak kullanıcı arayüzü feature flag ile gizlendi (`ENABLE_TASK_DEPENDENCY_UI = false`); mevcut görev akışını sade tutuyoruz. Migration/RLS ve veritabanı modeli silinmedi.
 - Durum, SKS, mekân ve sonraki işlem alanları bu adımda düzenlenemez.
 
 Bu görev şunları **kapsamaz**:

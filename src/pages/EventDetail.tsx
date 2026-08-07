@@ -79,6 +79,7 @@ const TASK_UPDATE_STATUS_ERROR_MESSAGE = 'Görev durumu güncellenirken bir hata
 const TASK_UPDATE_STATUS_SUCCESS_MESSAGE = 'Görev durumu başarıyla güncellendi.'
 const TASK_UPDATE_NOTE_ERROR_MESSAGE = 'Görev notu güncellenirken bir hata oluştu.'
 const TASK_UPDATE_NOTE_SUCCESS_MESSAGE = 'Görev notu başarıyla güncellendi.'
+const ENABLE_TASK_DEPENDENCY_UI = false
 
 const TASK_PRIORITY_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'low', label: 'Düşük' },
@@ -546,7 +547,8 @@ function TaskCard({
         )}
       </div>
 
-      <div className="mt-4 border-t border-canvas-border pt-3">
+      {ENABLE_TASK_DEPENDENCY_UI && (
+        <div className="mt-4 border-t border-canvas-border pt-3">
         <div className="flex items-center justify-between">
           <h5 className="text-sm font-medium text-ink-soft">Bağımlılıklar</h5>
           {effectiveCanEditTask && !isAddingDependency && (
@@ -703,7 +705,8 @@ function TaskCard({
             </div>
           </div>
         )}
-      </div>
+        </div>
+      )}
 
       <div className="mt-4 border-t border-canvas-border pt-3">
         <h5 className="text-sm font-medium text-ink-soft">Görev Notu</h5>
