@@ -106,7 +106,8 @@ Hedef:
 - Etkinlik detay süreç bilgileri adımı tamamlandı: aktif üye sorumlu kişiyi, mekânı ve sonraki işlemi okuyabilir.
 - Etkinlik detay akışının canlı görünümü kontrol edildi: test etkinliği, durum/tarihler ve süreç bilgileri doğru gösterildi.
 - Etkinlik düzenleme adımı tamamlandı: etkinlik sahibi veya süper yönetici yalnızca başlık ve açıklamayı güncelleyebilir.
-- Sıradaki küçük adımda etkinlik düzenlemenin canlı testi yapılacak.
+- Etkinlik düzenleme canlı testi tamamlandı: başlık/açıklama kaydı, sayfa yenileme sonrası kalıcılık ve İptal davranışı doğrulandı.
+- Sıradaki küçük adımda etkinlik düzenlemenin tarih alanları ele alınacak.
 - Tarih, durum, SKS, mekân ve sonraki işlem alanları bu adımda düzenlenemez.
 
 Bu görev şunları **kapsamaz**:
@@ -116,7 +117,7 @@ Bu görev şunları **kapsamaz**:
 - Migration/RLS değişikliği
 - Etkinlik, görev veya bildirim ekranları
 
-Üyelik yönetimi Adım 1–3 ve etkinlik listeleme kod/derleme düzeyinde doğrulanmış, ilk süper yönetici ataması ve yönetici ekranının canlı açılışı test edilmiştir. İkinci kullanıcı ekleme testi, Supabase’in yerleşik e-posta sağlayıcısındaki hız sınırı nedeniyle beklemededir. Etkinlik oluşturma ve etkinlik detayının durum/tarih-süreç bilgileri canlıda doğrulanmıştır.
+Üyelik yönetimi Adım 1–3 ve etkinlik listeleme kod/derleme düzeyinde doğrulanmış, ilk süper yönetici ataması ve yönetici ekranının canlı açılışı test edilmiştir. İkinci kullanıcı ekleme testi, Supabase’in yerleşik e-posta sağlayıcısındaki hız sınırı nedeniyle beklemededir. Etkinlik oluşturma, etkinlik detayının durum/tarih-süreç bilgileri ve başlık/açıklama düzenleme akışı canlıda doğrulanmıştır.
 
 ## Son teknik değişiklikler
 

@@ -15,6 +15,10 @@
 - Boş hazırlık başlangıcı ve kesinleşmiş tarih alanları için beklenen placeholder gösterildi.
 - Süreç bilgileri kartında sorumlu (`Yeni Ekip Üyesi`) doğru gösterildi.
 - Boş mekân ve sonraki işlem alanları için `Henüz belirtilmedi` gösterildi.
+- Etkinlik detayında `Düzenle` butonu canlıda görüldü.
+- Test etkinliğinin başlık ve açıklaması başarıyla güncellendi.
+- Sayfa yenilendikten sonra güncellenen bilgiler korunarak veritabanına kaydedildiği doğrulandı.
+- Düzenleme formunda `İptal` işlemi test edildi; kaydedilmemiş değişiklikler uygulanmadı.
 
 ## Bekleyen kontrol
 
