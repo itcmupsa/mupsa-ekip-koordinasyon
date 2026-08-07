@@ -40,6 +40,16 @@ type TasksLoadState = 'loading' | 'ready' | 'error'
 const NOT_SPECIFIED = 'Henüz belirtilmedi'
 const TASKS_NOT_FOUND_MESSAGE = 'Bu etkinlik için henüz görev oluşturulmamış.'
 const TASKS_ERROR_MESSAGE = 'Görevler yüklenirken bir hata oluştu.'
+const TASK_TITLE_REQUIRED_MESSAGE = 'Görev adı boş olamaz.'
+const TASK_CREATE_ERROR_MESSAGE = 'Görev oluşturulurken bir hata oluştu.'
+const TASK_CREATE_SUCCESS_MESSAGE = 'Görev başarıyla oluşturuldu.'
+
+const TASK_PRIORITY_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'low', label: 'Düşük' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'high', label: 'Yüksek' },
+  { value: 'urgent', label: 'Acil' },
+]
 
 const ASSIGNMENT_TYPE_LABELS: Record<string, string> = {
   primary: 'Ana sorumlu',
@@ -161,6 +171,15 @@ export default function EventDetail() {
   const [tasksLoadState, setTasksLoadState] = useState<TasksLoadState>('loading')
   const [tasks, setTasks] = useState<TaskItem[]>([])
   const [tasksError, setTasksError] = useState<string | null>(null)
+  const [tasksRefreshKey, setTasksRefreshKey] = useState(0)
+  const [isTaskFormOpen, setIsTaskFormOpen] = useState(false)
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [newTaskDescription, setNewTaskDescription] = useState('')
+  const [newTaskDeadline, setNewTaskDeadline] = useState('')
+  const [newTaskPriority, setNewTaskPriority] = useState('normal')
+  const [isCreatingTask, setIsCreatingTask] = useState(false)
+  const [createTaskError, setCreateTaskError] = useState<string | null>(null)
+  const [taskSuccessMessage, setTaskSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
     if (statusLoading) return
@@ -348,7 +367,67 @@ export default function EventDetail() {
     return () => {
       isMounted = false
     }
-  }, [hasActiveMembership, eventId, statusLoading])
+  }, [hasActiveMembership, eventId, statusLoading, tasksRefreshKey])
+
+  function openTaskForm() {
+    setNewTaskTitle('')
+    setNewTaskDescription('')
+    setNewTaskDeadline('')
+    setNewTaskPriority('normal')
+    setCreateTaskError(null)
+    setTaskSuccessMessage(null)
+    setIsTaskFormOpen(true)
+  }
+
+  function cancelTaskForm() {
+    setIsTaskFormOpen(false)
+    setCreateTaskError(null)
+  }
+
+  async function handleCreateTask() {
+    if (!eventId || !profileId) return
+    const trimmedTitle = newTaskTitle.trim()
+    if (!trimmedTitle) {
+      setCreateTaskError(TASK_TITLE_REQUIRED_MESSAGE)
+      return
+    }
+
+    let deadlineAt: string | null = null
+    if (newTaskDeadline) {
+      const parsedDeadline = new Date(newTaskDeadline)
+      if (Number.isNaN(parsedDeadline.getTime())) {
+        setCreateTaskError('Son tarih geçerli değil.')
+        return
+      }
+      deadlineAt = parsedDeadline.toISOString()
+    }
+
+    setIsCreatingTask(true)
+    setCreateTaskError(null)
+    const trimmedDescription = newTaskDescription.trim()
+    const { error } = await supabase.from('tasks').insert({
+      event_id: eventId,
+      title: trimmedTitle,
+      description: trimmedDescription || null,
+      created_by: profileId,
+      deadline_at: deadlineAt,
+      priority: newTaskPriority,
+    })
+    setIsCreatingTask(false)
+
+    if (error) {
+      setCreateTaskError(TASK_CREATE_ERROR_MESSAGE)
+      return
+    }
+
+    setIsTaskFormOpen(false)
+    setNewTaskTitle('')
+    setNewTaskDescription('')
+    setNewTaskDeadline('')
+    setNewTaskPriority('normal')
+    setTaskSuccessMessage(TASK_CREATE_SUCCESS_MESSAGE)
+    setTasksRefreshKey((current) => current + 1)
+  }
 
   const isOwner = !!event && !!profileId && event.ownerId === profileId
   const isSuperAdmin = appRole === 'super_admin'
@@ -620,7 +699,115 @@ export default function EventDetail() {
           </div>
         </div>
         <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
-          <h2 className="text-sm font-semibold text-ink">Görevler</h2>
+          <div className="flex items-start justify-between gap-4">
+            <h2 className="text-sm font-semibold text-ink">Görevler</h2>
+            {canEdit && !isTaskFormOpen && (
+              <button
+                type="button"
+                onClick={openTaskForm}
+                className="shrink-0 rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-sm font-medium text-ink hover:bg-canvas-surface"
+              >
+                Görev oluştur
+              </button>
+            )}
+          </div>
+
+          {taskSuccessMessage && !isTaskFormOpen && (
+            <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+              {taskSuccessMessage}
+            </p>
+          )}
+
+          {isTaskFormOpen && (
+            <div className="mt-4 rounded-md border border-canvas-border bg-canvas px-4 py-4">
+              <h3 className="text-sm font-semibold text-ink">Yeni görev</h3>
+              <div className="mt-3 flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="task-title" className="text-sm font-medium text-ink-soft">
+                    Görev adı
+                  </label>
+                  <input
+                    id="task-title"
+                    type="text"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    disabled={isCreatingTask}
+                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="task-description" className="text-sm font-medium text-ink-soft">
+                    Açıklama
+                  </label>
+                  <textarea
+                    id="task-description"
+                    value={newTaskDescription}
+                    onChange={(e) => setNewTaskDescription(e.target.value)}
+                    disabled={isCreatingTask}
+                    rows={3}
+                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="task-deadline" className="text-sm font-medium text-ink-soft">
+                      Son tarih
+                    </label>
+                    <input
+                      id="task-deadline"
+                      type="datetime-local"
+                      value={newTaskDeadline}
+                      onChange={(e) => setNewTaskDeadline(e.target.value)}
+                      disabled={isCreatingTask}
+                      className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="task-priority" className="text-sm font-medium text-ink-soft">
+                      Öncelik
+                    </label>
+                    <select
+                      id="task-priority"
+                      value={newTaskPriority}
+                      onChange={(e) => setNewTaskPriority(e.target.value)}
+                      disabled={isCreatingTask}
+                      className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                    >
+                      {TASK_PRIORITY_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {createTaskError && (
+                  <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {createTaskError}
+                  </p>
+                )}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCreateTask}
+                    disabled={isCreatingTask}
+                    className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
+                  >
+                    {isCreatingTask ? 'Oluşturuluyor…' : 'Görevi oluştur'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelTaskForm}
+                    disabled={isCreatingTask}
+                    className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
+                  >
+                    İptal
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {tasksLoadState === 'loading' && (
             <p className="mt-3 text-sm text-ink-soft">Görevler yükleniyor…</p>
           )}
