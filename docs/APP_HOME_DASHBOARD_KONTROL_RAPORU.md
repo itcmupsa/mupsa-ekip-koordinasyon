@@ -26,6 +26,6 @@ Faz 1 ana sayfasına aktif dönem özeti, görev listeleri, son etkinlikler ve h
 - `npm run build` başarılı.
 - `git diff --check` başarılı.
 
-## Bekleyen canlı test
+## Canlı test sonucu
 
-Canlı sitede `/app` açılarak gerçek verilerle özet sayıları, görev listeleri, etkinlik durumları ve hızlı erişim bağlantıları kontrol edilmelidir. Test tamamlanmadan dashboard özelliği canlı doğrulandı olarak işaretlenmemelidir.
+Canlı `/app` sayfasında gerçek verilerle test tamamlandı. Aktif etkinlik, açık görev ve kullanıcıya atanan görev sayıları; görev kartı, yaklaşan görevler, son etkinlikler ve hızlı erişim bağlantıları doğrulandı.

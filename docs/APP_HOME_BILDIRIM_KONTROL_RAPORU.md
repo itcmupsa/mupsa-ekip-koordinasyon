@@ -25,6 +25,6 @@
 - `npm run build` başarılı.
 - `git diff --check` başarılı.
 
-## Bekleyen canlı test
+## Canlı test sonucu
 
-Canlı sitede bildirim üreten bir işlem yapılmalı. Görev atama veya mevcut tetikleyicilerden biri çalıştırıldıktan sonra `/app` sayfasında bildirim görünmeli; bildirim tıklanınca okundu durumu değişmeli ve ilgili etkinliğe gidilmelidir.
+Canlı test tamamlandı. Görev ataması ve etkinlik tarihi değişiklikleri sonucunda bildirimler `/app` sayfasında göründü. Tek bildirime tıklanınca yeni sayısı azaldı; “Tümünü okundu işaretle” işlemi sonrası yeni sayısı kayboldu ve sayfa yenilemesinde okundu durumu korundu.

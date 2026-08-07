@@ -129,9 +129,9 @@ Hedef:
 - Görev bağımlılıkları altyapısı korunuyor ancak kullanıcı arayüzü feature flag ile gizlendi (`ENABLE_TASK_DEPENDENCY_UI = false`); mevcut görev akışını sade tutuyoruz. Migration/RLS ve veritabanı modeli silinmedi.
 - Ana sayfa dashboard'ı kodlandı: aktif etkinlik/açık görev/bana atanan açık görev/geciken görev özetleri, bana atanan görevler, geciken ve yaklaşan görevler, son etkinlikler ve hızlı erişim bağlantıları gösteriliyor.
 - Dashboard verileri aktif dönem ve aktif üyelikle sınırlandırılıyor; görev ve etkinlikler pasif/silinmiş kayıtları dışlıyor. Etkinlik ve görev durum etiketleri veritabanından okunuyor.
-- Dashboard kod incelemesinde Gemini teslimindeki `any` kullanımı düzeltildi; lint, TypeScript/Vite build ve `git diff --check` başarılı. Canlı dashboard testi bekliyor.
+- Dashboard kod incelemesinde Gemini teslimindeki `any` kullanımı düzeltildi; lint, TypeScript/Vite build ve `git diff --check` başarılı. Canlı dashboard testi tamamlandı: gerçek etkinlik/görev verileri ve görev sayıları doğrulandı.
 - Uygulama içi bildirim alanı kodlandı: kullanıcıya ait `in_app` bildirimleri listeleniyor, okunmamış sayısı gösteriliyor, bildirimler tek tek veya toplu olarak okundu işaretlenebiliyor ve ilişkili etkinlik detayına yönlendirme yapılıyor.
-- Bildirim alanında yalnızca mevcut kullanıcının kayıtları sorgulanıyor; migration, RLS, auth, e-posta ve push teslimatı değiştirilmedi. Lint, TypeScript/Vite build ve `git diff --check` başarılı; canlı bildirim testi bekliyor.
+- Bildirim alanında yalnızca mevcut kullanıcının kayıtları sorgulanıyor; migration, RLS, auth, e-posta ve push teslimatı değiştirilmedi. Lint, TypeScript/Vite build ve `git diff --check` başarılı. Canlı bildirim testi tamamlandı: görev ataması ve etkinlik tarihi bildirimleri göründü; tekli ve toplu okundu işaretleme kalıcı olarak doğrulandı.
 - Durum, SKS, mekân ve sonraki işlem alanları bu adımda düzenlenemez.
 
 Bu görev şunları **kapsamaz**:
