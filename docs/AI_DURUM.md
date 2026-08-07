@@ -132,6 +132,7 @@ Hedef:
 - Dashboard kod incelemesinde Gemini teslimindeki `any` kullanımı düzeltildi; lint, TypeScript/Vite build ve `git diff --check` başarılı. Canlı dashboard testi tamamlandı: gerçek etkinlik/görev verileri ve görev sayıları doğrulandı.
 - Uygulama içi bildirim alanı kodlandı: kullanıcıya ait `in_app` bildirimleri listeleniyor, okunmamış sayısı gösteriliyor, bildirimler tek tek veya toplu olarak okundu işaretlenebiliyor ve ilişkili etkinlik detayına yönlendirme yapılıyor.
 - Bildirim alanında yalnızca mevcut kullanıcının kayıtları sorgulanıyor; migration, RLS, auth, e-posta ve push teslimatı değiştirilmedi. Lint, TypeScript/Vite build ve `git diff --check` başarılı. Canlı bildirim testi tamamlandı: görev ataması ve etkinlik tarihi bildirimleri göründü; tekli ve toplu okundu işaretleme kalıcı olarak doğrulandı.
+- PWA temel kurulumu eklendi: manifest, 192/512 SVG ikonları ve service worker kaydı mevcut. Service worker Supabase/auth ve yazma isteklerini cache'lemiyor; kullanıcı verisi offline cache'e alınmıyor. Lint, build ve diff kontrolleri başarılı; canlı telefona kurulum testi bekliyor.
 - Durum, SKS, mekân ve sonraki işlem alanları bu adımda düzenlenemez.
 
 Bu görev şunları **kapsamaz**:

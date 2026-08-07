@@ -5,3 +5,11 @@ import App from './App.tsx'
 import './index.css'
 
 createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><App /></BrowserRouter></StrictMode>)
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js').catch((error: unknown) => {
+      console.error('Service Worker kaydı başarısız:', error)
+    })
+  })
+}
