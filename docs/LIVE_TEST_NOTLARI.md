@@ -31,6 +31,8 @@
 - Göreve `Yeni Ekip Uyesi` ana sorumlu olarak canlıda başarıyla atandı.
 - Aynı göreve ikinci ana sorumlu ekleme denemesi beklenen Türkçe hata mesajıyla engellendi.
 - Ana sorumlu ataması kaldırıldı; sayfa yenileme sonrası `Atanan kişi yok` durumu korundu.
+- `Destekleyen` ve `Bilgilendirilen` atama türleri canlıda başarıyla eklendi.
+- Bu iki atama türü de daha sonra kaldırıldı; kaldırma işlemi ve sayfa yenileme sonrası temiz durum doğrulandı.
 
 ## Bekleyen kontrol
 
