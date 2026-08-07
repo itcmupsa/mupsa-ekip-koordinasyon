@@ -27,7 +27,7 @@
 - `Başvuru formunu hazırla` görevi canlıda başarıyla oluşturuldu.
 - Görev adı, `Başlanmadı` durumu ve 15 Ağustos 2026 son tarihi doğru gösterildi.
 - Görev oluşturma başarı mesajı ve görev listesinin kayıt sonrası yenilenmesi doğrulandı.
-- Küçük arayüz notu: öncelik listede teknik slug (`high`) olarak görünüyor; sonraki düzeltmede `Yüksek` etiketi gösterilecek.
+- Görev önceliği için teknik slug yerine Türkçe etiket eşlemesi eklendi (`high` → `Yüksek`).
 
 ## Bekleyen kontrol
 

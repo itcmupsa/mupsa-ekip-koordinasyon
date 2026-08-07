@@ -51,6 +51,13 @@ const TASK_PRIORITY_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'urgent', label: 'Acil' },
 ]
 
+const TASK_PRIORITY_LABELS: Record<string, string> = {
+  low: 'Düşük',
+  normal: 'Normal',
+  high: 'Yüksek',
+  urgent: 'Acil',
+}
+
 const ASSIGNMENT_TYPE_LABELS: Record<string, string> = {
   primary: 'Ana sorumlu',
   supporting: 'Destekleyen',
@@ -119,7 +126,9 @@ function groupAssigneesByType(assignees: TaskAssigneeInfo[]): Array<{ type: stri
 
 function TaskCard({ task }: { task: TaskItem }) {
   const statusLabel = task.progressStatusLabel ?? task.progressStatusSlug ?? 'Durum belirtilmemiş'
-  const priorityLabel = task.priority && task.priority.trim().length > 0 ? task.priority : 'Belirtilmemiş'
+  const priorityLabel = task.priority
+    ? TASK_PRIORITY_LABELS[task.priority] ?? task.priority
+    : 'Belirtilmemiş'
   const assigneeGroups = groupAssigneesByType(task.assignees)
 
   return (

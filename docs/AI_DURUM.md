@@ -116,8 +116,8 @@ Hedef:
 - Etkinlik detay görev listesi canlı testi tamamlandı: görevi olmayan etkinlikte beklenen boş liste mesajı gösterildi.
 - Etkinlik görev oluşturma adımı tamamlandı: etkinlik sahibi veya süper yönetici görev adı, açıklama, son tarih ve öncelik girerek görev oluşturabilir.
 - Etkinlik görev oluşturma canlı testi tamamlandı: görev kaydı, başarı mesajı ve kayıt sonrası liste yenileme doğrulandı.
-- Küçük arayüz düzeltmesi bekliyor: görev önceliği teknik slug yerine Türkçe etiketle gösterilecek.
-- Sıradaki küçük adımda görev önceliği etiketi düzeltilecek.
+- Görev önceliği etiket düzeltmesi tamamlandı: `low`, `normal`, `high`, `urgent` değerleri Türkçe gösteriliyor.
+- Sıradaki küçük adımda görev oluşturma ve listeleme akışı tamamlanmış kabul edilerek görev atama planlanacak.
 - Durum, SKS, mekân ve sonraki işlem alanları bu adımda düzenlenemez.
 
 Bu görev şunları **kapsamaz**:
