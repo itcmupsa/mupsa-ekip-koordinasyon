@@ -109,7 +109,8 @@ Hedef:
 - Etkinlik düzenleme adımı tamamlandı: etkinlik sahibi veya süper yönetici yalnızca başlık ve açıklamayı güncelleyebilir.
 - Etkinlik düzenleme canlı testi tamamlandı: başlık/açıklama kaydı, sayfa yenileme sonrası kalıcılık ve İptal davranışı doğrulandı.
 - Etkinlik düzenleme tarih adımı tamamlandı: planlama, hazırlık başlangıcı, tahmini ve kesinleşmiş tarihler güncellenebilir.
-- Sıradaki küçük adımda tarih düzenlemenin canlı testi yapılacak.
+- Etkinlik düzenleme tarih canlı testi tamamlandı: tarih kaydı, boş tarihi `null` yapma ve sayfa yenileme sonrası kalıcılık doğrulandı.
+- Sıradaki küçük adımda etkinlik düzenleme alanları tamamlanmış kabul edilerek görev yönetimine geçiş planlanacak.
 - Durum, SKS, mekân ve sonraki işlem alanları bu adımda düzenlenemez.
 
 Bu görev şunları **kapsamaz**:
@@ -119,7 +120,7 @@ Bu görev şunları **kapsamaz**:
 - Migration/RLS değişikliği
 - Etkinlik, görev veya bildirim ekranları
 
-Üyelik yönetimi Adım 1–3 ve etkinlik listeleme kod/derleme düzeyinde doğrulanmış, ilk süper yönetici ataması ve yönetici ekranının canlı açılışı test edilmiştir. İkinci kullanıcı ekleme testi, Supabase’in yerleşik e-posta sağlayıcısındaki hız sınırı nedeniyle beklemededir. Etkinlik oluşturma, etkinlik detayının durum/tarih-süreç bilgileri ve başlık/açıklama düzenleme akışı canlıda doğrulanmıştır.
+Üyelik yönetimi Adım 1–3 ve etkinlik listeleme kod/derleme düzeyinde doğrulanmış, ilk süper yönetici ataması ve yönetici ekranının canlı açılışı test edilmiştir. İkinci kullanıcı ekleme testi, Supabase’in yerleşik e-posta sağlayıcısındaki hız sınırı nedeniyle beklemededir. Etkinlik oluşturma, etkinlik detayının durum/tarih-süreç bilgileri ve başlık/açıklama/tarih düzenleme akışları canlıda doğrulanmıştır.
 
 ## Son teknik değişiklikler
 

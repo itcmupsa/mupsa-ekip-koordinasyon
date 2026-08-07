@@ -19,6 +19,9 @@
 - Test etkinliğinin başlık ve açıklaması başarıyla güncellendi.
 - Sayfa yenilendikten sonra güncellenen bilgiler korunarak veritabanına kaydedildiği doğrulandı.
 - Düzenleme formunda `İptal` işlemi test edildi; kaydedilmemiş değişiklikler uygulanmadı.
+- Tarih düzenleme formunda planlama, tahmini ve kesinleşmiş tarihler canlıda başarıyla kaydedildi.
+- Hazırlık başlangıç tarihi boşaltıldı; detay ekranında `Tarih henüz belirlenmedi` gösterildi.
+- Sayfa yenilendikten sonra tarih değerleri ve boş bırakılan alanın durumu korundu.
 
 ## Bekleyen kontrol
 
