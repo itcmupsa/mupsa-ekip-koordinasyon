@@ -22,6 +22,8 @@
 - Tarih düzenleme formunda planlama, tahmini ve kesinleşmiş tarihler canlıda başarıyla kaydedildi.
 - Hazırlık başlangıç tarihi boşaltıldı; detay ekranında `Tarih henüz belirlenmedi` gösterildi.
 - Sayfa yenilendikten sonra tarih değerleri ve boş bırakılan alanın durumu korundu.
+- Etkinlik detayında `Görevler` kartı canlıda görüntülendi.
+- Görevi olmayan etkinlik için `Bu etkinlik için henüz görev oluşturulmamış.` mesajı doğru gösterildi.
 
 ## Bekleyen kontrol
 

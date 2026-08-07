@@ -112,7 +112,8 @@ Hedef:
 - Etkinlik düzenleme tarih adımı tamamlandı: planlama, hazırlık başlangıcı, tahmini ve kesinleşmiş tarihler güncellenebilir.
 - Etkinlik düzenleme tarih canlı testi tamamlandı: tarih kaydı, boş tarihi `null` yapma ve sayfa yenileme sonrası kalıcılık doğrulandı.
 - Etkinlik detay görev listesi adımı tamamlandı: görev adı, durum, son tarih, öncelik ve atanan kişiler salt-okunur gösterilebilir.
-- Sıradaki küçük adımda görev listesinin canlı testi yapılacak.
+- Etkinlik detay görev listesi canlı testi tamamlandı: görevi olmayan etkinlikte beklenen boş liste mesajı gösterildi.
+- Sıradaki küçük adımda etkinlik sahibi veya yetkili süreç sorumlusu için görev oluşturma formu yapılacak.
 - Durum, SKS, mekân ve sonraki işlem alanları bu adımda düzenlenemez.
 
 Bu görev şunları **kapsamaz**:
