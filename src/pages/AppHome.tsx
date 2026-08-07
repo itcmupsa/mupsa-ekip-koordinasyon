@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
 
@@ -43,6 +43,16 @@ interface DashboardData {
   recentEvents: DashboardEvent[]
 }
 
+interface NotificationItem {
+  id: string
+  eventId: string | null
+  taskId: string | null
+  title: string
+  body: string
+  readAt: string | null
+  createdAt: string
+}
+
 const ASSIGNMENT_TYPE_LABELS: Record<string, string> = {
   primary: 'Ana sorumlu',
   supporting: 'Destekleyen',
@@ -68,12 +78,30 @@ function formatDateTimeShort(value: string | null): string {
   })
 }
 
+function formatNotificationTime(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('tr-TR', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 export default function AppHome({ session }: { session: Session }) {
+  const navigate = useNavigate()
   const { displayName, hasActiveMembership, periodLabel, periodId, profileId, appRole, loading: membershipLoading } = useMembershipStatus(session)
   const isSuperAdmin = hasActiveMembership && appRole === 'super_admin'
   const [dataLoading, setDataLoading] = useState(false)
   const [dataError, setDataError] = useState<string | null>(null)
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [notificationsLoading, setNotificationsLoading] = useState(false)
+  const [notificationsError, setNotificationsError] = useState<string | null>(null)
+  const [notificationsRefreshKey, setNotificationsRefreshKey] = useState(0)
+  const [markingReadId, setMarkingReadId] = useState<string | null>(null)
+  const [markingAllRead, setMarkingAllRead] = useState(false)
 
   useEffect(() => {
     if (membershipLoading || !hasActiveMembership || !periodId || !profileId) return
@@ -217,7 +245,103 @@ export default function AppHome({ session }: { session: Session }) {
     return () => { isMounted = false }
   }, [hasActiveMembership, periodId, profileId, membershipLoading])
 
+  useEffect(() => {
+    if (membershipLoading || !hasActiveMembership || !profileId) return
+
+    let isMounted = true
+    async function loadNotifications() {
+      setNotificationsLoading(true)
+      setNotificationsError(null)
+
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('id, event_id, task_id, title, body, read_at, created_at')
+        .eq('recipient_id', profileId)
+        .eq('channel', 'in_app')
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (!isMounted) return
+      if (error) {
+        setNotificationsError('Bildirimler yüklenirken bir hata oluştu.')
+        setNotificationsLoading(false)
+        return
+      }
+
+      setNotifications((data ?? []).map(row => ({
+        id: row.id as string,
+        eventId: (row.event_id as string | null) ?? null,
+        taskId: (row.task_id as string | null) ?? null,
+        title: row.title as string,
+        body: row.body as string,
+        readAt: (row.read_at as string | null) ?? null,
+        createdAt: row.created_at as string,
+      })))
+      setNotificationsLoading(false)
+    }
+
+    void loadNotifications()
+    return () => { isMounted = false }
+  }, [hasActiveMembership, membershipLoading, notificationsRefreshKey, profileId])
+
+  async function handleNotificationClick(notification: NotificationItem) {
+    if (!notification.readAt) {
+      setMarkingReadId(notification.id)
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read_at: new Date().toISOString() })
+        .eq('id', notification.id)
+        .eq('recipient_id', profileId)
+
+      setMarkingReadId(null)
+      if (error) {
+        setNotificationsError('Bildirim okundu olarak işaretlenemedi.')
+      } else {
+        setNotificationsRefreshKey(previous => previous + 1)
+      }
+    }
+
+    if (notification.eventId) {
+      navigate(`/app/etkinlikler/${notification.eventId}`)
+      return
+    }
+
+    if (notification.taskId) {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('event_id')
+        .eq('id', notification.taskId)
+        .maybeSingle()
+
+      if (!error && data?.event_id) navigate(`/app/etkinlikler/${data.event_id as string}`)
+    }
+  }
+
+  async function handleMarkAllAsRead() {
+    if (markingAllRead || !profileId) return
+    const unreadIds = notifications.filter(notification => !notification.readAt).map(notification => notification.id)
+    if (unreadIds.length === 0) return
+
+    setMarkingAllRead(true)
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('recipient_id', profileId)
+      .eq('channel', 'in_app')
+      .is('read_at', null)
+      .in('id', unreadIds)
+
+    setMarkingAllRead(false)
+    if (error) {
+      setNotificationsError('Bildirimler okundu olarak işaretlenemedi.')
+      return
+    }
+    setNotificationsRefreshKey(previous => previous + 1)
+  }
+
   async function handleSignOut() { await supabase.auth.signOut() }
+
+  const unreadCount = notifications.filter(notification => !notification.readAt).length
 
   return (
     <div className="min-h-screen bg-canvas pb-12">
@@ -240,6 +364,30 @@ export default function AppHome({ session }: { session: Session }) {
               <h1 className="mt-1 text-2xl font-semibold text-ink">{displayName}</h1>
               <p className="mt-1 text-sm text-ink-soft">{periodLabel ? `Aktif dönem: ${periodLabel}` : 'Aktif Dönem'}</p>
             </div>
+            <section className="rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-sm sm:p-6">
+              <div className="flex items-center justify-between border-b border-canvas-border pb-3">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-semibold text-ink">Bildirimler</h2>
+                  {unreadCount > 0 && <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-white">{unreadCount} yeni</span>}
+                </div>
+                {unreadCount > 0 && <button type="button" onClick={() => void handleMarkAllAsRead()} disabled={markingAllRead} className="text-xs font-medium text-ink-soft hover:text-ink disabled:opacity-60">{markingAllRead ? 'İşaretleniyor…' : 'Tümünü okundu işaretle'}</button>}
+              </div>
+              <div className="mt-4">
+                {notificationsLoading ? <p className="text-sm text-ink-soft">Bildirimler yükleniyor…</p> : notificationsError ? <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{notificationsError}</p> : notifications.length === 0 ? <p className="text-sm italic text-ink-soft">Yeni bildirimin bulunmuyor.</p> : (
+                  <ul className="flex flex-col gap-2">
+                    {notifications.map(notification => {
+                      const isUnread = !notification.readAt
+                      const isClickable = Boolean(notification.eventId || notification.taskId)
+                      const isBusy = markingReadId === notification.id
+                      return <li key={notification.id} className={`rounded-md border p-3 transition-colors ${isUnread ? 'border-accent/30 bg-accent-soft/30' : 'border-canvas-border bg-canvas'} ${isClickable ? 'cursor-pointer hover:border-ink/20' : ''}`} onClick={() => { if (!isBusy && (isClickable || isUnread)) void handleNotificationClick(notification) }} role={isClickable || isUnread ? 'button' : 'listitem'} tabIndex={isClickable || isUnread ? 0 : undefined} onKeyDown={event => { if (!isBusy && (event.key === 'Enter' || event.key === ' ') && (isClickable || isUnread)) { event.preventDefault(); void handleNotificationClick(notification) } }}>
+                        <div className="flex items-start justify-between gap-2"><p className="text-sm font-medium text-ink">{notification.title}</p><span className="shrink-0 text-[10px] text-ink-soft">{formatNotificationTime(notification.createdAt)}</span></div>
+                        <p className="mt-1 text-xs text-ink-soft">{notification.body}</p>
+                      </li>
+                    })}
+                  </ul>
+                )}
+              </div>
+            </section>
             {dataLoading ? <p className="text-sm text-ink-soft">Özet bilgileri yükleniyor…</p> : dataError ? (
               <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{dataError}</p>
             ) : dashboardData ? (
