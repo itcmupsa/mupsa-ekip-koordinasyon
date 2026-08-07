@@ -35,6 +35,9 @@
 - Bu iki atama türü de daha sonra kaldırıldı; kaldırma işlemi ve sayfa yenileme sonrası temiz durum doğrulandı.
 - Süper yönetici olarak görev durumu `Tamamlandı` seçildi ve başarıyla kaydedildi.
 - Sayfa yenilendikten sonra görev durumu `Tamamlandı` olarak korunarak kalıcılık doğrulandı.
+- Görev pasifleştirme onayı canlıda test edildi; görev normal listeden gizlendi.
+- `Pasif görevleri göster` filtresiyle görev bulundu ve `Yeniden aktifleştir` işlemi başarıyla yapıldı.
+- Görevin tekrar normal listeye geldiği doğrulandı.
 
 ## Bekleyen kontrol
 

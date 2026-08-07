@@ -125,7 +125,7 @@ Hedef:
 - Görev notu kodu eklendi: yetkili kullanıcılar `tasks.notes` alanına not ekleyebilir, düzenleyebilir veya boşaltabilir; diğer kullanıcılar notu salt-okunur görür.
 - Görev notu canlı testi tamamlandı: not ekleme, düzenleme, boşaltma ve sayfa yenileme sonrası kalıcılık doğrulandı.
 - Görev düzenleme kodu eklendi: etkinlik sahibi ve `super_admin` görev adı, açıklama, son tarih ve önceliği güncelleyebilir; durum, not ve atamalar korunur. Lint/build başarılı, canlı görev düzenleme testi bekliyor.
-- Görev yaşam döngüsü kodu eklendi: `super_admin` görevleri `deleted_at` ile pasifleştirebilir, pasif görevleri ayrı filtreyle görebilir ve yeniden aktifleştirebilir. Migration/RLS değişikliği yapılmadı; canlı pasifleştirme/geri alma testi bekliyor.
+- Görev yaşam döngüsü adımı tamamlandı: `super_admin` görevleri `deleted_at` ile pasifleştirebilir, pasif görevleri ayrı filtreyle görebilir ve yeniden aktifleştirebilir. Canlı pasifleştirme, gizleme, filtreleme ve geri alma testi başarılı; migration/RLS değişikliği yapılmadı.
 - Durum, SKS, mekân ve sonraki işlem alanları bu adımda düzenlenemez.
 
 Bu görev şunları **kapsamaz**:
