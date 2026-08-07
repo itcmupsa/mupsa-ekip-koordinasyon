@@ -24,6 +24,10 @@
 - Sayfa yenilendikten sonra tarih değerleri ve boş bırakılan alanın durumu korundu.
 - Etkinlik detayında `Görevler` kartı canlıda görüntülendi.
 - Görevi olmayan etkinlik için `Bu etkinlik için henüz görev oluşturulmamış.` mesajı doğru gösterildi.
+- `Başvuru formunu hazırla` görevi canlıda başarıyla oluşturuldu.
+- Görev adı, `Başlanmadı` durumu ve 15 Ağustos 2026 son tarihi doğru gösterildi.
+- Görev oluşturma başarı mesajı ve görev listesinin kayıt sonrası yenilenmesi doğrulandı.
+- Küçük arayüz notu: öncelik listede teknik slug (`high`) olarak görünüyor; sonraki düzeltmede `Yüksek` etiketi gösterilecek.
 
 ## Bekleyen kontrol
 
