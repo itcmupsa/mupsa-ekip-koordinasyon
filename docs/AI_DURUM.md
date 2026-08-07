@@ -122,7 +122,8 @@ Hedef:
 - Görev atama canlı testi tamamlandı: ana sorumlu, destekleyen ve bilgilendirilen atama türleri; ikinci ana sorumlu engeli, ekleme/kaldırma ve sayfa yenileme sonrası kalıcılık doğrulandı.
 - Görev durum güncelleme adımı tamamlandı: super_admin, etkinlik sahibi, ana sorumlu ve destekleyen kişi mevcut durum seçeneklerinden seçim yaparak `progress_status` güncelleyebilir; bilgilendirilen ve atanmamış kullanıcılar salt-okunur görür.
 - Görev durum güncellemesi canlıda test edildi: durum değişikliği başarıyla kaydedildi ve sayfa yenilemesinden sonra korundu. Supabase RLS, mevcut görev yazma trigger'ı ve migration yapısı değiştirilmedi.
-- Sıradaki adım: yetkili kullanıcıların görev notu ekleyip güncelleyebilmesi.
+- Görev notu kodu eklendi: yetkili kullanıcılar `tasks.notes` alanına not ekleyebilir, düzenleyebilir veya boşaltabilir; diğer kullanıcılar notu salt-okunur görür.
+- Görev notu kodu lint/build düzeyinde doğrulandı; canlı ekleme, düzenleme, silme ve sayfa yenileme testi bekliyor.
 - Durum, SKS, mekân ve sonraki işlem alanları bu adımda düzenlenemez.
 
 Bu görev şunları **kapsamaz**:

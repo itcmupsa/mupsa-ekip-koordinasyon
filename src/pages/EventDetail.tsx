@@ -33,6 +33,7 @@ interface TaskItem {
   progressStatusLabel: string | null
   deadlineAt: string | null
   priority: string | null
+  notes: string | null
   assignees: TaskAssigneeInfo[]
 }
 
@@ -58,6 +59,8 @@ const TASK_CREATE_ERROR_MESSAGE = 'Görev oluşturulurken bir hata oluştu.'
 const TASK_CREATE_SUCCESS_MESSAGE = 'Görev başarıyla oluşturuldu.'
 const TASK_UPDATE_STATUS_ERROR_MESSAGE = 'Görev durumu güncellenirken bir hata oluştu.'
 const TASK_UPDATE_STATUS_SUCCESS_MESSAGE = 'Görev durumu başarıyla güncellendi.'
+const TASK_UPDATE_NOTE_ERROR_MESSAGE = 'Görev notu güncellenirken bir hata oluştu.'
+const TASK_UPDATE_NOTE_SUCCESS_MESSAGE = 'Görev notu başarıyla güncellendi.'
 
 const TASK_PRIORITY_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'low', label: 'Düşük' },
@@ -175,6 +178,10 @@ interface TaskCardProps {
   onUpdateStatus: (taskId: string, newStatusSlug: string) => void
   isUpdatingStatus: boolean
   updateStatusError: string | null
+  onUpdateNote: (taskId: string, newNote: string) => Promise<boolean>
+  isUpdatingNote: boolean
+  updateNoteError: string | null
+  updateNoteSuccess: string | null
 }
 
 function TaskCard({
@@ -199,7 +206,23 @@ function TaskCard({
   onUpdateStatus,
   isUpdatingStatus,
   updateStatusError,
+  onUpdateNote,
+  isUpdatingNote,
+  updateNoteError,
+  updateNoteSuccess,
 }: TaskCardProps) {
+  const [isEditingNote, setIsEditingNote] = useState(false)
+  const [noteInputValue, setNoteInputValue] = useState(task.notes ?? '')
+
+  useEffect(() => {
+    if (!isEditingNote) setNoteInputValue(task.notes ?? '')
+  }, [task.notes, isEditingNote])
+
+  async function handleSaveNote() {
+    const success = await onUpdateNote(task.id, noteInputValue)
+    if (success) setIsEditingNote(false)
+  }
+
   const statusLabel = task.progressStatusLabel ?? task.progressStatusSlug ?? 'Durum belirtilmemiş'
   const priorityLabel = task.priority
     ? TASK_PRIORITY_LABELS[task.priority] ?? task.priority
@@ -249,8 +272,72 @@ function TaskCard({
         )}
       </div>
 
+      <div className="mt-4 border-t border-canvas-border pt-3">
+        <h5 className="text-sm font-medium text-ink-soft">Görev Notu</h5>
+        {canUpdateStatus ? (
+          isEditingNote ? (
+            <div className="mt-2 flex flex-col gap-2">
+              <textarea
+                value={noteInputValue}
+                onChange={(event) => setNoteInputValue(event.target.value)}
+                disabled={isUpdatingNote}
+                rows={3}
+                className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink disabled:opacity-60"
+                placeholder="Görev notu ekleyin..."
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleSaveNote()}
+                  disabled={isUpdatingNote}
+                  className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
+                >
+                  {isUpdatingNote ? 'Kaydediliyor…' : 'Kaydet'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditingNote(false)
+                    setNoteInputValue(task.notes ?? '')
+                  }}
+                  disabled={isUpdatingNote}
+                  className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
+                >
+                  İptal
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-2 flex flex-col items-start gap-2">
+              {task.notes ? (
+                <p className="whitespace-pre-wrap text-sm text-ink">{task.notes}</p>
+              ) : (
+                <p className="text-sm italic text-ink-soft">Not eklenmemiş</p>
+              )}
+              <button
+                type="button"
+                onClick={() => setIsEditingNote(true)}
+                className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-1.5 text-xs font-medium text-ink hover:bg-canvas"
+              >
+                {task.notes ? 'Notu Düzenle' : 'Not Ekle'}
+              </button>
+            </div>
+          )
+        ) : (
+          <div className="mt-2">
+            {task.notes ? (
+              <p className="whitespace-pre-wrap text-sm text-ink">{task.notes}</p>
+            ) : (
+              <p className="text-sm italic text-ink-soft">Not eklenmemiş</p>
+            )}
+          </div>
+        )}
+        {updateNoteError && <p className="mt-2 text-xs text-red-600">{updateNoteError}</p>}
+        {updateNoteSuccess && !isEditingNote && <p className="mt-2 text-xs text-green-600">{updateNoteSuccess}</p>}
+      </div>
+
       {canManageAssignments && (
-        <div className="mt-3">
+        <div className="mt-4">
           <button
             type="button"
             onClick={onTogglePanel}
@@ -408,6 +495,9 @@ export default function EventDetail() {
   const [availableTaskStatuses, setAvailableTaskStatuses] = useState<TaskProgressStatusOption[]>([])
   const [updatingStatusTaskId, setUpdatingStatusTaskId] = useState<string | null>(null)
   const [updateStatusErrorMap, setUpdateStatusErrorMap] = useState<Record<string, string>>({})
+  const [updatingNoteTaskId, setUpdatingNoteTaskId] = useState<string | null>(null)
+  const [updateNoteErrorMap, setUpdateNoteErrorMap] = useState<Record<string, string>>({})
+  const [updateNoteSuccessMap, setUpdateNoteSuccessMap] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (statusLoading) return
@@ -528,7 +618,7 @@ export default function EventDetail() {
 
       const { data: taskRows, error: tasksErr } = await supabase
         .from('tasks')
-        .select('id, title, progress_status, deadline_at, priority')
+        .select('id, title, progress_status, deadline_at, priority, notes')
         .eq('event_id', eventId)
         .is('deleted_at', null)
         .order('deadline_at', { ascending: true, nullsFirst: false })
@@ -547,6 +637,7 @@ export default function EventDetail() {
         progressStatusLabel: null,
         deadlineAt: (row.deadline_at as string | null) ?? null,
         priority: (row.priority as string | null) ?? null,
+        notes: (row.notes as string | null) ?? null,
         assignees: [],
       }))
 
@@ -710,6 +801,44 @@ export default function EventDetail() {
 
     setTaskSuccessMessage(TASK_UPDATE_STATUS_SUCCESS_MESSAGE)
     setTasksRefreshKey((current) => current + 1)
+  }
+
+  async function handleUpdateTaskNote(taskId: string, newNote: string): Promise<boolean> {
+    if (!profileId) return false
+
+    setUpdatingNoteTaskId(taskId)
+    setUpdateNoteErrorMap((previous) => {
+      const next = { ...previous }
+      delete next[taskId]
+      return next
+    })
+    setUpdateNoteSuccessMap((previous) => {
+      const next = { ...previous }
+      delete next[taskId]
+      return next
+    })
+    setTaskSuccessMessage(null)
+
+    const { error } = await supabase
+      .from('tasks')
+      .update({ notes: newNote.trim() || null })
+      .eq('id', taskId)
+
+    setUpdatingNoteTaskId(null)
+    if (error) {
+      setUpdateNoteErrorMap((previous) => ({
+        ...previous,
+        [taskId]: TASK_UPDATE_NOTE_ERROR_MESSAGE,
+      }))
+      return false
+    }
+
+    setUpdateNoteSuccessMap((previous) => ({
+      ...previous,
+      [taskId]: TASK_UPDATE_NOTE_SUCCESS_MESSAGE,
+    }))
+    setTasksRefreshKey((current) => current + 1)
+    return true
   }
 
   const isOwner = !!event && !!profileId && event.ownerId === profileId
@@ -1261,6 +1390,10 @@ export default function EventDetail() {
                     onUpdateStatus={handleUpdateTaskStatus}
                     isUpdatingStatus={updatingStatusTaskId === task.id}
                     updateStatusError={updateStatusErrorMap[task.id] ?? null}
+                    onUpdateNote={handleUpdateTaskNote}
+                    isUpdatingNote={updatingNoteTaskId === task.id}
+                    updateNoteError={updateNoteErrorMap[task.id] ?? null}
+                    updateNoteSuccess={updateNoteSuccessMap[task.id] ?? null}
                   />
                 )
               })}
