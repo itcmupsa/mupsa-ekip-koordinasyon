@@ -92,7 +92,7 @@ Henüz yapılmayan ana özellikler:
 
 ## Şu anki sıradaki küçük görev
 
-**Etkinlik düzenleme ekranı — başlık ve açıklama adımı tamamlandı.**
+**Faz 1 ana sayfa dashboard'ı kodlandı; canlı doğrulama bekliyor.**
 
 Hedef:
 
@@ -127,6 +127,9 @@ Hedef:
 - Görev düzenleme kodu eklendi: etkinlik sahibi ve `super_admin` görev adı, açıklama, son tarih ve önceliği güncelleyebilir; durum, not ve atamalar korunur. Lint/build başarılı, canlı görev düzenleme testi bekliyor.
 - Görev yaşam döngüsü adımı tamamlandı: `super_admin` görevleri `deleted_at` ile pasifleştirebilir, pasif görevleri ayrı filtreyle görebilir ve yeniden aktifleştirebilir. Canlı pasifleştirme, gizleme, filtreleme ve geri alma testi başarılı; migration/RLS değişikliği yapılmadı.
 - Görev bağımlılıkları altyapısı korunuyor ancak kullanıcı arayüzü feature flag ile gizlendi (`ENABLE_TASK_DEPENDENCY_UI = false`); mevcut görev akışını sade tutuyoruz. Migration/RLS ve veritabanı modeli silinmedi.
+- Ana sayfa dashboard'ı kodlandı: aktif etkinlik/açık görev/bana atanan açık görev/geciken görev özetleri, bana atanan görevler, geciken ve yaklaşan görevler, son etkinlikler ve hızlı erişim bağlantıları gösteriliyor.
+- Dashboard verileri aktif dönem ve aktif üyelikle sınırlandırılıyor; görev ve etkinlikler pasif/silinmiş kayıtları dışlıyor. Etkinlik ve görev durum etiketleri veritabanından okunuyor.
+- Dashboard kod incelemesinde Gemini teslimindeki `any` kullanımı düzeltildi; lint, TypeScript/Vite build ve `git diff --check` başarılı. Canlı dashboard testi bekliyor.
 - Durum, SKS, mekân ve sonraki işlem alanları bu adımda düzenlenemez.
 
 Bu görev şunları **kapsamaz**:
