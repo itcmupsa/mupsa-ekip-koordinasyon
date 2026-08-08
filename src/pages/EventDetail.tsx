@@ -73,6 +73,17 @@ interface EventReport {
   deletedAt: string | null
 }
 
+interface EventLink {
+  id: string
+  title: string
+  url: string
+  description: string | null
+  createdBy: string
+  creatorName: string | null
+  createdAt: string
+  deletedAt: string | null
+}
+
 type TasksLoadState = 'loading' | 'ready' | 'error'
 
 interface PeriodMemberOption {
@@ -93,6 +104,7 @@ interface SksStatusOption {
 type PeriodMembersLoadState = 'idle' | 'loading' | 'ready' | 'error'
 type DecisionsLoadState = 'idle' | 'loading' | 'ready' | 'error'
 type ReportsLoadState = 'idle' | 'loading' | 'ready' | 'error'
+type LinksLoadState = 'idle' | 'loading' | 'ready' | 'error'
 
 const NOT_SPECIFIED = 'Henüz belirtilmedi'
 const TASKS_NOT_FOUND_MESSAGE = 'Bu etkinlik için henüz görev oluşturulmamış.'
@@ -1004,6 +1016,22 @@ export default function EventDetail() {
   const [deactivatingReportId, setDeactivatingReportId] = useState<string | null>(null)
   const [showInactiveReports, setShowInactiveReports] = useState(false)
 
+  // Links State
+  const [linksLoadState, setLinksLoadState] = useState<LinksLoadState>('idle')
+  const [links, setLinks] = useState<EventLink[]>([])
+  const [linksRefreshKey, setLinksRefreshKey] = useState(0)
+  const [showInactiveLinks, setShowInactiveLinks] = useState(false)
+  const [isLinkFormOpen, setIsLinkFormOpen] = useState(false)
+  const [linkFormMode, setLinkFormMode] = useState<'create' | 'edit'>('create')
+  const [editingLinkId, setEditingLinkId] = useState<string | null>(null)
+  const [linkTitle, setLinkTitle] = useState('')
+  const [linkUrl, setLinkUrl] = useState('')
+  const [linkDescription, setLinkDescription] = useState('')
+  const [isSavingLink, setIsSavingLink] = useState(false)
+  const [linkFormError, setLinkFormError] = useState<string | null>(null)
+  const [linkSuccessMessage, setLinkSuccessMessage] = useState<string | null>(null)
+  const [deactivatingLinkId, setDeactivatingLinkId] = useState<string | null>(null)
+
   const [isEditingGeneralNote, setIsEditingGeneralNote] = useState(false)
   const [generalNoteInputValue, setGeneralNoteInputValue] = useState('')
   const [isSavingGeneralNote, setIsSavingGeneralNote] = useState(false)
@@ -1383,6 +1411,61 @@ export default function EventDetail() {
       isMounted = false
     }
   }, [hasActiveMembership, eventId, statusLoading, reportsRefreshKey, showInactiveReports])
+
+  useEffect(() => {
+    if (statusLoading || !hasActiveMembership || !eventId) return
+    let isMounted = true
+
+    async function loadLinks() {
+      setLinksLoadState('loading')
+      let linksQuery = supabase
+        .from('event_links')
+        .select('id, title, url, description, created_by, created_at, deleted_at')
+        .eq('event_id', eventId)
+        .order('created_at', { ascending: false })
+
+      if (!showInactiveLinks) {
+        linksQuery = linksQuery.is('deleted_at', null)
+      }
+      const { data, error } = await linksQuery
+
+      if (!isMounted) return
+      if (error) {
+        setLinksLoadState('error')
+        return
+      }
+
+      const creatorIds = Array.from(new Set((data ?? []).map((l) => l.created_by)))
+      const profileMap: Record<string, string> = {}
+      if (creatorIds.length > 0) {
+        const { data: profilesData } = await supabase.from('profiles').select('id, display_name').in('id', creatorIds)
+        if (profilesData) {
+          for (const p of profilesData) {
+            profileMap[p.id] = p.display_name
+          }
+        }
+      }
+
+      setLinks(
+        (data ?? []).map((row) => ({
+          id: row.id as string,
+          title: row.title as string,
+          url: row.url as string,
+          description: (row.description as string | null) ?? null,
+          createdBy: row.created_by as string,
+          creatorName: profileMap[row.created_by as string] || 'Bilinmeyen Kullanıcı',
+          createdAt: row.created_at as string,
+          deletedAt: (row.deleted_at as string | null) ?? null,
+        }))
+      )
+      setLinksLoadState('ready')
+    }
+
+    void loadLinks()
+    return () => {
+      isMounted = false
+    }
+  }, [hasActiveMembership, eventId, statusLoading, linksRefreshKey, showInactiveLinks])
 
   function openTaskForm() {
     setNewTaskTitle('')
@@ -1944,6 +2027,148 @@ export default function EventDetail() {
     setReportsRefreshKey((prev) => prev + 1)
   }
 
+  function openCreateLinkForm() {
+    setLinkFormMode('create')
+    setEditingLinkId(null)
+    setLinkTitle('')
+    setLinkUrl('')
+    setLinkDescription('')
+    setLinkFormError(null)
+    setLinkSuccessMessage(null)
+    setIsLinkFormOpen(true)
+  }
+
+  function openEditLinkForm(link: EventLink) {
+    setLinkFormMode('edit')
+    setEditingLinkId(link.id)
+    setLinkTitle(link.title)
+    setLinkUrl(link.url)
+    setLinkDescription(link.description ?? '')
+    setLinkFormError(null)
+    setLinkSuccessMessage(null)
+    setIsLinkFormOpen(true)
+  }
+
+  function closeLinkForm() {
+    setIsLinkFormOpen(false)
+    setLinkFormError(null)
+  }
+
+  async function handleSaveLink() {
+    if (!eventId || !profileId || !canEdit) return
+    setLinkFormError(null)
+
+    const tTitle = linkTitle.trim()
+    const tUrl = linkUrl.trim()
+    const tDescription = linkDescription.trim()
+
+    if (!tTitle || !tUrl) {
+      setLinkFormError('Bağlantı başlığı ve URL boş bırakılamaz.')
+      return
+    }
+
+    if (!tUrl.startsWith('http://') && !tUrl.startsWith('https://')) {
+      setLinkFormError('URL adresi http:// veya https:// ile başlamalıdır.')
+      return
+    }
+
+    if (linkFormMode === 'edit' && !editingLinkId) {
+      setLinkFormError('Düzenlenecek bağlantı bulunamadı. Formu kapatıp tekrar deneyin.')
+      return
+    }
+
+    setIsSavingLink(true)
+    const payload = {
+      title: tTitle,
+      url: tUrl,
+      description: tDescription.length > 0 ? tDescription : null,
+    }
+
+    let error
+    if (linkFormMode === 'create') {
+      const res = await supabase.from('event_links').insert({
+        event_id: eventId,
+        created_by: profileId,
+        ...payload,
+      })
+      error = res.error
+    } else {
+      const res = await supabase.from('event_links').update(payload).eq('id', editingLinkId)
+      error = res.error
+    }
+
+    setIsSavingLink(false)
+
+    if (error) {
+      console.error('Bağlantı kaydetme hatası:', error)
+      if (error.message.includes('kilitli')) {
+        setLinkFormError('Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.')
+      } else if (error.code === '42501') {
+        setLinkFormError('Bu etkinlik için bağlantı ekleme yetkiniz bulunmuyor.')
+      } else {
+        setLinkFormError('Bağlantı kaydedilirken bir hata oluştu.')
+      }
+      return
+    }
+
+    closeLinkForm()
+    setLinkSuccessMessage(linkFormMode === 'create' ? 'Bağlantı başarıyla eklendi.' : 'Bağlantı başarıyla güncellendi.')
+    setLinksRefreshKey((prev) => prev + 1)
+  }
+
+  async function handleDeactivateLink(id: string) {
+    if (!profileId || !canEdit) return
+    if (!window.confirm('Bu bağlantıyı pasifleştirmek istediğinize emin misiniz?')) return
+
+    setDeactivatingLinkId(id)
+    const { error } = await supabase
+      .from('event_links')
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_by: profileId,
+        deletion_note: 'Bağlantı pasifleştirildi',
+      })
+      .eq('id', id)
+
+    setDeactivatingLinkId(null)
+
+    if (error) {
+      if (error.message.includes('kilitli')) {
+        alert('Dönem kilitli olduğu için bağlantı pasifleştirilemedi.')
+      } else {
+        alert('Bağlantı pasifleştirilemedi.')
+      }
+      return
+    }
+
+    setLinkSuccessMessage('Bağlantı pasifleştirildi.')
+    setLinksRefreshKey((prev) => prev + 1)
+  }
+
+  async function handleReactivateLink(id: string) {
+    if (!profileId || !canEdit) return
+
+    setDeactivatingLinkId(id)
+    const { error } = await supabase
+      .from('event_links')
+      .update({ deleted_at: null, deleted_by: null, deletion_note: null })
+      .eq('id', id)
+
+    setDeactivatingLinkId(null)
+
+    if (error) {
+      if (error.message.includes('kilitli')) {
+        alert('Dönem kilitli olduğu için bağlantı yeniden aktifleştirilemedi.')
+      } else {
+        alert('Bağlantı yeniden aktifleştirilemedi.')
+      }
+      return
+    }
+
+    setLinkSuccessMessage('Bağlantı yeniden aktifleştirildi.')
+    setLinksRefreshKey((prev) => prev + 1)
+  }
+
   async function handleSaveGeneralNote() {
     if (!eventId || !periodId || !canEdit) return
 
@@ -2397,6 +2622,7 @@ export default function EventDetail() {
                 )}
               </div>
             )}
+
             {generalNoteError && (
               <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                 {generalNoteError}
@@ -2761,6 +2987,192 @@ export default function EventDetail() {
                         className="shrink-0 rounded border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-700 disabled:opacity-50"
                       >
                         {deactivatingReportId === report.id ? 'İşleniyor…' : 'Yeniden aktifleştir'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Bağlantılar Bölümü */}
+        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-4">
+              <h2 className="text-sm font-semibold text-ink">Etkinlik Bağlantıları</h2>
+              {canEdit && (
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
+                  <input
+                    type="checkbox"
+                    checked={showInactiveLinks}
+                    onChange={(event) => setShowInactiveLinks(event.target.checked)}
+                    className="rounded border-canvas-border text-ink focus:ring-ink"
+                  />
+                  Pasif bağlantıları göster
+                </label>
+              )}
+            </div>
+            {canEdit && !isLinkFormOpen && (
+              <button
+                type="button"
+                onClick={openCreateLinkForm}
+                className="shrink-0 rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-sm font-medium text-ink hover:bg-canvas-surface"
+              >
+                Bağlantı ekle
+              </button>
+            )}
+          </div>
+
+          {linkSuccessMessage && !isLinkFormOpen && (
+            <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+              {linkSuccessMessage}
+            </p>
+          )}
+
+          {isLinkFormOpen && (
+            <div className="mt-4 rounded-md border border-canvas-border bg-canvas px-4 py-4">
+              <h3 className="text-sm font-semibold text-ink">
+                {linkFormMode === 'create' ? 'Yeni bağlantı' : 'Bağlantıyı düzenle'}
+              </h3>
+              <div className="mt-3 flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="link-title" className="text-sm font-medium text-ink-soft">
+                    Bağlantı başlığı
+                  </label>
+                  <input
+                    id="link-title"
+                    type="text"
+                    value={linkTitle}
+                    onChange={(e) => setLinkTitle(e.target.value)}
+                    disabled={isSavingLink}
+                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="link-url" className="text-sm font-medium text-ink-soft">
+                    URL (http:// veya https://)
+                  </label>
+                  <input
+                    id="link-url"
+                    type="text"
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                    disabled={isSavingLink}
+                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                    placeholder="https://ornek.com"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="link-description" className="text-sm font-medium text-ink-soft">
+                    Açıklama (İsteğe bağlı)
+                  </label>
+                  <textarea
+                    id="link-description"
+                    value={linkDescription}
+                    onChange={(e) => setLinkDescription(e.target.value)}
+                    disabled={isSavingLink}
+                    rows={2}
+                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                  />
+                </div>
+                {linkFormError && (
+                  <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {linkFormError}
+                  </p>
+                )}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void handleSaveLink()}
+                    disabled={isSavingLink}
+                    className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
+                  >
+                    {isSavingLink ? 'Kaydediliyor…' : 'Kaydet'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeLinkForm}
+                    disabled={isSavingLink}
+                    className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
+                  >
+                    İptal
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {linksLoadState === 'loading' && (
+            <p className="mt-3 text-sm text-ink-soft">Bağlantılar yükleniyor…</p>
+          )}
+          {linksLoadState === 'error' && (
+            <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              Bağlantılar yüklenirken bir hata oluştu.
+            </p>
+          )}
+          {linksLoadState === 'ready' && links.length === 0 && (
+            <p className="mt-3 text-sm italic text-ink-soft">Bu etkinlik için henüz bağlantı eklenmemiş.</p>
+          )}
+          {linksLoadState === 'ready' && links.length > 0 && (
+            <div className="mt-4 flex flex-col gap-4">
+              {links.map((link) => (
+                <div
+                  key={link.id}
+                  className={`rounded-md border px-4 py-3 ${
+                    link.deletedAt ? 'border-red-200 bg-red-50/40' : 'border-canvas-border bg-canvas'
+                  }`}
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 overflow-hidden">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-sm font-semibold text-ink">{link.title}</h4>
+                        {link.deletedAt && (
+                          <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                            Pasif bağlantı
+                          </span>
+                        )}
+                      </div>
+                      {link.description && (
+                        <p className="mt-1 whitespace-pre-wrap break-words text-sm text-ink-soft">{link.description}</p>
+                      )}
+                      <div className="mt-2">
+                         <a href={link.url} target="_blank" rel="noreferrer" className="text-sm font-medium text-brand hover:underline break-all">
+                            {link.url}
+                         </a>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-soft">
+                        <span>{formatDate(link.createdAt)}</span>
+                        <span>{link.creatorName}</span>
+                      </div>
+                    </div>
+                    {canEdit && !link.deletedAt && (
+                      <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end sm:gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openEditLinkForm(link)}
+                          className="text-xs font-medium text-ink-soft underline decoration-dotted"
+                        >
+                          Düzenle
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeactivateLink(link.id)}
+                          disabled={deactivatingLinkId === link.id}
+                          className="text-xs font-medium text-red-600 underline decoration-dotted disabled:opacity-50"
+                        >
+                          {deactivatingLinkId === link.id ? 'İşleniyor…' : 'Pasifleştir'}
+                        </button>
+                      </div>
+                    )}
+                    {canEdit && link.deletedAt && (
+                      <button
+                        type="button"
+                        onClick={() => void handleReactivateLink(link.id)}
+                        disabled={deactivatingLinkId === link.id}
+                        className="shrink-0 rounded border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-700 disabled:opacity-50"
+                      >
+                        {deactivatingLinkId === link.id ? 'İşleniyor…' : 'Yeniden aktifleştir'}
                       </button>
                     )}
                   </div>

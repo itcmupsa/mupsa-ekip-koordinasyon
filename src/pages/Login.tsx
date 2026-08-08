@@ -32,8 +32,17 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-canvas px-4 py-12">
-      <div className="w-full max-w-sm">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-canvas px-4 py-12">
+      <picture className="absolute inset-0" aria-hidden="true">
+        <source media="(max-width: 639px)" srcSet="/login-bg-mobile.webp" />
+        <img
+          src="/login-bg-desktop.webp"
+          alt=""
+          className="h-full w-full object-cover object-center"
+        />
+      </picture>
+      <div className="absolute inset-0 bg-white/35" aria-hidden="true" />
+      <div className="relative z-10 w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <img src="/mupsa-logo.svg" alt="MUPSA Logo" className="h-16 w-auto object-contain" />
           <div>
@@ -41,7 +50,7 @@ export default function Login() {
             <p className="mt-1 text-sm text-ink-soft">Yönetim kurulu girişi</p>
           </div>
         </div>
-        <div className="rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+        <div className="rounded-lg border border-canvas-border bg-canvas-surface/95 p-6 shadow-card backdrop-blur-[2px]">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
               <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-ink">
