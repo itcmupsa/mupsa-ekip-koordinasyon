@@ -347,7 +347,10 @@ export default function AppHome({ session }: { session: Session }) {
     <div className="min-h-screen bg-canvas pb-12">
       <header className="border-b border-canvas-border bg-canvas-surface">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:py-4">
-          <span className="min-w-0 truncate text-sm font-semibold text-ink">MUPSA Ekip Koordinasyon</span>
+          <div className="flex min-w-0 items-center gap-3">
+            <img src="/mupsa-logo.svg" alt="MUPSA Logo" className="h-6 w-auto shrink-0 object-contain" />
+            <span className="truncate text-sm font-semibold text-ink">MUPSA Ekip Koordinasyon</span>
+          </div>
           <button type="button" onClick={handleSignOut} className="shrink-0 text-sm font-medium text-ink-soft hover:text-ink">Çıkış yap</button>
         </div>
       </header>

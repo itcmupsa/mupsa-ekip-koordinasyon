@@ -159,6 +159,7 @@ Bu görev şunları **kapsamaz**:
 - `public/_redirects` dosyası kaldırıldı.
 - Cloudflare Pages'in otomatik SPA geri dönüşü, `/auth/callback` adresinde canlı olarak doğrulandı.
 - Bu düzeltme GitHub `main` dalına gönderildi ve Cloudflare otomatik yeniden yayın yapar.
+- MUPSA logo SVG'si `public/mupsa-logo.svg` olarak eklendi. Giriş ekranındaki eski `+` simgesi ve ana ekran başlığındaki logo alanı bu dosyayı kullanıyor. Supabase, auth, yetki ve veri akışları değiştirilmedi; lint, build ve `git diff --check` başarılı.
 
 ## Kullanım talimatı — yeni yapay zekâ sohbeti
 

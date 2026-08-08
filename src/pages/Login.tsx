@@ -35,9 +35,7 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center bg-canvas px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <span className="flex h-11 w-11 items-center justify-center rounded-md bg-brand text-canvas" aria-hidden="true">
-            +
-          </span>
+          <img src="/mupsa-logo.svg" alt="MUPSA Logo" className="h-16 w-auto object-contain" />
           <div>
             <h1 className="text-lg font-semibold text-ink">MUPSA Ekip Koordinasyon</h1>
             <p className="mt-1 text-sm text-ink-soft">Yönetim kurulu girişi</p>
