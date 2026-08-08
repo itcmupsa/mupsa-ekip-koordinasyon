@@ -147,7 +147,7 @@ Hedef:
 - `20260808110000_add_reports_links_files.sql` migration'ı uzak Supabase projesine uygulandı ve migration geçmişi yerel/uzak olarak eşitlendi.
 - Canlı Supabase transaction/rollback testleri başarılı oldu: rapor ve bağlantı audit kayıtları, 5 MB sınırı, ilişki kısıtları ve kilitli dönem yazma engeli doğrulandı. Test verileri rollback ile kalıcı bırakılmadı.
 - Bu adımda Storage bucket/upload akışı ve frontend ekranları eklenmedi; yalnızca veritabanı metadata altyapısı hazırlandı.
-- SKS süreç ekranı `EventDetail.tsx` içine eklendi: durumlar veritabanından okunuyor; aktif dönem üyeleri Ana Sorumlu, Destekleyen ve Bilgilendirilen olarak atanabiliyor. Durum değişikliği yalnızca süper yönetici veya SKS ana sorumlusuna, ekip yönetimi ise süper yönetici, etkinlik sahibi veya SKS ana sorumlusuna açılıyor. Lint, build ve `git diff --check` başarılı; canlı SKS yetki ve kilitli dönem testi bekleniyor.
+- SKS süreç ekranı `EventDetail.tsx` içine eklendi: durumlar veritabanından okunuyor; aktif dönem üyeleri Ana Sorumlu, Destekleyen ve Bilgilendirilen olarak atanabiliyor. Durum değişikliği yalnızca süper yönetici veya SKS ana sorumlusuna, ekip yönetimi ise süper yönetici, etkinlik sahibi veya SKS ana sorumlusuna açılıyor. Aynı kişi bir SKS etkinliğinde yalnızca tek sorumluluk türünde yer alabiliyor; aktif Genel Sekreter ana sorumlu için varsayılan olarak öneriliyor. Lint, build ve `git diff --check` başarılı; canlı SKS yetki ve kilitli dönem testi bekleniyor.
 - Görev bağımlılıkları için mevcut veritabanı altyapısı korunuyor ancak arayüz, ihtiyaç netleşene kadar ertelendi.
 
 Bu görev şunları **kapsamaz**:

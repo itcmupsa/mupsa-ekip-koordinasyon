@@ -109,6 +109,7 @@ type TasksLoadState = 'loading' | 'ready' | 'error'
 interface PeriodMemberOption {
   profileId: string
   displayName: string
+  coordinatorRoleSlug: string | null
 }
 
 interface TaskProgressStatusOption {
@@ -2568,8 +2569,8 @@ export default function EventDetail() {
       return
     }
 
-    if (sksMembers.some((member) => member.profileId === sksSelectedProfileId && member.responsibilityType === sksSelectedResponsibility)) {
-      setAssignSksError('Bu kişi bu sorumluluk türüyle zaten atanmış.')
+    if (sksMembers.some((member) => member.profileId === sksSelectedProfileId)) {
+      setAssignSksError('Bu kişi SKS ekibinde zaten bir sorumluluğa atanmış.')
       return
     }
 
@@ -2678,7 +2679,7 @@ export default function EventDetail() {
       setPeriodMembersLoadState('loading')
       const { data: membershipRows, error: membershipError } = await supabase
         .from('period_memberships')
-        .select('profile_id')
+        .select('profile_id, coordinator_roles(slug)')
         .eq('period_id', periodId)
         .eq('is_active', true)
 
@@ -2708,10 +2709,18 @@ export default function EventDetail() {
         return
       }
 
+      const membershipRoleByProfileId = new Map<string, string | null>()
+      for (const membership of membershipRows ?? []) {
+        const relation = membership.coordinator_roles as { slug?: string } | { slug?: string }[] | null | undefined
+        const role = Array.isArray(relation) ? relation[0] : relation
+        membershipRoleByProfileId.set(membership.profile_id as string, role?.slug ?? null)
+      }
+
       setPeriodMembers(
         (profileRows ?? []).map((row) => ({
           profileId: row.id as string,
           displayName: (row.display_name as string | null) ?? 'İsimsiz üye',
+          coordinatorRoleSlug: membershipRoleByProfileId.get(row.id as string) ?? null,
         })),
       )
       setPeriodMembersLoadState('ready')
@@ -2722,6 +2731,15 @@ export default function EventDetail() {
       isMounted = false
     }
   }, [canEdit, periodId])
+
+  useEffect(() => {
+    if (sksMembers.some((member) => member.responsibilityType === 'owner')) return
+    const generalSecretary = periodMembers.find((member) => member.coordinatorRoleSlug === 'general-secretary')
+    if (generalSecretary) {
+      setSksSelectedProfileId(generalSecretary.profileId)
+      setSksSelectedResponsibility('owner')
+    }
+  }, [periodMembers, sksMembers])
 
   function toggleAssignmentPanel(taskId: string) {
     if (openAssignmentTaskId === taskId) {
@@ -3895,7 +3913,7 @@ export default function EventDetail() {
                       Üye
                       <select value={sksSelectedProfileId} onChange={(e) => setSksSelectedProfileId(e.target.value)} disabled={isAssigningSks || periodMembersLoadState === 'loading'} className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink">
                         <option value="">Üye seçin</option>
-                        {periodMembers.map((member) => <option key={member.profileId} value={member.profileId}>{member.displayName}</option>)}
+                        {periodMembers.filter((member) => !sksMembers.some((assignedMember) => assignedMember.profileId === member.profileId)).map((member) => <option key={member.profileId} value={member.profileId}>{member.displayName}</option>)}
                       </select>
                     </label>
                     <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-ink-soft">
