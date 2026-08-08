@@ -291,10 +291,27 @@ export default function AdminMembers({ session }: { session: Session }) {
     }
 
     setIsCreatingUser(true)
-    await new Promise((resolve) => setTimeout(resolve, 800))
+
+    const { error } = await supabase.functions.invoke('create-user', {
+      body: {
+        fullName: newUserName.trim(),
+        email: newUserEmail.trim(),
+        password: newUserPassword,
+        coordinatorRoleId: newUserCoordinatorRoleId,
+        appRole: newUserAppRole,
+      },
+    })
+
     setIsCreatingUser(false)
+
+    if (error) {
+      setCreateUserError(`Kullanıcı oluşturulamadı: ${error.message}`)
+      return
+    }
+
     handleCloseCreateUserPanel()
-    setSuccessMessage('Form hazırlandı. Hesap oluşturma işlemi sonraki adımda bağlanacak.')
+    setSuccessMessage('Kullanıcı başarıyla oluşturuldu.')
+    await loadMembers()
   }
 
   const activeSuperAdminCount = members.filter(
@@ -648,7 +665,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                         disabled={isCreatingUser}
                         className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
                       >
-                        {isCreatingUser ? 'Kontrol ediliyor…' : 'Formu hazırla'}
+                        {isCreatingUser ? 'Oluşturuluyor…' : 'Oluştur'}
                       </button>
                       <button
                         type="button"
