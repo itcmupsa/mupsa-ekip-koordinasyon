@@ -85,7 +85,6 @@ Henüz yapılmayan ana özellikler:
 - İkinci test kullanıcısının davet edilmesi ve üyelik ekleme akışının canlı testi
 - Etkinlik düzenleme ekranı
 - Görev oluşturma, atama, destekleyen kişi ve bağımlılık ekranları
-- SKS süreç yönetimi ekranları
 - Uygulama içi bildirim merkezi
 - Gerçek e-posta teslimat katmanı (Magic Link artık kullanılmıyor; şifreli girişte gerekli değil)
 - İlk şifre belirleme ekranının canlı testi
@@ -96,7 +95,7 @@ Henüz yapılmayan ana özellikler:
 
 ## Şu anki sıradaki küçük görev
 
-**Rapor, bağlantı ve dosya ekranları tamamlandı; sıradaki iş takvim özelliğinin kapsamını planlamaktır.**
+**SKS süreç yönetimi ekranı tamamlandı; sıradaki planlı iş bütçe alanlarıdır. Takvim ve görev bağımlılıkları bu adımdan sonra yeniden değerlendirilecektir.**
 
 Hedef:
 
@@ -148,6 +147,8 @@ Hedef:
 - `20260808110000_add_reports_links_files.sql` migration'ı uzak Supabase projesine uygulandı ve migration geçmişi yerel/uzak olarak eşitlendi.
 - Canlı Supabase transaction/rollback testleri başarılı oldu: rapor ve bağlantı audit kayıtları, 5 MB sınırı, ilişki kısıtları ve kilitli dönem yazma engeli doğrulandı. Test verileri rollback ile kalıcı bırakılmadı.
 - Bu adımda Storage bucket/upload akışı ve frontend ekranları eklenmedi; yalnızca veritabanı metadata altyapısı hazırlandı.
+- SKS süreç ekranı `EventDetail.tsx` içine eklendi: durumlar veritabanından okunuyor; aktif dönem üyeleri Ana Sorumlu, Destekleyen ve Bilgilendirilen olarak atanabiliyor. Durum değişikliği yalnızca süper yönetici veya SKS ana sorumlusuna, ekip yönetimi ise süper yönetici, etkinlik sahibi veya SKS ana sorumlusuna açılıyor. Lint, build ve `git diff --check` başarılı; canlı SKS yetki ve kilitli dönem testi bekleniyor.
+- Görev bağımlılıkları için mevcut veritabanı altyapısı korunuyor ancak arayüz, ihtiyaç netleşene kadar ertelendi.
 
 Bu görev şunları **kapsamaz**:
 

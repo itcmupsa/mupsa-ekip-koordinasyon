@@ -8,6 +8,7 @@ interface EventBasicInfo {
   title: string
   description: string | null
   eventStatus: string | null
+  sksStatus: string | null
   planningDate: string | null
   preparationStartDate: string | null
   estimatedDate: string | null
@@ -94,6 +95,13 @@ interface EventFile {
   uploaderName: string | null
   createdAt: string
   deletedAt: string | null
+}
+
+interface EventProcessMemberInfo {
+  id: string
+  profileId: string
+  displayName: string
+  responsibilityType: string
 }
 
 type TasksLoadState = 'loading' | 'ready' | 'error'
@@ -1017,6 +1025,20 @@ export default function EventDetail() {
   const [processingDependencyTaskId, setProcessingDependencyTaskId] = useState<string | null>(null)
   const [dependencyErrorMap, setDependencyErrorMap] = useState<Record<string, string>>({})
 
+  const [sksMembers, setSksMembers] = useState<EventProcessMemberInfo[]>([])
+  const [sksMembersLoadState, setSksMembersLoadState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const [sksMembersRefreshKey, setSksMembersRefreshKey] = useState(0)
+  const [isSksPanelOpen, setIsSksPanelOpen] = useState(false)
+  const [sksSelectedProfileId, setSksSelectedProfileId] = useState('')
+  const [sksSelectedResponsibility, setSksSelectedResponsibility] = useState('supporting')
+  const [isAssigningSks, setIsAssigningSks] = useState(false)
+  const [assignSksError, setAssignSksError] = useState<string | null>(null)
+  const [removingSksMemberId, setRemovingSksMemberId] = useState<string | null>(null)
+  const [removeSksError, setRemoveSksError] = useState<string | null>(null)
+  const [isUpdatingSksStatus, setIsUpdatingSksStatus] = useState(false)
+  const [updateSksStatusError, setUpdateSksStatusError] = useState<string | null>(null)
+  const [updateSksStatusSuccess, setUpdateSksStatusSuccess] = useState<string | null>(null)
+
   // Decisions State
   const [decisionsLoadState, setDecisionsLoadState] = useState<DecisionsLoadState>('idle')
   const [decisions, setDecisions] = useState<EventDecision[]>([])
@@ -1099,7 +1121,7 @@ export default function EventDetail() {
       const { data, error } = await supabase
         .from('events')
         .select(
-          'title, description, event_status, planning_date, preparation_start_date, estimated_date, confirmed_date, owner_id, venue, next_action, general_note',
+          'title, description, event_status, sks_status, planning_date, preparation_start_date, estimated_date, confirmed_date, owner_id, venue, next_action, general_note',
         )
         .eq('id', eventId)
         .eq('period_id', periodId)
@@ -1122,6 +1144,7 @@ export default function EventDetail() {
         title: data.title as string,
         description: (data.description as string | null) ?? null,
         eventStatus,
+        sksStatus: (data.sks_status as string | null) ?? null,
         planningDate: (data.planning_date as string | null) ?? null,
         preparationStartDate: (data.preparation_start_date as string | null) ?? null,
         estimatedDate: (data.estimated_date as string | null) ?? null,
@@ -1165,6 +1188,53 @@ export default function EventDetail() {
       isMounted = false
     }
   }, [hasActiveMembership, periodId, eventId, statusLoading])
+
+  useEffect(() => {
+    if (statusLoading || !hasActiveMembership || !eventId) return
+    let isMounted = true
+
+    async function loadSksMembers() {
+      setSksMembersLoadState('loading')
+      const { data: memberRows, error } = await supabase
+        .from('event_process_members')
+        .select('id, profile_id, responsibility_type')
+        .eq('event_id', eventId)
+        .eq('process_type', 'sks')
+
+      if (!isMounted) return
+      if (error) {
+        setSksMembersLoadState('error')
+        return
+      }
+
+      const profileIds = Array.from(new Set((memberRows ?? []).map((row) => row.profile_id as string)))
+      const profileNameMap: Record<string, string> = {}
+      if (profileIds.length > 0) {
+        const { data: profileRows } = await supabase
+          .from('profiles')
+          .select('id, display_name')
+          .in('id', profileIds)
+
+        if (!isMounted) return
+        for (const profileRow of profileRows ?? []) {
+          profileNameMap[profileRow.id as string] = (profileRow.display_name as string | null) ?? 'İsimsiz üye'
+        }
+      }
+
+      setSksMembers((memberRows ?? []).map((row) => ({
+        id: row.id as string,
+        profileId: row.profile_id as string,
+        displayName: profileNameMap[row.profile_id as string] || 'İsimsiz üye',
+        responsibilityType: row.responsibility_type as string,
+      })))
+      setSksMembersLoadState('ready')
+    }
+
+    void loadSksMembers()
+    return () => {
+      isMounted = false
+    }
+  }, [hasActiveMembership, eventId, statusLoading, sksMembersRefreshKey])
 
   useEffect(() => {
     if (!isEditingGeneralNote && event) {
@@ -2492,9 +2562,109 @@ export default function EventDetail() {
     window.setTimeout(() => setGeneralNoteSuccess(null), 3000)
   }
 
+  async function handleAssignSksMember() {
+    if (!profileId || !eventId || !sksSelectedProfileId) {
+      setAssignSksError('Lütfen bir üye seçin.')
+      return
+    }
+
+    if (sksMembers.some((member) => member.profileId === sksSelectedProfileId && member.responsibilityType === sksSelectedResponsibility)) {
+      setAssignSksError('Bu kişi bu sorumluluk türüyle zaten atanmış.')
+      return
+    }
+
+    setIsAssigningSks(true)
+    setAssignSksError(null)
+
+    if (sksSelectedResponsibility === 'owner') {
+      const existingOwner = sksMembers.find((member) => member.responsibilityType === 'owner')
+      if (existingOwner) {
+        const { error: updateError } = await supabase
+          .from('event_process_members')
+          .update({ profile_id: sksSelectedProfileId, assigned_by: profileId })
+          .eq('id', existingOwner.id)
+        if (updateError) {
+          setIsAssigningSks(false)
+          setAssignSksError(updateError.message.includes('kilitli')
+            ? 'Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.'
+            : 'Mevcut SKS sorumlusu kaldırılamadı.')
+          return
+        }
+        setIsAssigningSks(false)
+        setSksSelectedProfileId('')
+        setSksMembersRefreshKey((current) => current + 1)
+        return
+      }
+    }
+
+    const { error } = await supabase.from('event_process_members').insert({
+      event_id: eventId,
+      process_type: 'sks',
+      profile_id: sksSelectedProfileId,
+      responsibility_type: sksSelectedResponsibility,
+      assigned_by: profileId,
+    })
+
+    setIsAssigningSks(false)
+    if (error) {
+      setAssignSksError(error.message.includes('kilitli')
+        ? 'Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.'
+        : error.code === '42501'
+          ? 'SKS ekibini yönetme yetkiniz bulunmuyor.'
+          : 'SKS üyesi atanırken bir hata oluştu.')
+      return
+    }
+
+    setSksSelectedProfileId('')
+    setSksMembersRefreshKey((current) => current + 1)
+  }
+
+  async function handleRemoveSksMember(memberId: string) {
+    if (!profileId) return
+    setRemovingSksMemberId(memberId)
+    setRemoveSksError(null)
+    const { error } = await supabase.from('event_process_members').delete().eq('id', memberId)
+    setRemovingSksMemberId(null)
+
+    if (error) {
+      setRemoveSksError(error.message.includes('kilitli')
+        ? 'Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.'
+        : error.code === '42501'
+          ? 'Bu kişiyi kaldırma yetkiniz bulunmuyor.'
+          : 'Atama kaldırılırken bir hata oluştu.')
+      return
+    }
+    setSksMembersRefreshKey((current) => current + 1)
+  }
+
+  async function handleUpdateSksStatus(newSlug: string) {
+    if (!profileId || !eventId) return
+    setIsUpdatingSksStatus(true)
+    setUpdateSksStatusError(null)
+    setUpdateSksStatusSuccess(null)
+
+    const { error } = await supabase.from('events').update({ sks_status: newSlug }).eq('id', eventId)
+    setIsUpdatingSksStatus(false)
+    if (error) {
+      setUpdateSksStatusError(error.message.includes('kilitli')
+        ? 'Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.'
+        : error.code === '42501' || error.message.includes('yetkiniz')
+          ? 'SKS durumunu değiştirme yetkiniz bulunmuyor.'
+          : 'SKS durumu güncellenirken bir hata oluştu.')
+      return
+    }
+
+    setUpdateSksStatusSuccess('SKS durumu başarıyla güncellendi.')
+    setEvent((previous) => (previous ? { ...previous, sksStatus: newSlug } : previous))
+  }
+
   const isOwner = !!event && !!profileId && event.ownerId === profileId
   const isSuperAdmin = appRole === 'super_admin'
   const canEdit = isOwner || isSuperAdmin
+  const sksOwner = sksMembers.find((member) => member.responsibilityType === 'owner')
+  const isSksOwner = sksOwner?.profileId === profileId
+  const canChangeSksStatus = isSuperAdmin || isSksOwner
+  const canManageSksTeam = isSuperAdmin || isOwner || isSksOwner
 
   useEffect(() => {
     if (!canEdit || !periodId) {
@@ -3662,6 +3832,93 @@ export default function EventDetail() {
             <DetailRow label="Sorumlu" value={displayedOwner} />
             <DetailRow label="Mekân" value={displayedVenue} />
             <DetailRow label="Sonraki işlem" value={displayedNextAction} />
+          </div>
+        </div>
+        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+          <h2 className="text-sm font-semibold text-ink">SKS Süreci</h2>
+          <div className="mt-4 flex flex-col gap-4">
+            <div>
+              <span className="text-sm font-medium text-ink-soft">SKS durumu</span>
+              <div className="mt-2 flex items-center gap-3">
+                {canChangeSksStatus ? (
+                  <select
+                    value={event.sksStatus ?? ''}
+                    onChange={(e) => void handleUpdateSksStatus(e.target.value)}
+                    disabled={isUpdatingSksStatus || availableSksStatuses.length === 0}
+                    className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink disabled:opacity-60"
+                  >
+                    <option value="" disabled>Durum seçin</option>
+                    {availableSksStatuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}
+                  </select>
+                ) : (
+                  <span className="rounded-full border border-canvas-border bg-canvas px-3 py-1 text-sm font-medium text-ink">
+                    {event.sksStatus ? (availableSksStatuses.find((status) => status.slug === event.sksStatus)?.label ?? event.sksStatus) : 'Belirtilmemiş'}
+                  </span>
+                )}
+                {isUpdatingSksStatus && <span className="text-xs text-ink-soft">Kaydediliyor…</span>}
+              </div>
+              {updateSksStatusError && <p className="mt-1 text-xs text-red-600">{updateSksStatusError}</p>}
+              {updateSksStatusSuccess && <p className="mt-1 text-xs text-green-600">{updateSksStatusSuccess}</p>}
+            </div>
+
+            <div className="border-t border-canvas-border pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-medium text-ink">SKS ekibi</h3>
+                {canManageSksTeam && (
+                  <button type="button" onClick={() => setIsSksPanelOpen((open) => !open)} className="text-xs font-medium text-ink hover:underline">
+                    {isSksPanelOpen ? 'Ekip yönetimini kapat' : 'Ekibi yönet'}
+                  </button>
+                )}
+              </div>
+              {sksMembersLoadState === 'loading' && <p className="mt-3 text-sm text-ink-soft">SKS ekibi yükleniyor…</p>}
+              {sksMembersLoadState === 'error' && <p className="mt-3 text-sm text-red-600">SKS ekibi yüklenirken bir hata oluştu.</p>}
+              {sksMembersLoadState === 'ready' && (
+                <div className="mt-3 flex flex-col gap-3">
+                  {(['owner', 'supporting', 'informed'] as const).map((responsibilityType) => {
+                    const members = sksMembers.filter((member) => member.responsibilityType === responsibilityType)
+                    const label = responsibilityType === 'owner' ? 'Ana sorumlu' : responsibilityType === 'supporting' ? 'Destekleyen' : 'Bilgilendirilen'
+                    return (
+                      <div key={responsibilityType}>
+                        <span className="block text-xs font-medium text-ink-soft">{label}</span>
+                        {members.length > 0 ? <div className="mt-1 flex flex-wrap gap-2 text-sm text-ink">{members.map((member) => <span key={member.id}>{member.displayName}</span>)}</div> : <span className="mt-1 block text-sm italic text-ink-soft">Atanmamış</span>}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {isSksPanelOpen && canManageSksTeam && (
+                <div className="mt-4 rounded-md border border-canvas-border bg-canvas px-4 py-4">
+                  <h4 className="text-sm font-semibold text-ink">Ekip yönetimi</h4>
+                  <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-ink-soft">
+                      Üye
+                      <select value={sksSelectedProfileId} onChange={(e) => setSksSelectedProfileId(e.target.value)} disabled={isAssigningSks || periodMembersLoadState === 'loading'} className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink">
+                        <option value="">Üye seçin</option>
+                        {periodMembers.map((member) => <option key={member.profileId} value={member.profileId}>{member.displayName}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-ink-soft">
+                      Sorumluluk türü
+                      <select value={sksSelectedResponsibility} onChange={(e) => setSksSelectedResponsibility(e.target.value)} disabled={isAssigningSks} className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink">
+                        <option value="owner">Ana sorumlu</option><option value="supporting">Destekleyen</option><option value="informed">Bilgilendirilen</option>
+                      </select>
+                    </label>
+                    <button type="button" onClick={() => void handleAssignSksMember()} disabled={isAssigningSks} className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60">{isAssigningSks ? 'Ekleniyor…' : 'Ekle'}</button>
+                  </div>
+                  {assignSksError && <p className="mt-2 text-xs text-red-600">{assignSksError}</p>}
+                  {removeSksError && <p className="mt-2 text-xs text-red-600">{removeSksError}</p>}
+                  <div className="mt-4 flex flex-col gap-2">
+                    {sksMembers.length === 0 ? <p className="text-xs text-ink-soft">Ekip üyesi yok.</p> : sksMembers.map((member) => (
+                      <div key={member.id} className="flex items-center justify-between gap-2 rounded-md border border-canvas-border bg-canvas-surface px-3 py-2">
+                        <span className="text-sm text-ink">{member.displayName}</span>
+                        <button type="button" onClick={() => void handleRemoveSksMember(member.id)} disabled={removingSksMemberId === member.id} className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50">{removingSksMemberId === member.id ? 'Kaldırılıyor…' : 'Kaldır'}</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
