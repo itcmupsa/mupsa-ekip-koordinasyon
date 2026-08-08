@@ -84,6 +84,18 @@ interface EventLink {
   deletedAt: string | null
 }
 
+interface EventFile {
+  id: string
+  storagePath: string
+  originalFileName: string
+  mimeType: string
+  fileSizeBytes: number
+  uploadedBy: string
+  uploaderName: string | null
+  createdAt: string
+  deletedAt: string | null
+}
+
 type TasksLoadState = 'loading' | 'ready' | 'error'
 
 interface PeriodMemberOption {
@@ -105,8 +117,11 @@ type PeriodMembersLoadState = 'idle' | 'loading' | 'ready' | 'error'
 type DecisionsLoadState = 'idle' | 'loading' | 'ready' | 'error'
 type ReportsLoadState = 'idle' | 'loading' | 'ready' | 'error'
 type LinksLoadState = 'idle' | 'loading' | 'ready' | 'error'
+type FilesLoadState = 'idle' | 'loading' | 'ready' | 'error'
 
 const NOT_SPECIFIED = 'Henüz belirtilmedi'
+const EVENT_FILES_BUCKET = 'event-files'
+const MAX_EVENT_FILE_SIZE_BYTES = 5242880
 const TASKS_NOT_FOUND_MESSAGE = 'Bu etkinlik için henüz görev oluşturulmamış.'
 const TASKS_ERROR_MESSAGE = 'Görevler yüklenirken bir hata oluştu.'
 const TASK_TITLE_REQUIRED_MESSAGE = 'Görev adı boş olamaz.'
@@ -207,6 +222,24 @@ function formatDateTimeLocal(value: string | null): string {
   if (Number.isNaN(date.getTime())) return ''
   const pad = (part: number) => String(part).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function formatFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return 'Bilinmiyor'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function sanitizeFileName(rawName: string): string {
+  const trimmed = rawName.trim()
+  // Path ayırıcıları ve kontrol karakterlerini tamamen kaldır.
+  // eslint-disable-next-line no-control-regex
+  const withoutControlChars = trimmed.replace(/[/\\\x00-\x1F\x7F]/g, '')
+  // Geriye kalan riskli/boşluk karakterlerini alt çizgiye çevir; harf, rakam, nokta, tire ve alt çizgi korunur.
+  const safe = withoutControlChars.replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/_+/g, '_').replace(/^[_.]+|[_.]+$/g, '')
+  const finalName = safe.length > 0 ? safe : 'dosya'
+  return finalName.slice(0, 150)
 }
 
 function groupAssigneesByType(assignees: TaskAssigneeInfo[]): Array<{ type: string; names: string[] }> {
@@ -1032,6 +1065,20 @@ export default function EventDetail() {
   const [linkSuccessMessage, setLinkSuccessMessage] = useState<string | null>(null)
   const [deactivatingLinkId, setDeactivatingLinkId] = useState<string | null>(null)
 
+  // Files State
+  const [filesLoadState, setFilesLoadState] = useState<FilesLoadState>('idle')
+  const [files, setFiles] = useState<EventFile[]>([])
+  const [filesRefreshKey, setFilesRefreshKey] = useState(0)
+  const [showInactiveFiles, setShowInactiveFiles] = useState(false)
+  const [isFileFormOpen, setIsFileFormOpen] = useState(false)
+  const [selectedUploadFile, setSelectedUploadFile] = useState<File | null>(null)
+  const [isUploadingFile, setIsUploadingFile] = useState(false)
+  const [fileFormError, setFileFormError] = useState<string | null>(null)
+  const [fileSuccessMessage, setFileSuccessMessage] = useState<string | null>(null)
+  const [deactivatingFileId, setDeactivatingFileId] = useState<string | null>(null)
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null)
+  const [downloadErrorMap, setDownloadErrorMap] = useState<Record<string, string>>({})
+
   const [isEditingGeneralNote, setIsEditingGeneralNote] = useState(false)
   const [generalNoteInputValue, setGeneralNoteInputValue] = useState('')
   const [isSavingGeneralNote, setIsSavingGeneralNote] = useState(false)
@@ -1466,6 +1513,62 @@ export default function EventDetail() {
       isMounted = false
     }
   }, [hasActiveMembership, eventId, statusLoading, linksRefreshKey, showInactiveLinks])
+
+  useEffect(() => {
+    if (statusLoading || !hasActiveMembership || !eventId) return
+    let isMounted = true
+
+    async function loadFiles() {
+      setFilesLoadState('loading')
+      let filesQuery = supabase
+        .from('event_files')
+        .select('id, storage_path, original_file_name, mime_type, file_size_bytes, uploaded_by, created_at, deleted_at')
+        .eq('event_id', eventId)
+        .order('created_at', { ascending: false })
+
+      if (!showInactiveFiles) {
+        filesQuery = filesQuery.is('deleted_at', null)
+      }
+      const { data, error } = await filesQuery
+
+      if (!isMounted) return
+      if (error) {
+        setFilesLoadState('error')
+        return
+      }
+
+      const uploaderIds = Array.from(new Set((data ?? []).map((f) => f.uploaded_by)))
+      const profileMap: Record<string, string> = {}
+      if (uploaderIds.length > 0) {
+        const { data: profilesData } = await supabase.from('profiles').select('id, display_name').in('id', uploaderIds)
+        if (profilesData) {
+          for (const p of profilesData) {
+            profileMap[p.id] = p.display_name
+          }
+        }
+      }
+
+      setFiles(
+        (data ?? []).map((row) => ({
+          id: row.id as string,
+          storagePath: row.storage_path as string,
+          originalFileName: row.original_file_name as string,
+          mimeType: row.mime_type as string,
+          fileSizeBytes: row.file_size_bytes as number,
+          uploadedBy: row.uploaded_by as string,
+          uploaderName: profileMap[row.uploaded_by as string] || 'Bilinmeyen Kullanıcı',
+          createdAt: row.created_at as string,
+          deletedAt: (row.deleted_at as string | null) ?? null,
+        }))
+      )
+      setFilesLoadState('ready')
+    }
+
+    void loadFiles()
+    return () => {
+      isMounted = false
+    }
+  }, [hasActiveMembership, eventId, statusLoading, filesRefreshKey, showInactiveFiles])
 
   function openTaskForm() {
     setNewTaskTitle('')
@@ -2167,6 +2270,200 @@ export default function EventDetail() {
 
     setLinkSuccessMessage('Bağlantı yeniden aktifleştirildi.')
     setLinksRefreshKey((prev) => prev + 1)
+  }
+
+  function openFileUploadForm() {
+    setSelectedUploadFile(null)
+    setFileFormError(null)
+    setFileSuccessMessage(null)
+    setIsFileFormOpen(true)
+  }
+
+  function closeFileUploadForm() {
+    setIsFileFormOpen(false)
+    setFileFormError(null)
+    setSelectedUploadFile(null)
+  }
+
+  async function handleUploadFile() {
+    if (!eventId || !profileId || !canEdit) return
+    setFileFormError(null)
+
+    if (!selectedUploadFile) {
+      setFileFormError('Lütfen bir dosya seçin.')
+      return
+    }
+    if (selectedUploadFile.size <= 0) {
+      setFileFormError('Seçilen dosya boş görünüyor.')
+      return
+    }
+    if (selectedUploadFile.size > MAX_EVENT_FILE_SIZE_BYTES) {
+      setFileFormError('Dosya boyutu 5 MB sınırını aşıyor. Lütfen daha küçük bir dosya seçin.')
+      return
+    }
+
+    setIsUploadingFile(true)
+
+    const safeFileName = sanitizeFileName(selectedUploadFile.name)
+    const uniqueId = crypto.randomUUID()
+    const storagePath = `events/${eventId}/${uniqueId}-${safeFileName}`
+
+    // ÖNEMLİ ATOMİKLİK NOTU: Supabase veritabanı insert işlemi ile Storage'a dosya
+    // yükleme işlemi tek bir transaction değildir. Önce event_files metadata kaydı
+    // oluşturulur, ardından Storage'a yükleme yapılır. Storage yüklemesi başarısız
+    // olursa oluşturulan metadata kaydı soft-delete ile pasifleştirilmeye çalışılır.
+    // Bu pasifleştirme işlemi de başarısız olabilir (yetki/ağ hatası); bu durumda
+    // hata sessizce yutulmaz, kullanıcıya açıkça bildirilir.
+    const { data: insertedRow, error: insertError } = await supabase
+      .from('event_files')
+      .insert({
+        event_id: eventId,
+        storage_path: storagePath,
+        original_file_name: selectedUploadFile.name,
+        mime_type: selectedUploadFile.type || 'application/octet-stream',
+        file_size_bytes: selectedUploadFile.size,
+        uploaded_by: profileId,
+      })
+      .select('id')
+      .single()
+
+    if (insertError || !insertedRow) {
+      setIsUploadingFile(false)
+      console.error('Dosya metadata kaydı oluşturma hatası:', insertError)
+      if (insertError?.message.includes('kilitli')) {
+        setFileFormError('Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.')
+      } else if (insertError?.code === '42501') {
+        setFileFormError('Bu etkinlik için dosya ekleme yetkiniz bulunmuyor.')
+      } else {
+        setFileFormError('Dosya kaydı oluşturulurken bir hata oluştu. Dosya yüklenmedi.')
+      }
+      return
+    }
+
+    const insertedFileId = insertedRow.id as string
+
+    const { error: uploadError } = await supabase.storage
+      .from(EVENT_FILES_BUCKET)
+      .upload(storagePath, selectedUploadFile, {
+        contentType: selectedUploadFile.type || 'application/octet-stream',
+        upsert: false,
+      })
+
+    setIsUploadingFile(false)
+
+    if (uploadError) {
+      console.error('Storage yükleme hatası:', uploadError)
+      const { error: cleanupError } = await supabase
+        .from('event_files')
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: profileId,
+          deletion_note: 'Depolamaya yükleme başarısız olduğu için otomatik pasifleştirildi.',
+        })
+        .eq('id', insertedFileId)
+
+      if (cleanupError) {
+        console.error('Başarısız yükleme sonrası metadata temizleme hatası:', cleanupError)
+        setFileFormError(
+          'Dosya depolamaya yüklenemedi ve oluşturulan kayıt otomatik olarak pasifleştirilemedi. Lütfen bir yöneticiye bildirin.'
+        )
+      } else {
+        setFileFormError('Dosya depolamaya yüklenemedi. Oluşturulan kayıt otomatik olarak pasifleştirildi.')
+      }
+      setFilesRefreshKey((prev) => prev + 1)
+      return
+    }
+
+    closeFileUploadForm()
+    setFileSuccessMessage('Dosya başarıyla yüklendi.')
+    setFilesRefreshKey((prev) => prev + 1)
+  }
+
+  async function handleDeactivateFile(id: string) {
+    if (!profileId || !canEdit) return
+    if (!window.confirm('Bu dosyayı pasifleştirmek istediğinize emin misiniz?')) return
+
+    setDeactivatingFileId(id)
+    const { error } = await supabase
+      .from('event_files')
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_by: profileId,
+        deletion_note: 'Dosya pasifleştirildi',
+      })
+      .eq('id', id)
+
+    setDeactivatingFileId(null)
+
+    if (error) {
+      if (error.message.includes('kilitli')) {
+        alert('Dönem kilitli olduğu için dosya pasifleştirilemedi.')
+      } else {
+        alert('Dosya pasifleştirilemedi.')
+      }
+      return
+    }
+
+    setFileSuccessMessage('Dosya pasifleştirildi.')
+    setFilesRefreshKey((prev) => prev + 1)
+  }
+
+  async function handleReactivateFile(id: string) {
+    if (!profileId || !canEdit) return
+
+    setDeactivatingFileId(id)
+    const { error } = await supabase
+      .from('event_files')
+      .update({ deleted_at: null, deleted_by: null, deletion_note: null })
+      .eq('id', id)
+
+    setDeactivatingFileId(null)
+
+    if (error) {
+      if (error.message.includes('kilitli')) {
+        alert('Dönem kilitli olduğu için dosya yeniden aktifleştirilemedi.')
+      } else {
+        alert('Dosya yeniden aktifleştirilemedi.')
+      }
+      return
+    }
+
+    setFileSuccessMessage('Dosya yeniden aktifleştirildi.')
+    setFilesRefreshKey((prev) => prev + 1)
+  }
+
+  async function handleDownloadFile(file: EventFile) {
+    if (downloadingFileId) return
+    setDownloadingFileId(file.id)
+    setDownloadErrorMap((prev) => {
+      const next = { ...prev }
+      delete next[file.id]
+      return next
+    })
+
+    const { data, error } = await supabase.storage.from(EVENT_FILES_BUCKET).download(file.storagePath)
+
+    setDownloadingFileId(null)
+
+    if (error || !data) {
+      setDownloadErrorMap((prev) => ({
+        ...prev,
+        [file.id]: 'Dosya indirilemedi. Yetkiniz olmayabilir veya dosya bulunamadı.',
+      }))
+      return
+    }
+
+    const objectUrl = URL.createObjectURL(data)
+    const anchor = document.createElement('a')
+    anchor.href = objectUrl
+    anchor.download = file.originalFileName
+    anchor.rel = 'noopener'
+    document.body.appendChild(anchor)
+    anchor.click()
+    document.body.removeChild(anchor)
+    // Object URL, tarayıcının indirmeyi/açmayı başlatması için kısa bir süre
+    // canlı tutulup ardından bellek sızıntısını önlemek amacıyla serbest bırakılır.
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30000)
   }
 
   async function handleSaveGeneralNote() {
@@ -3173,6 +3470,173 @@ export default function EventDetail() {
                         className="shrink-0 rounded border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-700 disabled:opacity-50"
                       >
                         {deactivatingLinkId === link.id ? 'İşleniyor…' : 'Yeniden aktifleştir'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Dosyalar Bölümü */}
+        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-4">
+              <h2 className="text-sm font-semibold text-ink">Dosyalar</h2>
+              {canEdit && (
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
+                  <input
+                    type="checkbox"
+                    checked={showInactiveFiles}
+                    onChange={(event) => setShowInactiveFiles(event.target.checked)}
+                    className="rounded border-canvas-border text-ink focus:ring-ink"
+                  />
+                  Pasif dosyaları göster
+                </label>
+              )}
+            </div>
+            {canEdit && !isFileFormOpen && (
+              <button
+                type="button"
+                onClick={openFileUploadForm}
+                className="shrink-0 rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-sm font-medium text-ink hover:bg-canvas-surface"
+              >
+                Dosya ekle
+              </button>
+            )}
+          </div>
+
+          {fileSuccessMessage && !isFileFormOpen && (
+            <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+              {fileSuccessMessage}
+            </p>
+          )}
+
+          {isFileFormOpen && (
+            <div className="mt-4 rounded-md border border-canvas-border bg-canvas px-4 py-4">
+              <h3 className="text-sm font-semibold text-ink">Yeni dosya</h3>
+              <div className="mt-3 flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="file-upload-input" className="text-sm font-medium text-ink-soft">
+                    Dosya seç (en fazla 5 MB)
+                  </label>
+                  <input
+                    id="file-upload-input"
+                    type="file"
+                    onChange={(e) => {
+                      const chosen = e.target.files && e.target.files[0] ? e.target.files[0] : null
+                      setSelectedUploadFile(chosen)
+                      setFileFormError(null)
+                    }}
+                    disabled={isUploadingFile}
+                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                  />
+                  {selectedUploadFile && (
+                    <p className="mt-1 break-words text-xs text-ink-soft">
+                      Seçilen dosya: {selectedUploadFile.name} ({formatFileSize(selectedUploadFile.size)})
+                    </p>
+                  )}
+                </div>
+                {fileFormError && (
+                  <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {fileFormError}
+                  </p>
+                )}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void handleUploadFile()}
+                    disabled={isUploadingFile || !selectedUploadFile}
+                    className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
+                  >
+                    {isUploadingFile ? 'Yükleniyor…' : 'Yükle'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeFileUploadForm}
+                    disabled={isUploadingFile}
+                    className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
+                  >
+                    İptal
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {filesLoadState === 'loading' && (
+            <p className="mt-3 text-sm text-ink-soft">Dosyalar yükleniyor…</p>
+          )}
+          {filesLoadState === 'error' && (
+            <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              Dosyalar yüklenirken bir hata oluştu.
+            </p>
+          )}
+          {filesLoadState === 'ready' && files.length === 0 && (
+            <p className="mt-3 text-sm italic text-ink-soft">Bu etkinlik için henüz dosya eklenmemiş.</p>
+          )}
+          {filesLoadState === 'ready' && files.length > 0 && (
+            <div className="mt-4 flex flex-col gap-4">
+              {files.map((file) => (
+                <div
+                  key={file.id}
+                  className={`rounded-md border px-4 py-3 ${
+                    file.deletedAt ? 'border-red-200 bg-red-50/40' : 'border-canvas-border bg-canvas'
+                  }`}
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 overflow-hidden">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="break-words text-sm font-semibold text-ink">{file.originalFileName}</h4>
+                        {file.deletedAt && (
+                          <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                            Pasif dosya
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-soft">
+                        <span>{file.mimeType}</span>
+                        <span>{formatFileSize(file.fileSizeBytes)}</span>
+                        <span>{file.uploaderName}</span>
+                        <span>{formatDate(file.createdAt)}</span>
+                      </div>
+                      <div className="mt-2 flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => void handleDownloadFile(file)}
+                          disabled={downloadingFileId === file.id}
+                          className="rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-xs font-medium text-ink hover:bg-canvas-surface disabled:opacity-60"
+                        >
+                          {downloadingFileId === file.id ? 'İndiriliyor…' : 'Aç / İndir'}
+                        </button>
+                      </div>
+                      {downloadErrorMap[file.id] && (
+                        <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                          {downloadErrorMap[file.id]}
+                        </p>
+                      )}
+                    </div>
+                    {canEdit && !file.deletedAt && (
+                      <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end sm:gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleDeactivateFile(file.id)}
+                          disabled={deactivatingFileId === file.id}
+                          className="text-xs font-medium text-red-600 underline decoration-dotted disabled:opacity-50"
+                        >
+                          {deactivatingFileId === file.id ? 'İşleniyor…' : 'Pasifleştir'}
+                        </button>
+                      </div>
+                    )}
+                    {canEdit && file.deletedAt && (
+                      <button
+                        type="button"
+                        onClick={() => void handleReactivateFile(file.id)}
+                        disabled={deactivatingFileId === file.id}
+                        className="shrink-0 rounded border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-700 disabled:opacity-50"
+                      >
+                        {deactivatingFileId === file.id ? 'İşleniyor…' : 'Yeniden aktifleştir'}
                       </button>
                     )}
                   </div>
