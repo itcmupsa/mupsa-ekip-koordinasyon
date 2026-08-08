@@ -148,6 +148,7 @@ Hedef:
 - Canlı Supabase transaction/rollback testleri başarılı oldu: rapor ve bağlantı audit kayıtları, 5 MB sınırı, ilişki kısıtları ve kilitli dönem yazma engeli doğrulandı. Test verileri rollback ile kalıcı bırakılmadı.
 - Bu adımda Storage bucket/upload akışı ve frontend ekranları eklenmedi; yalnızca veritabanı metadata altyapısı hazırlandı.
 - SKS süreç ekranı `EventDetail.tsx` içine eklendi: durumlar veritabanından okunuyor; aktif dönem üyeleri Ana Sorumlu, Destekleyen ve Bilgilendirilen olarak atanabiliyor. Durum değişikliği yalnızca süper yönetici veya SKS ana sorumlusuna, ekip yönetimi ise süper yönetici, etkinlik sahibi veya SKS ana sorumlusuna açılıyor. Aynı kişi bir SKS etkinliğinde yalnızca tek sorumluluk türünde yer alabiliyor; aktif Genel Sekreter ana sorumlu için varsayılan olarak öneriliyor. Lint, build ve `git diff --check` başarılı; canlı SKS yetki ve kilitli dönem testi bekleniyor.
+- Bütçe altyapısı ve ekranı eklendi: `budget_statuses`, tahmini/onaylanan bütçe, gerçekleşen harcama ve bütçe notu alanları; Sayman varsayılan adaylığı; bütçe ekibi ve alan düzenleme akışı. Etkinlik sahibi bütçe alanlarına yazamaz; yalnızca bütçe süreç Ana Sorumlusu ve süper yönetici yazabilir. Remote Supabase migration’ı uygulandı, sütunlar/durumlar/policy/trigger doğrulandı. Lint, build ve `git diff --check` başarılı; canlı bütçe yetki, negatif tutar ve kilitli dönem testi bekleniyor.
 - Görev bağımlılıkları için mevcut veritabanı altyapısı korunuyor ancak arayüz, ihtiyaç netleşene kadar ertelendi.
 
 Bu görev şunları **kapsamaz**:

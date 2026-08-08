@@ -9,6 +9,11 @@ interface EventBasicInfo {
   description: string | null
   eventStatus: string | null
   sksStatus: string | null
+  budgetStatus: string | null
+  estimatedBudget: number | null
+  approvedBudget: number | null
+  actualExpense: number | null
+  budgetNote: string | null
   planningDate: string | null
   preparationStartDate: string | null
   estimatedDate: string | null
@@ -102,6 +107,7 @@ interface EventProcessMemberInfo {
   profileId: string
   displayName: string
   responsibilityType: string
+  processType: string
 }
 
 type TasksLoadState = 'loading' | 'ready' | 'error'
@@ -118,6 +124,11 @@ interface TaskProgressStatusOption {
 }
 
 interface SksStatusOption {
+  slug: string
+  label: string
+}
+
+interface BudgetStatusOption {
   slug: string
   label: string
 }
@@ -203,11 +214,25 @@ function formatDate(value: string | null): string {
   })
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function formatCurrency(value: number | null): string {
+  if (value === null) return NOT_SPECIFIED
+  return new Intl.NumberFormat('tr-TR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value) + ' ₺'
+}
+
+function parseNullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function DetailRow({ label, value, isMultiline = false }: { label: string; value: string; isMultiline?: boolean }) {
   return (
-    <div className="flex flex-col gap-1 py-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className={`flex flex-col gap-1 py-2 ${isMultiline ? '' : 'sm:flex-row sm:items-center sm:justify-between'}`}>
       <span className="text-sm font-medium text-ink-soft">{label}</span>
-      <span className="text-sm text-ink">{value}</span>
+      <span className={`text-sm text-ink ${isMultiline ? 'whitespace-pre-wrap mt-1' : ''}`}>{value}</span>
     </div>
   )
 }
@@ -242,10 +267,8 @@ function formatFileSize(bytes: number): string {
 
 function sanitizeFileName(rawName: string): string {
   const trimmed = rawName.trim()
-  // Path ayırıcıları ve kontrol karakterlerini tamamen kaldır.
   // eslint-disable-next-line no-control-regex
   const withoutControlChars = trimmed.replace(/[/\\\x00-\x1F\x7F]/g, '')
-  // Geriye kalan riskli/boşluk karakterlerini alt çizgiye çevir; harf, rakam, nokta, tire ve alt çizgi korunur.
   const safe = withoutControlChars.replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/_+/g, '_').replace(/^[_.]+|[_.]+$/g, '')
   const finalName = safe.length > 0 ? safe : 'dosya'
   return finalName.slice(0, 150)
@@ -370,7 +393,6 @@ function TaskCard({
   const [editDescription, setEditDescription] = useState('')
   const [editDeadline, setEditDeadline] = useState('')
   const [editPriority, setEditPriority] = useState('normal')
-
   const [isEditingNote, setIsEditingNote] = useState(false)
   const [noteInputValue, setNoteInputValue] = useState(task.notes ?? '')
 
@@ -1023,12 +1045,16 @@ export default function EventDetail() {
   const [updateTaskInfoErrorMap, setUpdateTaskInfoErrorMap] = useState<Record<string, string>>({})
   const [processingActiveStatusTaskId, setProcessingActiveStatusTaskId] = useState<string | null>(null)
   const [availableSksStatuses, setAvailableSksStatuses] = useState<SksStatusOption[]>([])
+  const [availableBudgetStatuses, setAvailableBudgetStatuses] = useState<BudgetStatusOption[]>([])
   const [processingDependencyTaskId, setProcessingDependencyTaskId] = useState<string | null>(null)
   const [dependencyErrorMap, setDependencyErrorMap] = useState<Record<string, string>>({})
 
-  const [sksMembers, setSksMembers] = useState<EventProcessMemberInfo[]>([])
-  const [sksMembersLoadState, setSksMembersLoadState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
-  const [sksMembersRefreshKey, setSksMembersRefreshKey] = useState(0)
+  // Process Teams State (Combined fetch)
+  const [processMembers, setProcessMembers] = useState<EventProcessMemberInfo[]>([])
+  const [processMembersLoadState, setProcessMembersLoadState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const [processMembersRefreshKey, setProcessMembersRefreshKey] = useState(0)
+
+  // SKS State
   const [isSksPanelOpen, setIsSksPanelOpen] = useState(false)
   const [sksSelectedProfileId, setSksSelectedProfileId] = useState('')
   const [sksSelectedResponsibility, setSksSelectedResponsibility] = useState('supporting')
@@ -1039,6 +1065,25 @@ export default function EventDetail() {
   const [isUpdatingSksStatus, setIsUpdatingSksStatus] = useState(false)
   const [updateSksStatusError, setUpdateSksStatusError] = useState<string | null>(null)
   const [updateSksStatusSuccess, setUpdateSksStatusSuccess] = useState<string | null>(null)
+
+  // Budget State
+  const [isBudgetPanelOpen, setIsBudgetPanelOpen] = useState(false)
+  const [budgetSelectedProfileId, setBudgetSelectedProfileId] = useState('')
+  const [budgetSelectedResponsibility, setBudgetSelectedResponsibility] = useState('supporting')
+  const [isAssigningBudget, setIsAssigningBudget] = useState(false)
+  const [assignBudgetError, setAssignBudgetError] = useState<string | null>(null)
+  const [removingBudgetMemberId, setRemovingBudgetMemberId] = useState<string | null>(null)
+  const [removeBudgetError, setRemoveBudgetError] = useState<string | null>(null)
+
+  const [isEditingBudget, setIsEditingBudget] = useState(false)
+  const [editBudgetStatus, setEditBudgetStatus] = useState('')
+  const [editEstimatedBudget, setEditEstimatedBudget] = useState<string>('')
+  const [editApprovedBudget, setEditApprovedBudget] = useState<string>('')
+  const [editActualExpense, setEditActualExpense] = useState<string>('')
+  const [editBudgetNote, setEditBudgetNote] = useState('')
+  const [isSavingBudget, setIsSavingBudget] = useState(false)
+  const [budgetSaveError, setBudgetSaveError] = useState<string | null>(null)
+  const [budgetSaveSuccess, setBudgetSaveSuccess] = useState<string | null>(null)
 
   // Decisions State
   const [decisionsLoadState, setDecisionsLoadState] = useState<DecisionsLoadState>('idle')
@@ -1122,7 +1167,7 @@ export default function EventDetail() {
       const { data, error } = await supabase
         .from('events')
         .select(
-          'title, description, event_status, sks_status, planning_date, preparation_start_date, estimated_date, confirmed_date, owner_id, venue, next_action, general_note',
+          'title, description, event_status, sks_status, budget_status, estimated_budget, approved_budget, actual_expense, budget_note, planning_date, preparation_start_date, estimated_date, confirmed_date, owner_id, venue, next_action, general_note',
         )
         .eq('id', eventId)
         .eq('period_id', periodId)
@@ -1146,6 +1191,11 @@ export default function EventDetail() {
         description: (data.description as string | null) ?? null,
         eventStatus,
         sksStatus: (data.sks_status as string | null) ?? null,
+        budgetStatus: (data.budget_status as string | null) ?? null,
+        estimatedBudget: parseNullableNumber(data.estimated_budget),
+        approvedBudget: parseNullableNumber(data.approved_budget),
+        actualExpense: parseNullableNumber(data.actual_expense),
+        budgetNote: (data.budget_note as string | null) ?? null,
         planningDate: (data.planning_date as string | null) ?? null,
         preparationStartDate: (data.preparation_start_date as string | null) ?? null,
         estimatedDate: (data.estimated_date as string | null) ?? null,
@@ -1194,17 +1244,16 @@ export default function EventDetail() {
     if (statusLoading || !hasActiveMembership || !eventId) return
     let isMounted = true
 
-    async function loadSksMembers() {
-      setSksMembersLoadState('loading')
+    async function loadProcessMembers() {
+      setProcessMembersLoadState('loading')
       const { data: memberRows, error } = await supabase
         .from('event_process_members')
-        .select('id, profile_id, responsibility_type')
+        .select('id, profile_id, responsibility_type, process_type')
         .eq('event_id', eventId)
-        .eq('process_type', 'sks')
 
       if (!isMounted) return
       if (error) {
-        setSksMembersLoadState('error')
+        setProcessMembersLoadState('error')
         return
       }
 
@@ -1222,20 +1271,21 @@ export default function EventDetail() {
         }
       }
 
-      setSksMembers((memberRows ?? []).map((row) => ({
+      setProcessMembers((memberRows ?? []).map((row) => ({
         id: row.id as string,
         profileId: row.profile_id as string,
         displayName: profileNameMap[row.profile_id as string] || 'İsimsiz üye',
         responsibilityType: row.responsibility_type as string,
+        processType: row.process_type as string
       })))
-      setSksMembersLoadState('ready')
+      setProcessMembersLoadState('ready')
     }
 
-    void loadSksMembers()
+    void loadProcessMembers()
     return () => {
       isMounted = false
     }
-  }, [hasActiveMembership, eventId, statusLoading, sksMembersRefreshKey])
+  }, [hasActiveMembership, eventId, statusLoading, processMembersRefreshKey])
 
   useEffect(() => {
     if (!isEditingGeneralNote && event) {
@@ -1247,32 +1297,20 @@ export default function EventDetail() {
     if (statusLoading || !hasActiveMembership) return
     let isMounted = true
 
-    async function loadTaskStatuses() {
-      const { data, error } = await supabase
-        .from('task_progress_statuses')
-        .select('slug, label')
-        .order('sort_order', { ascending: true })
+    async function loadReferenceData() {
+      const [{ data: taskData }, { data: sksData }, { data: budgetData }] = await Promise.all([
+        supabase.from('task_progress_statuses').select('slug, label').order('sort_order', { ascending: true }),
+        supabase.from('sks_statuses').select('slug, label').order('sort_order', { ascending: true }),
+        supabase.from('budget_statuses').select('slug, label').order('sort_order', { ascending: true })
+      ])
 
       if (!isMounted) return
-      if (error) {
-        return
-      }
-
-      setAvailableTaskStatuses((data ?? []) as TaskProgressStatusOption[])
+      setAvailableTaskStatuses((taskData ?? []) as TaskProgressStatusOption[])
+      setAvailableSksStatuses((sksData ?? []) as SksStatusOption[])
+      setAvailableBudgetStatuses((budgetData ?? []) as BudgetStatusOption[])
     }
 
-    async function loadSksStatuses() {
-      const { data, error } = await supabase
-        .from('sks_statuses')
-        .select('slug, label')
-        .order('sort_order', { ascending: true })
-
-      if (!isMounted || error) return
-      setAvailableSksStatuses((data ?? []) as SksStatusOption[])
-    }
-
-    void loadTaskStatuses()
-    void loadSksStatuses()
+    void loadReferenceData()
     return () => {
       isMounted = false
     }
@@ -2379,12 +2417,6 @@ export default function EventDetail() {
     const uniqueId = crypto.randomUUID()
     const storagePath = `events/${eventId}/${uniqueId}-${safeFileName}`
 
-    // ÖNEMLİ ATOMİKLİK NOTU: Supabase veritabanı insert işlemi ile Storage'a dosya
-    // yükleme işlemi tek bir transaction değildir. Önce event_files metadata kaydı
-    // oluşturulur, ardından Storage'a yükleme yapılır. Storage yüklemesi başarısız
-    // olursa oluşturulan metadata kaydı soft-delete ile pasifleştirilmeye çalışılır.
-    // Bu pasifleştirme işlemi de başarısız olabilir (yetki/ağ hatası); bu durumda
-    // hata sessizce yutulmaz, kullanıcıya açıkça bildirilir.
     const { data: insertedRow, error: insertError } = await supabase
       .from('event_files')
       .insert({
@@ -2532,8 +2564,6 @@ export default function EventDetail() {
     document.body.appendChild(anchor)
     anchor.click()
     document.body.removeChild(anchor)
-    // Object URL, tarayıcının indirmeyi/açmayı başlatması için kısa bir süre
-    // canlı tutulup ardından bellek sızıntısını önlemek amacıyla serbest bırakılır.
     window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30000)
   }
 
@@ -2569,7 +2599,8 @@ export default function EventDetail() {
       return
     }
 
-    if (sksMembers.some((member) => member.profileId === sksSelectedProfileId)) {
+    const sksMembersOnly = processMembers.filter(m => m.processType === 'sks')
+    if (sksMembersOnly.some((member) => member.profileId === sksSelectedProfileId)) {
       setAssignSksError('Bu kişi SKS ekibinde zaten bir sorumluluğa atanmış.')
       return
     }
@@ -2578,7 +2609,7 @@ export default function EventDetail() {
     setAssignSksError(null)
 
     if (sksSelectedResponsibility === 'owner') {
-      const existingOwner = sksMembers.find((member) => member.responsibilityType === 'owner')
+      const existingOwner = sksMembersOnly.find((member) => member.responsibilityType === 'owner')
       if (existingOwner) {
         const { error: updateError } = await supabase
           .from('event_process_members')
@@ -2593,7 +2624,7 @@ export default function EventDetail() {
         }
         setIsAssigningSks(false)
         setSksSelectedProfileId('')
-        setSksMembersRefreshKey((current) => current + 1)
+        setProcessMembersRefreshKey((current) => current + 1)
         return
       }
     }
@@ -2617,7 +2648,7 @@ export default function EventDetail() {
     }
 
     setSksSelectedProfileId('')
-    setSksMembersRefreshKey((current) => current + 1)
+    setProcessMembersRefreshKey((current) => current + 1)
   }
 
   async function handleRemoveSksMember(memberId: string) {
@@ -2635,7 +2666,7 @@ export default function EventDetail() {
           : 'Atama kaldırılırken bir hata oluştu.')
       return
     }
-    setSksMembersRefreshKey((current) => current + 1)
+    setProcessMembersRefreshKey((current) => current + 1)
   }
 
   async function handleUpdateSksStatus(newSlug: string) {
@@ -2659,13 +2690,171 @@ export default function EventDetail() {
     setEvent((previous) => (previous ? { ...previous, sksStatus: newSlug } : previous))
   }
 
+  async function handleAssignBudgetMember() {
+    if (!profileId || !eventId || !budgetSelectedProfileId) {
+      setAssignBudgetError('Lütfen bir üye seçin.')
+      return
+    }
+
+    const budgetMembersOnly = processMembers.filter(m => m.processType === 'budget')
+    if (budgetMembersOnly.some((member) => member.profileId === budgetSelectedProfileId)) {
+      setAssignBudgetError('Bu kişi bütçe ekibinde zaten bir sorumluluğa atanmış.')
+      return
+    }
+
+    setIsAssigningBudget(true)
+    setAssignBudgetError(null)
+
+    if (budgetSelectedResponsibility === 'owner') {
+      const existingOwner = budgetMembersOnly.find((member) => member.responsibilityType === 'owner')
+      if (existingOwner) {
+        const { error: updateError } = await supabase
+          .from('event_process_members')
+          .update({ profile_id: budgetSelectedProfileId, assigned_by: profileId })
+          .eq('id', existingOwner.id)
+        if (updateError) {
+          setIsAssigningBudget(false)
+          setAssignBudgetError(updateError.message.includes('kilitli')
+            ? 'Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.'
+            : 'Mevcut Bütçe sorumlusu kaldırılamadı.')
+          return
+        }
+        setIsAssigningBudget(false)
+        setBudgetSelectedProfileId('')
+        setProcessMembersRefreshKey((current) => current + 1)
+        return
+      }
+    }
+
+    const { error } = await supabase.from('event_process_members').insert({
+      event_id: eventId,
+      process_type: 'budget',
+      profile_id: budgetSelectedProfileId,
+      responsibility_type: budgetSelectedResponsibility,
+      assigned_by: profileId,
+    })
+
+    setIsAssigningBudget(false)
+    if (error) {
+      setAssignBudgetError(error.message.includes('kilitli')
+        ? 'Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.'
+        : error.code === '42501'
+          ? 'Bütçe ekibini yönetme yetkiniz bulunmuyor.'
+          : 'Bütçe üyesi atanırken bir hata oluştu.')
+      return
+    }
+
+    setBudgetSelectedProfileId('')
+    setProcessMembersRefreshKey((current) => current + 1)
+  }
+
+  async function handleRemoveBudgetMember(memberId: string) {
+    if (!profileId) return
+    setRemovingBudgetMemberId(memberId)
+    setRemoveBudgetError(null)
+    const { error } = await supabase.from('event_process_members').delete().eq('id', memberId)
+    setRemovingBudgetMemberId(null)
+
+    if (error) {
+      setRemoveBudgetError(error.message.includes('kilitli')
+        ? 'Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.'
+        : error.code === '42501'
+          ? 'Bu kişiyi kaldırma yetkiniz bulunmuyor.'
+          : 'Atama kaldırılırken bir hata oluştu.')
+      return
+    }
+    setProcessMembersRefreshKey((current) => current + 1)
+  }
+
+  async function handleSaveBudget() {
+    if (!eventId || !profileId) return
+    setBudgetSaveError(null)
+
+    const parsedEstimated = editEstimatedBudget === '' ? null : parseFloat(editEstimatedBudget)
+    const parsedApproved = editApprovedBudget === '' ? null : parseFloat(editApprovedBudget)
+    const parsedActual = editActualExpense === '' ? null : parseFloat(editActualExpense)
+
+    if (
+      (parsedEstimated !== null && isNaN(parsedEstimated)) ||
+      (parsedApproved !== null && isNaN(parsedApproved)) ||
+      (parsedActual !== null && isNaN(parsedActual))
+    ) {
+      setBudgetSaveError('Lütfen geçerli bir sayı girin.')
+      return
+    }
+
+    if (
+      (parsedEstimated !== null && parsedEstimated < 0) ||
+      (parsedApproved !== null && parsedApproved < 0) ||
+      (parsedActual !== null && parsedActual < 0)
+    ) {
+      setBudgetSaveError('Parasal alanlar negatif olamaz.')
+      return
+    }
+
+    setIsSavingBudget(true)
+    const trimmedNote = editBudgetNote.trim()
+    const payload = {
+      budget_status: editBudgetStatus || null,
+      estimated_budget: parsedEstimated,
+      approved_budget: parsedApproved,
+      actual_expense: parsedActual,
+      budget_note: trimmedNote.length > 0 ? trimmedNote : null
+    }
+
+    const { error } = await supabase.from('events').update(payload).eq('id', eventId)
+
+    setIsSavingBudget(false)
+
+    if (error) {
+      setBudgetSaveError(error.message.includes('kilitli')
+        ? 'Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.'
+        : error.message.includes('yetkiniz') || error.code === '42501'
+          ? 'Bütçe alanlarını değiştirme yetkiniz bulunmuyor.'
+          : 'Bütçe bilgileri güncellenirken bir hata oluştu.')
+      return
+    }
+
+    setBudgetSaveSuccess('Bütçe bilgileri başarıyla güncellendi.')
+    setEvent(prev => prev ? {
+      ...prev,
+      budgetStatus: payload.budget_status,
+      estimatedBudget: payload.estimated_budget,
+      approvedBudget: payload.approved_budget,
+      actualExpense: payload.actual_expense,
+      budgetNote: payload.budget_note
+    } : prev)
+    setIsEditingBudget(false)
+    window.setTimeout(() => setBudgetSaveSuccess(null), 3000)
+  }
+
+  function startEditingBudget() {
+    if (!event) return
+    setEditBudgetStatus(event.budgetStatus ?? '')
+    setEditEstimatedBudget(event.estimatedBudget !== null ? String(event.estimatedBudget) : '')
+    setEditApprovedBudget(event.approvedBudget !== null ? String(event.approvedBudget) : '')
+    setEditActualExpense(event.actualExpense !== null ? String(event.actualExpense) : '')
+    setEditBudgetNote(event.budgetNote ?? '')
+    setBudgetSaveError(null)
+    setBudgetSaveSuccess(null)
+    setIsEditingBudget(true)
+  }
+
   const isOwner = !!event && !!profileId && event.ownerId === profileId
   const isSuperAdmin = appRole === 'super_admin'
   const canEdit = isOwner || isSuperAdmin
+
+  const sksMembers = processMembers.filter(m => m.processType === 'sks')
   const sksOwner = sksMembers.find((member) => member.responsibilityType === 'owner')
   const isSksOwner = sksOwner?.profileId === profileId
   const canChangeSksStatus = isSuperAdmin || isSksOwner
   const canManageSksTeam = isSuperAdmin || isOwner || isSksOwner
+
+  const budgetMembers = processMembers.filter(m => m.processType === 'budget')
+  const budgetOwner = budgetMembers.find((member) => member.responsibilityType === 'owner')
+  const isBudgetOwner = budgetOwner?.profileId === profileId
+  const canChangeBudgetFields = isSuperAdmin || isBudgetOwner
+  const canManageBudgetTeam = isSuperAdmin || isOwner || isBudgetOwner
 
   useEffect(() => {
     if (!canEdit || !periodId) {
@@ -2740,6 +2929,15 @@ export default function EventDetail() {
       setSksSelectedResponsibility('owner')
     }
   }, [periodMembers, sksMembers])
+
+  useEffect(() => {
+    if (budgetMembers.some((member) => member.responsibilityType === 'owner')) return
+    const treasurer = periodMembers.find((member) => member.coordinatorRoleSlug === 'treasurer')
+    if (treasurer) {
+      setBudgetSelectedProfileId(treasurer.profileId)
+      setBudgetSelectedResponsibility('owner')
+    }
+  }, [periodMembers, budgetMembers])
 
   function toggleAssignmentPanel(taskId: string) {
     if (openAssignmentTaskId === taskId) {
@@ -3852,6 +4050,8 @@ export default function EventDetail() {
             <DetailRow label="Sonraki işlem" value={displayedNextAction} />
           </div>
         </div>
+
+        {/* SKS Süreci */}
         <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
           <h2 className="text-sm font-semibold text-ink">SKS Süreci</h2>
           <div className="mt-4 flex flex-col gap-4">
@@ -3888,9 +4088,9 @@ export default function EventDetail() {
                   </button>
                 )}
               </div>
-              {sksMembersLoadState === 'loading' && <p className="mt-3 text-sm text-ink-soft">SKS ekibi yükleniyor…</p>}
-              {sksMembersLoadState === 'error' && <p className="mt-3 text-sm text-red-600">SKS ekibi yüklenirken bir hata oluştu.</p>}
-              {sksMembersLoadState === 'ready' && (
+              {processMembersLoadState === 'loading' && <p className="mt-3 text-sm text-ink-soft">SKS ekibi yükleniyor…</p>}
+              {processMembersLoadState === 'error' && <p className="mt-3 text-sm text-red-600">SKS ekibi yüklenirken bir hata oluştu.</p>}
+              {processMembersLoadState === 'ready' && (
                 <div className="mt-3 flex flex-col gap-3">
                   {(['owner', 'supporting', 'informed'] as const).map((responsibilityType) => {
                     const members = sksMembers.filter((member) => member.responsibilityType === responsibilityType)
@@ -3939,6 +4139,185 @@ export default function EventDetail() {
             </div>
           </div>
         </div>
+
+        {/* Bütçe Süreci */}
+        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+          <div className="flex items-start justify-between gap-4">
+            <h2 className="text-sm font-semibold text-ink">Bütçe Süreci</h2>
+            {canChangeBudgetFields && !isEditingBudget && (
+              <button
+                type="button"
+                onClick={startEditingBudget}
+                className="shrink-0 rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-xs font-medium text-ink hover:bg-canvas-surface"
+              >
+                Düzenle
+              </button>
+            )}
+          </div>
+
+          {budgetSaveSuccess && !isEditingBudget && (
+            <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+              {budgetSaveSuccess}
+            </p>
+          )}
+
+          {isEditingBudget ? (
+             <div className="mt-4 border-t border-canvas-border pt-4 flex flex-col gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                   <div className="flex flex-col gap-1">
+                      <label className="text-xs font-medium text-ink-soft">Bütçe Durumu</label>
+                      <select
+                         value={editBudgetStatus}
+                         onChange={(e) => setEditBudgetStatus(e.target.value)}
+                         disabled={isSavingBudget || availableBudgetStatuses.length === 0}
+                         className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink disabled:opacity-60"
+                      >
+                         <option value="">Durum seçin</option>
+                         {availableBudgetStatuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}
+                      </select>
+                   </div>
+                   <div className="flex flex-col gap-1">
+                      <label className="text-xs font-medium text-ink-soft">Tahmini Bütçe (₺)</label>
+                      <input
+                         type="number"
+                         step="0.01"
+                         min="0"
+                         value={editEstimatedBudget}
+                         onChange={(e) => setEditEstimatedBudget(e.target.value)}
+                         disabled={isSavingBudget}
+                         className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink disabled:opacity-60"
+                      />
+                   </div>
+                   <div className="flex flex-col gap-1">
+                      <label className="text-xs font-medium text-ink-soft">Onaylanan Bütçe (₺)</label>
+                      <input
+                         type="number"
+                         step="0.01"
+                         min="0"
+                         value={editApprovedBudget}
+                         onChange={(e) => setEditApprovedBudget(e.target.value)}
+                         disabled={isSavingBudget}
+                         className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink disabled:opacity-60"
+                      />
+                   </div>
+                   <div className="flex flex-col gap-1">
+                      <label className="text-xs font-medium text-ink-soft">Gerçekleşen Harcama (₺)</label>
+                      <input
+                         type="number"
+                         step="0.01"
+                         min="0"
+                         value={editActualExpense}
+                         onChange={(e) => setEditActualExpense(e.target.value)}
+                         disabled={isSavingBudget}
+                         className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink disabled:opacity-60"
+                      />
+                   </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                   <label className="text-xs font-medium text-ink-soft">Bütçe Notu</label>
+                   <textarea
+                      value={editBudgetNote}
+                      onChange={(e) => setEditBudgetNote(e.target.value)}
+                      disabled={isSavingBudget}
+                      rows={3}
+                      className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink disabled:opacity-60"
+                   />
+                </div>
+
+                {budgetSaveError && <p className="text-xs text-red-600">{budgetSaveError}</p>}
+
+                <div className="flex items-center gap-3 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => void handleSaveBudget()}
+                    disabled={isSavingBudget}
+                    className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
+                  >
+                    {isSavingBudget ? 'Kaydediliyor…' : 'Kaydet'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setIsEditingBudget(false); setBudgetSaveError(null); }}
+                    disabled={isSavingBudget}
+                    className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
+                  >
+                    İptal
+                  </button>
+                </div>
+             </div>
+          ) : (
+             <div className="mt-3 divide-y divide-canvas-border">
+                <DetailRow
+                   label="Durum"
+                   value={event.budgetStatus ? (availableBudgetStatuses.find(s => s.slug === event.budgetStatus)?.label ?? event.budgetStatus) : NOT_SPECIFIED}
+                />
+                <DetailRow label="Tahmini Bütçe" value={formatCurrency(event.estimatedBudget)} />
+                <DetailRow label="Onaylanan Bütçe" value={formatCurrency(event.approvedBudget)} />
+                <DetailRow label="Gerçekleşen Harcama" value={formatCurrency(event.actualExpense)} />
+                <DetailRow label="Bütçe Notu" value={event.budgetNote || NOT_SPECIFIED} isMultiline />
+             </div>
+          )}
+
+          <div className="border-t border-canvas-border pt-4 mt-4">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-medium text-ink">Bütçe ekibi</h3>
+              {canManageBudgetTeam && (
+                <button type="button" onClick={() => setIsBudgetPanelOpen((open) => !open)} className="text-xs font-medium text-ink hover:underline">
+                  {isBudgetPanelOpen ? 'Ekip yönetimini kapat' : 'Ekibi yönet'}
+                </button>
+              )}
+            </div>
+            {processMembersLoadState === 'loading' && <p className="mt-3 text-sm text-ink-soft">Bütçe ekibi yükleniyor…</p>}
+            {processMembersLoadState === 'error' && <p className="mt-3 text-sm text-red-600">Bütçe ekibi yüklenirken bir hata oluştu.</p>}
+            {processMembersLoadState === 'ready' && (
+              <div className="mt-3 flex flex-col gap-3">
+                {(['owner', 'supporting', 'informed'] as const).map((responsibilityType) => {
+                  const members = budgetMembers.filter((member) => member.responsibilityType === responsibilityType)
+                  const label = responsibilityType === 'owner' ? 'Ana sorumlu' : responsibilityType === 'supporting' ? 'Destekleyen' : 'Bilgilendirilen'
+                  return (
+                    <div key={responsibilityType}>
+                      <span className="block text-xs font-medium text-ink-soft">{label}</span>
+                      {members.length > 0 ? <div className="mt-1 flex flex-wrap gap-2 text-sm text-ink">{members.map((member) => <span key={member.id}>{member.displayName}</span>)}</div> : <span className="mt-1 block text-sm italic text-ink-soft">Atanmamış</span>}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {isBudgetPanelOpen && canManageBudgetTeam && (
+              <div className="mt-4 rounded-md border border-canvas-border bg-canvas px-4 py-4">
+                <h4 className="text-sm font-semibold text-ink">Ekip yönetimi</h4>
+                <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-ink-soft">
+                    Üye
+                    <select value={budgetSelectedProfileId} onChange={(e) => setBudgetSelectedProfileId(e.target.value)} disabled={isAssigningBudget || periodMembersLoadState === 'loading'} className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink">
+                      <option value="">Üye seçin</option>
+                      {periodMembers.filter((member) => !budgetMembers.some((assignedMember) => assignedMember.profileId === member.profileId)).map((member) => <option key={member.profileId} value={member.profileId}>{member.displayName}</option>)}
+                    </select>
+                  </label>
+                  <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-ink-soft">
+                    Sorumluluk türü
+                    <select value={budgetSelectedResponsibility} onChange={(e) => setBudgetSelectedResponsibility(e.target.value)} disabled={isAssigningBudget} className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink">
+                      <option value="owner">Ana sorumlu</option><option value="supporting">Destekleyen</option><option value="informed">Bilgilendirilen</option>
+                    </select>
+                  </label>
+                  <button type="button" onClick={() => void handleAssignBudgetMember()} disabled={isAssigningBudget} className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60">{isAssigningBudget ? 'Ekleniyor…' : 'Ekle'}</button>
+                </div>
+                {assignBudgetError && <p className="mt-2 text-xs text-red-600">{assignBudgetError}</p>}
+                {removeBudgetError && <p className="mt-2 text-xs text-red-600">{removeBudgetError}</p>}
+                <div className="mt-4 flex flex-col gap-2">
+                  {budgetMembers.length === 0 ? <p className="text-xs text-ink-soft">Ekip üyesi yok.</p> : budgetMembers.map((member) => (
+                    <div key={member.id} className="flex items-center justify-between gap-2 rounded-md border border-canvas-border bg-canvas-surface px-3 py-2">
+                      <span className="text-sm text-ink">{member.displayName}</span>
+                      <button type="button" onClick={() => void handleRemoveBudgetMember(member.id)} disabled={removingBudgetMemberId === member.id} className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50">{removingBudgetMemberId === member.id ? 'Kaldırılıyor…' : 'Kaldır'}</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
