@@ -47,7 +47,7 @@ export default function Login() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             placeholder="ad.soyad@ornek.com"
-            className="w-full rounded-md border border-canvas-border bg-canvas-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-soft/60 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+            className="w-full rounded-md border border-canvas-border/70 bg-white/45 px-3 py-2.5 text-sm text-ink placeholder:text-ink-soft/60 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
           />
         </div>
         <div>
@@ -61,7 +61,7 @@ export default function Login() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="••••••••"
-              className="w-full rounded-md border border-canvas-border bg-canvas-surface px-3 py-2.5 pr-14 text-sm text-ink placeholder:text-ink-soft/60 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+              className="w-full rounded-md border border-canvas-border/70 bg-white/45 px-3 py-2.5 pr-14 text-sm text-ink placeholder:text-ink-soft/60 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
             />
             <button
               type="button"
@@ -92,7 +92,7 @@ export default function Login() {
         <img src="/login-bg-desktop.webp" alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-center" />
         <div className="absolute inset-0 bg-white/20" aria-hidden="true" />
         <div className="absolute inset-y-0 right-0 flex w-[42%] min-w-[420px] items-center justify-center px-12">
-          <div className="w-full max-w-sm rounded-lg border border-canvas-border/80 bg-canvas-surface/80 p-6 shadow-card backdrop-blur-md">
+          <div className="w-full max-w-sm rounded-lg border border-white/70 bg-white/45 p-6 shadow-card backdrop-blur-md">
             <div className="mb-8 flex flex-col items-center gap-3 text-center">
               <img src="/mupsa-logo.svg" alt="MUPSA Logo" className="h-16 w-auto object-contain" />
               <div>
@@ -109,7 +109,7 @@ export default function Login() {
         <img src="/login-bg-mobile.webp" alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-center" />
         <div className="absolute inset-0 bg-white/15" aria-hidden="true" />
         <div className="relative z-10 flex min-h-[calc(100vh-5rem)] flex-1 items-end">
-          <div className="w-full rounded-lg border border-canvas-border/80 bg-canvas-surface/80 p-6 shadow-card backdrop-blur-md">
+          <div className="w-full rounded-lg border border-white/70 bg-white/45 p-6 shadow-card backdrop-blur-md">
               <div className="mb-4 text-center">
                 <h2 className="text-base font-semibold text-ink">MUPSA Ekip Koordinasyon</h2>
                 <p className="mt-1 text-sm text-ink-soft">Yönetim kurulu girişi</p>
