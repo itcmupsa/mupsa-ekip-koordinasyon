@@ -305,7 +305,21 @@ export default function AdminMembers({ session }: { session: Session }) {
     setIsCreatingUser(false)
 
     if (error) {
-      setCreateUserError(`Kullanıcı oluşturulamadı: ${error.message}`)
+      let errorMessage = error.message
+      const errorContext = (error as { context?: Response }).context
+
+      if (errorContext) {
+        try {
+          const responseBody = (await errorContext.clone().json()) as { error?: unknown }
+          if (typeof responseBody.error === 'string' && responseBody.error.trim()) {
+            errorMessage = responseBody.error
+          }
+        } catch {
+          // Supabase hata gövdesi JSON değilse genel mesajı kullan.
+        }
+      }
+
+      setCreateUserError(`Kullanıcı oluşturulamadı: ${errorMessage}`)
       return
     }
 
