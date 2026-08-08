@@ -81,6 +81,7 @@ alter table public.audit_logs
       'event_process_member',
       'task_assignee',
       'task_dependency',
+      'period_membership',
       'event_decision'
     )
   );
