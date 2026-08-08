@@ -160,6 +160,7 @@ Bu görev şunları **kapsamaz**:
 - Cloudflare Pages'in otomatik SPA geri dönüşü, `/auth/callback` adresinde canlı olarak doğrulandı.
 - Bu düzeltme GitHub `main` dalına gönderildi ve Cloudflare otomatik yeniden yayın yapar.
 - MUPSA logo SVG'si `public/mupsa-logo.svg` olarak eklendi. Giriş ekranındaki eski `+` simgesi ve ana ekran başlığındaki logo alanı bu dosyayı kullanıyor. Supabase, auth, yetki ve veri akışları değiştirilmedi; lint, build ve `git diff --check` başarılı.
+- PWA uygulama ikonları (`public/icon-192.svg` ve `public/icon-512.svg`) siyah arka plan ve MUPSA logosu kullanacak şekilde güncellendi; manifest arka planı da siyah yapıldı. Lint, build ve `git diff --check` başarılı.
 
 ## Kullanım talimatı — yeni yapay zekâ sohbeti
 
