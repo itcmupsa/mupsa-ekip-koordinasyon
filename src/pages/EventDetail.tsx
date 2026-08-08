@@ -50,6 +50,16 @@ interface TaskItem {
   dependencies: TaskDependency[]
 }
 
+interface EventDecision {
+  id: string
+  title: string
+  decisionText: string
+  decidedAt: string | null
+  createdBy: string
+  creatorName: string | null
+  createdAt: string
+}
+
 type TasksLoadState = 'loading' | 'ready' | 'error'
 
 interface PeriodMemberOption {
@@ -68,6 +78,7 @@ interface SksStatusOption {
 }
 
 type PeriodMembersLoadState = 'idle' | 'loading' | 'ready' | 'error'
+type DecisionsLoadState = 'idle' | 'loading' | 'ready' | 'error'
 
 const NOT_SPECIFIED = 'Henüz belirtilmedi'
 const TASKS_NOT_FOUND_MESSAGE = 'Bu etkinlik için henüz görev oluşturulmamış.'
@@ -139,6 +150,8 @@ function formatDate(value: string | null): string {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 
@@ -289,8 +302,10 @@ function TaskCard({
   const [editDescription, setEditDescription] = useState('')
   const [editDeadline, setEditDeadline] = useState('')
   const [editPriority, setEditPriority] = useState('normal')
+
   const [isEditingNote, setIsEditingNote] = useState(false)
   const [noteInputValue, setNoteInputValue] = useState(task.notes ?? '')
+
   const [isAddingDependency, setIsAddingDependency] = useState(false)
   const [dependencyType, setDependencyType] = useState('sks_status')
   const [sourceTaskId, setSourceTaskId] = useState('')
@@ -299,6 +314,7 @@ function TaskCard({
   const [offsetDays, setOffsetDays] = useState<number | ''>('')
   const [dependencyFormError, setDependencyFormError] = useState<string | null>(null)
   const [deletingDependencyId, setDeletingDependencyId] = useState<string | null>(null)
+
   const isDeactivated = !!task.deletedAt
   const effectiveCanEditTask = canEditTask && !isDeactivated
   const effectiveCanUpdateStatus = canUpdateStatus && !isDeactivated
@@ -393,7 +409,7 @@ function TaskCard({
   const assigneeGroups = groupAssigneesByType(task.assignees)
 
   return (
-    <div className="rounded-md border border-canvas-border bg-canvas px-4 py-3">
+    <div className={`rounded-md border border-canvas-border px-4 py-3 transition-opacity ${isDeactivated ? 'bg-canvas-surface opacity-80' : 'bg-canvas shadow-sm'}`}>
       {isEditingTask ? (
         <div className="mb-4 flex flex-col gap-4 border-b border-canvas-border pb-4">
           <h4 className="text-sm font-semibold text-ink">Görevi düzenle</h4>
@@ -467,7 +483,7 @@ function TaskCard({
         <>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-semibold text-ink">{task.title}</span>
                 {isDeactivated && (
                   <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
@@ -507,25 +523,25 @@ function TaskCard({
               {task.description && <p className="whitespace-pre-wrap text-sm text-ink-soft">{task.description}</p>}
             </div>
             {effectiveCanUpdateStatus ? (
-          <select
-            value={task.progressStatusSlug ?? ''}
-            onChange={(event) => onUpdateStatus(task.id, event.target.value)}
-            disabled={isUpdatingStatus || availableTaskStatuses.length === 0}
-            className="w-fit rounded-md border border-canvas-border bg-canvas-surface px-2 py-1 text-xs font-medium text-ink focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink disabled:opacity-60"
-          >
-            <option value="" disabled>
-              Durum seçin
-            </option>
-            {availableTaskStatuses.map((status) => (
-              <option key={status.slug} value={status.slug}>
-                {status.label}
-              </option>
-            ))}
-          </select>
+              <select
+                value={task.progressStatusSlug ?? ''}
+                onChange={(event) => onUpdateStatus(task.id, event.target.value)}
+                disabled={isUpdatingStatus || availableTaskStatuses.length === 0}
+                className="mt-2 w-fit rounded-md border border-canvas-border bg-canvas-surface px-2 py-1 text-xs font-medium text-ink focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink disabled:opacity-60 sm:mt-0"
+              >
+                <option value="" disabled>
+                  Durum seçin
+                </option>
+                {availableTaskStatuses.map((status) => (
+                  <option key={status.slug} value={status.slug}>
+                    {status.label}
+                  </option>
+                ))}
+              </select>
             ) : (
-          <span className="inline-flex w-fit items-center rounded-full border border-canvas-border bg-canvas-surface px-2 py-0.5 text-xs font-medium text-ink-soft">
-            {statusLabel}
-          </span>
+              <span className="mt-2 inline-flex w-fit items-center rounded-full border border-canvas-border bg-canvas-surface px-2 py-0.5 text-xs font-medium text-ink-soft sm:mt-0">
+                {statusLabel}
+              </span>
             )}
           </div>
           {updateStatusError && <p className="mt-2 text-xs text-red-600">{updateStatusError}</p>}
@@ -549,162 +565,162 @@ function TaskCard({
 
       {ENABLE_TASK_DEPENDENCY_UI && (
         <div className="mt-4 border-t border-canvas-border pt-3">
-        <div className="flex items-center justify-between">
-          <h5 className="text-sm font-medium text-ink-soft">Bağımlılıklar</h5>
-          {effectiveCanEditTask && !isAddingDependency && (
-            <button
-              type="button"
-              onClick={() => setIsAddingDependency(true)}
-              className="text-xs font-medium text-ink hover:underline"
-            >
-              Bağımlılık ekle
-            </button>
+          <div className="flex items-center justify-between">
+            <h5 className="text-sm font-medium text-ink-soft">Bağımlılıklar</h5>
+            {effectiveCanEditTask && !isAddingDependency && (
+              <button
+                type="button"
+                onClick={() => setIsAddingDependency(true)}
+                className="text-xs font-medium text-ink hover:underline"
+              >
+                Bağımlılık ekle
+              </button>
+            )}
+          </div>
+
+          {task.dependencies.length > 0 ? (
+            <ul className="mt-2 flex flex-col gap-2">
+              {task.dependencies.map((dependency) => (
+                <li
+                  key={dependency.id}
+                  className="flex flex-col gap-2 rounded-md bg-canvas-surface px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <span className="text-xs text-ink">{dependencyDescription(dependency)}</span>
+                  {effectiveCanEditTask && (
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteDependency(dependency.id)}
+                      disabled={deletingDependencyId === dependency.id}
+                      className="shrink-0 text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
+                    >
+                      {deletingDependencyId === dependency.id ? 'Siliniyor…' : 'Sil'}
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            !isAddingDependency && <p className="mt-2 text-xs italic text-ink-soft">Bağımlılık eklenmemiş.</p>
           )}
-        </div>
 
-        {task.dependencies.length > 0 ? (
-          <ul className="mt-2 flex flex-col gap-2">
-            {task.dependencies.map((dependency) => (
-              <li
-                key={dependency.id}
-                className="flex flex-col gap-2 rounded-md bg-canvas-surface px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <span className="text-xs text-ink">{dependencyDescription(dependency)}</span>
-                {effectiveCanEditTask && (
-                  <button
-                    type="button"
-                    onClick={() => void handleDeleteDependency(dependency.id)}
-                    disabled={deletingDependencyId === dependency.id}
-                    className="shrink-0 text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
-                  >
-                    {deletingDependencyId === dependency.id ? 'Siliniyor…' : 'Sil'}
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          !isAddingDependency && <p className="mt-2 text-xs italic text-ink-soft">Bağımlılık eklenmemiş.</p>
-        )}
-
-        {isAddingDependency && effectiveCanEditTask && (
-          <div className="mt-3 flex flex-col gap-3 rounded-md border border-canvas-border p-3">
-            <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
-              Bağımlılık türü
-              <select
-                value={dependencyType}
-                onChange={(event) => {
-                  setDependencyType(event.target.value)
-                  setDependencyFormError(null)
-                }}
-                disabled={isProcessingDependency}
-                className="rounded-md border border-canvas-border bg-canvas px-2 py-1.5 text-xs text-ink"
-              >
-                <option value="sks_status">SKS durumu</option>
-                <option value="task_progress">Görev durumu</option>
-                <option value="event_date_offset">Etkinlik tarih farkı</option>
-              </select>
-            </label>
-
-            {dependencyType === 'sks_status' && (
+          {isAddingDependency && effectiveCanEditTask && (
+            <div className="mt-3 flex flex-col gap-3 rounded-md border border-canvas-border p-3">
               <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
-                Gerekli SKS durumu
+                Bağımlılık türü
                 <select
-                  value={requiredSksStatus}
-                  onChange={(event) => setRequiredSksStatus(event.target.value)}
+                  value={dependencyType}
+                  onChange={(event) => {
+                    setDependencyType(event.target.value)
+                    setDependencyFormError(null)
+                  }}
                   disabled={isProcessingDependency}
                   className="rounded-md border border-canvas-border bg-canvas px-2 py-1.5 text-xs text-ink"
                 >
-                  <option value="" disabled>
-                    SKS durumu seçin
-                  </option>
-                  {availableSksStatuses.map((status) => (
-                    <option key={status.slug} value={status.slug}>
-                      {status.label}
-                    </option>
-                  ))}
+                  <option value="sks_status">SKS durumu</option>
+                  <option value="task_progress">Görev durumu</option>
+                  <option value="event_date_offset">Etkinlik tarih farkı</option>
                 </select>
               </label>
-            )}
 
-            {dependencyType === 'task_progress' && (
-              <>
+              {dependencyType === 'sks_status' && (
                 <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
-                  Kaynak görev
+                  Gerekli SKS durumu
                   <select
-                    value={sourceTaskId}
-                    onChange={(event) => setSourceTaskId(event.target.value)}
+                    value={requiredSksStatus}
+                    onChange={(event) => setRequiredSksStatus(event.target.value)}
                     disabled={isProcessingDependency}
                     className="rounded-md border border-canvas-border bg-canvas px-2 py-1.5 text-xs text-ink"
                   >
                     <option value="" disabled>
-                      Görev seçin
+                      SKS durumu seçin
                     </option>
-                    {otherTasks.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
-                  Beklenen durum
-                  <select
-                    value={requiredTaskProgressStatus}
-                    onChange={(event) => setRequiredTaskProgressStatus(event.target.value)}
-                    disabled={isProcessingDependency}
-                    className="rounded-md border border-canvas-border bg-canvas px-2 py-1.5 text-xs text-ink"
-                  >
-                    <option value="" disabled>
-                      Durum seçin
-                    </option>
-                    {availableTaskStatuses.map((status) => (
+                    {availableSksStatuses.map((status) => (
                       <option key={status.slug} value={status.slug}>
                         {status.label}
                       </option>
                     ))}
                   </select>
                 </label>
-              </>
-            )}
+              )}
 
-            {dependencyType === 'event_date_offset' && (
-              <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
-                Gün farkı (- önce, + sonra)
-                <input
-                  type="number"
-                  value={offsetDays}
-                  onChange={(event) => setOffsetDays(event.target.value === '' ? '' : Number(event.target.value))}
+              {dependencyType === 'task_progress' && (
+                <>
+                  <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
+                    Kaynak görev
+                    <select
+                      value={sourceTaskId}
+                      onChange={(event) => setSourceTaskId(event.target.value)}
+                      disabled={isProcessingDependency}
+                      className="rounded-md border border-canvas-border bg-canvas px-2 py-1.5 text-xs text-ink"
+                    >
+                      <option value="" disabled>
+                        Görev seçin
+                      </option>
+                      {otherTasks.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
+                    Beklenen durum
+                    <select
+                      value={requiredTaskProgressStatus}
+                      onChange={(event) => setRequiredTaskProgressStatus(event.target.value)}
+                      disabled={isProcessingDependency}
+                      className="rounded-md border border-canvas-border bg-canvas px-2 py-1.5 text-xs text-ink"
+                    >
+                      <option value="" disabled>
+                        Durum seçin
+                      </option>
+                      {availableTaskStatuses.map((status) => (
+                        <option key={status.slug} value={status.slug}>
+                          {status.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </>
+              )}
+
+              {dependencyType === 'event_date_offset' && (
+                <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
+                  Gün farkı (- önce, + sonra)
+                  <input
+                    type="number"
+                    value={offsetDays}
+                    onChange={(event) => setOffsetDays(event.target.value === '' ? '' : Number(event.target.value))}
+                    disabled={isProcessingDependency}
+                    placeholder="Örn: -3, 0 veya 5"
+                    className="rounded-md border border-canvas-border bg-canvas px-2 py-1.5 text-xs text-ink"
+                  />
+                </label>
+              )}
+
+              {(dependencyFormError || dependencyError) && (
+                <p className="text-xs text-red-600">{dependencyFormError ?? dependencyError}</p>
+              )}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleSaveDependency()}
                   disabled={isProcessingDependency}
-                  placeholder="Örn: -3, 0 veya 5"
-                  className="rounded-md border border-canvas-border bg-canvas px-2 py-1.5 text-xs text-ink"
-                />
-              </label>
-            )}
-
-            {(dependencyFormError || dependencyError) && (
-              <p className="text-xs text-red-600">{dependencyFormError ?? dependencyError}</p>
-            )}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => void handleSaveDependency()}
-                disabled={isProcessingDependency}
-                className="rounded-md bg-ink px-3 py-1.5 text-xs font-medium text-canvas-surface disabled:opacity-60"
-              >
-                {isProcessingDependency ? 'Kaydediliyor…' : 'Kaydet'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsAddingDependency(false)}
-                disabled={isProcessingDependency}
-                className="rounded-md border border-canvas-border px-3 py-1.5 text-xs font-medium text-ink-soft disabled:opacity-60"
-              >
-                İptal
-              </button>
+                  className="rounded-md bg-ink px-3 py-1.5 text-xs font-medium text-canvas-surface disabled:opacity-60"
+                >
+                  {isProcessingDependency ? 'Kaydediliyor…' : 'Kaydet'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsAddingDependency(false)}
+                  disabled={isProcessingDependency}
+                  className="rounded-md border border-canvas-border px-3 py-1.5 text-xs font-medium text-ink-soft disabled:opacity-60"
+                >
+                  İptal
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
       )}
 
@@ -941,6 +957,21 @@ export default function EventDetail() {
   const [availableSksStatuses, setAvailableSksStatuses] = useState<SksStatusOption[]>([])
   const [processingDependencyTaskId, setProcessingDependencyTaskId] = useState<string | null>(null)
   const [dependencyErrorMap, setDependencyErrorMap] = useState<Record<string, string>>({})
+
+  // Decisions State
+  const [decisionsLoadState, setDecisionsLoadState] = useState<DecisionsLoadState>('idle')
+  const [decisions, setDecisions] = useState<EventDecision[]>([])
+  const [decisionsRefreshKey, setDecisionsRefreshKey] = useState(0)
+  const [isDecisionFormOpen, setIsDecisionFormOpen] = useState(false)
+  const [decisionFormMode, setDecisionFormMode] = useState<'create' | 'edit'>('create')
+  const [editingDecisionId, setEditingDecisionId] = useState<string | null>(null)
+  const [decisionTitle, setDecisionTitle] = useState('')
+  const [decisionText, setDecisionText] = useState('')
+  const [decisionDate, setDecisionDate] = useState('')
+  const [isSavingDecision, setIsSavingDecision] = useState(false)
+  const [decisionFormError, setDecisionFormError] = useState<string | null>(null)
+  const [decisionSuccessMessage, setDecisionSuccessMessage] = useState<string | null>(null)
+  const [deactivatingDecisionId, setDeactivatingDecisionId] = useState<string | null>(null)
 
   useEffect(() => {
     if (statusLoading) return
@@ -1198,6 +1229,57 @@ export default function EventDetail() {
       isMounted = false
     }
   }, [hasActiveMembership, eventId, statusLoading, tasksRefreshKey, appRole, showInactiveTasks])
+
+  useEffect(() => {
+    if (statusLoading || !hasActiveMembership || !eventId) return
+    let isMounted = true
+
+    async function loadDecisions() {
+      setDecisionsLoadState('loading')
+      const { data, error } = await supabase
+        .from('event_decisions')
+        .select('id, title, decision_text, decided_at, created_by, created_at')
+        .eq('event_id', eventId)
+        .is('deleted_at', null)
+        .order('decided_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false })
+
+      if (!isMounted) return
+      if (error) {
+        setDecisionsLoadState('error')
+        return
+      }
+
+      const creatorIds = Array.from(new Set((data ?? []).map((d) => d.created_by)))
+      const profileMap: Record<string, string> = {}
+      if (creatorIds.length > 0) {
+        const { data: profilesData } = await supabase.from('profiles').select('id, display_name').in('id', creatorIds)
+        if (profilesData) {
+          for (const p of profilesData) {
+            profileMap[p.id] = p.display_name
+          }
+        }
+      }
+
+      setDecisions(
+        (data ?? []).map((row) => ({
+          id: row.id as string,
+          title: row.title as string,
+          decisionText: row.decision_text as string,
+          decidedAt: (row.decided_at as string | null) ?? null,
+          createdBy: row.created_by as string,
+          creatorName: profileMap[row.created_by as string] || 'Bilinmeyen Kullanıcı',
+          createdAt: row.created_at as string,
+        }))
+      )
+      setDecisionsLoadState('ready')
+    }
+
+    void loadDecisions()
+    return () => {
+      isMounted = false
+    }
+  }, [hasActiveMembership, eventId, statusLoading, decisionsRefreshKey])
 
   function openTaskForm() {
     setNewTaskTitle('')
@@ -1476,6 +1558,112 @@ export default function EventDetail() {
     return true
   }
 
+  function openCreateDecisionForm() {
+    setDecisionFormMode('create')
+    setEditingDecisionId(null)
+    setDecisionTitle('')
+    setDecisionText('')
+    setDecisionDate('')
+    setDecisionFormError(null)
+    setDecisionSuccessMessage(null)
+    setIsDecisionFormOpen(true)
+  }
+
+  function openEditDecisionForm(decision: EventDecision) {
+    setDecisionFormMode('edit')
+    setEditingDecisionId(decision.id)
+    setDecisionTitle(decision.title)
+    setDecisionText(decision.decisionText)
+    setDecisionDate(extractDateOnly(decision.decidedAt))
+    setDecisionFormError(null)
+    setDecisionSuccessMessage(null)
+    setIsDecisionFormOpen(true)
+  }
+
+  function closeDecisionForm() {
+    setIsDecisionFormOpen(false)
+    setDecisionFormError(null)
+  }
+
+  async function handleSaveDecision() {
+    if (!eventId || !profileId) return
+    setDecisionFormError(null)
+
+    const tTitle = decisionTitle.trim()
+    const tText = decisionText.trim()
+
+    if (!tTitle || !tText) {
+      setDecisionFormError('Başlık ve karar metni boş bırakılamaz.')
+      return
+    }
+
+    setIsSavingDecision(true)
+    const payload = {
+      title: tTitle,
+      decision_text: tText,
+      decided_at: decisionDate || null,
+    }
+
+    let error
+    if (decisionFormMode === 'create') {
+      const res = await supabase.from('event_decisions').insert({
+        event_id: eventId,
+        created_by: profileId,
+        ...payload,
+      })
+      error = res.error
+    } else {
+      const res = await supabase.from('event_decisions').update(payload).eq('id', editingDecisionId)
+      error = res.error
+    }
+
+    setIsSavingDecision(false)
+
+    if (error) {
+      if (error.message.includes('kilitli')) {
+        setDecisionFormError('Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.')
+      } else {
+        setDecisionFormError('Karar kaydedilirken bir hata oluştu.')
+      }
+      return
+    }
+
+    closeDecisionForm()
+    setDecisionSuccessMessage(
+      decisionFormMode === 'create' ? 'Karar başarıyla eklendi.' : 'Karar başarıyla güncellendi.'
+    )
+    setDecisionsRefreshKey((prev) => prev + 1)
+  }
+
+  async function handleDeactivateDecision(id: string) {
+    if (!profileId) return
+    if (!window.confirm('Bu kararı pasifleştirmek istediğinize emin misiniz?')) return
+
+    setDeactivatingDecisionId(id)
+    const { error } = await supabase
+      .from('event_decisions')
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_by: profileId,
+        deletion_note: 'Karar pasifleştirildi',
+      })
+      .eq('id', id)
+
+    setDeactivatingDecisionId(null)
+
+    if (error) {
+      if (error.message.includes('kilitli')) {
+        alert('Dönem kilitli olduğu için karar pasifleştirilemedi.')
+      } else {
+        alert('Karar pasifleştirilemedi.')
+      }
+      return
+    }
+
+    setDecisionSuccessMessage('Karar pasifleştirildi.')
+    setDecisionsRefreshKey((prev) => prev + 1)
+  }
+
   const isOwner = !!event && !!profileId && event.ownerId === profileId
   const isSuperAdmin = appRole === 'super_admin'
   const canEdit = isOwner || isSuperAdmin
@@ -1708,7 +1896,7 @@ export default function EventDetail() {
   if (statusLoading || loadState === 'loading') return <CenteredMessage text="Etkinlik yükleniyor…" />
   if (!hasActiveMembership) return <CenteredMessage text="Bu sayfaya erişim yetkin yok." />
   if (loadState === 'error') return <CenteredMessage text="Etkinlik yüklenirken bir hata oluştu." />
-  if (loadState === 'not_found' || !event) return <CenteredMessage text="Etkinlik bulunamadı." />
+  if (loadState === 'not_found' || !event || !eventId) return <CenteredMessage text="Etkinlik bulunamadı." />
 
   const displayedStatus = statusLabel ?? event.eventStatus ?? 'Durum belirtilmemiş'
   const displayedOwner = event.ownerId ? ownerName ?? NOT_SPECIFIED : NOT_SPECIFIED
@@ -1852,6 +2040,152 @@ export default function EventDetail() {
             <p className="text-sm text-ink-soft">{event.description || 'Açıklama eklenmemiş'}</p>
           </div>
         )}
+
+        {/* Kararlar Bölümü */}
+        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-sm font-semibold text-ink">Kararlar</h2>
+            {canEdit && !isDecisionFormOpen && (
+              <button
+                type="button"
+                onClick={openCreateDecisionForm}
+                className="shrink-0 rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-sm font-medium text-ink hover:bg-canvas-surface"
+              >
+                Karar ekle
+              </button>
+            )}
+          </div>
+
+          {decisionSuccessMessage && !isDecisionFormOpen && (
+            <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+              {decisionSuccessMessage}
+            </p>
+          )}
+
+          {isDecisionFormOpen && (
+            <div className="mt-4 rounded-md border border-canvas-border bg-canvas px-4 py-4">
+              <h3 className="text-sm font-semibold text-ink">
+                {decisionFormMode === 'create' ? 'Yeni karar' : 'Kararı düzenle'}
+              </h3>
+              <div className="mt-3 flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="decision-title" className="text-sm font-medium text-ink-soft">
+                    Karar başlığı
+                  </label>
+                  <input
+                    id="decision-title"
+                    type="text"
+                    value={decisionTitle}
+                    onChange={(e) => setDecisionTitle(e.target.value)}
+                    disabled={isSavingDecision}
+                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="decision-text" className="text-sm font-medium text-ink-soft">
+                    Karar açıklaması
+                  </label>
+                  <textarea
+                    id="decision-text"
+                    value={decisionText}
+                    onChange={(e) => setDecisionText(e.target.value)}
+                    disabled={isSavingDecision}
+                    rows={4}
+                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="decision-date" className="text-sm font-medium text-ink-soft">
+                      Karar tarihi
+                    </label>
+                    <input
+                      id="decision-date"
+                      type="date"
+                      value={decisionDate}
+                      onChange={(e) => setDecisionDate(e.target.value)}
+                      disabled={isSavingDecision}
+                      className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                    />
+                  </div>
+                </div>
+                {decisionFormError && (
+                  <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {decisionFormError}
+                  </p>
+                )}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void handleSaveDecision()}
+                    disabled={isSavingDecision}
+                    className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
+                  >
+                    {isSavingDecision ? 'Kaydediliyor…' : 'Kaydet'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeDecisionForm}
+                    disabled={isSavingDecision}
+                    className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
+                  >
+                    İptal
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {decisionsLoadState === 'loading' && (
+            <p className="mt-3 text-sm text-ink-soft">Kararlar yükleniyor…</p>
+          )}
+          {decisionsLoadState === 'error' && (
+            <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              Kararlar yüklenirken bir hata oluştu.
+            </p>
+          )}
+          {decisionsLoadState === 'ready' && decisions.length === 0 && (
+            <p className="mt-3 text-sm italic text-ink-soft">Bu etkinlik için henüz karar eklenmemiş.</p>
+          )}
+          {decisionsLoadState === 'ready' && decisions.length > 0 && (
+            <div className="mt-4 flex flex-col gap-4">
+              {decisions.map((decision) => (
+                <div key={decision.id} className="rounded-md border border-canvas-border bg-canvas px-4 py-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <h4 className="text-sm font-semibold text-ink">{decision.title}</h4>
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-ink-soft">{decision.decisionText}</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-soft">
+                        <span>{formatDate(decision.decidedAt)}</span>
+                        <span>{decision.creatorName}</span>
+                      </div>
+                    </div>
+                    {canEdit && (
+                      <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end sm:gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openEditDecisionForm(decision)}
+                          className="text-xs font-medium text-ink-soft underline decoration-dotted"
+                        >
+                          Düzenle
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeactivateDecision(decision.id)}
+                          disabled={deactivatingDecisionId === decision.id}
+                          className="text-xs font-medium text-red-600 underline decoration-dotted disabled:opacity-50"
+                        >
+                          {deactivatingDecisionId === decision.id ? 'İşleniyor…' : 'Pasifleştir'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
           <h2 className="text-sm font-semibold text-ink">Durum ve tarihler</h2>
           <div className="mt-3 divide-y divide-canvas-border">

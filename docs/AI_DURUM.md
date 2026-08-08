@@ -97,7 +97,7 @@ Henüz yapılmayan ana özellikler:
 
 ## Şu anki sıradaki küçük görev
 
-**Kararlar veritabanı altyapısı eklendi; sıradaki iş etkinlik detayında Kararlar ekranını oluşturmaktır.**
+**Kararlar veritabanı ve etkinlik detayındaki frontend ekranı tamamlandı; sıradaki iş rapor/not ve dosya-link altyapısını planlamaktır.**
 
 Hedef:
 
@@ -143,7 +143,7 @@ Hedef:
 - Tek ekran kullanıcı oluşturma formu eklendi: Süper Yönetici, ad-soyad, kişisel e-posta, geçici şifre, koordinatörlük ve uygulama rolünü tek panelde girebilir. Bu ilk adım yalnızca form doğrulaması yapar; henüz Supabase hesabı veya üyelik oluşturmaz. Gerçek hesap oluşturma, service_role anahtarını tarayıcıya koymadan güvenli sunucu/Edge Function adımında bağlanacaktır.
 - Güvenli kullanıcı oluşturma Edge Function kodu eklendi: `supabase/functions/create-user/index.ts`. Fonksiyon aktif Süper Yönetici oturumunu doğrular, aktif koordinatörlüğü kontrol eder, Auth hesabı ve dönem üyeliği oluşturur; üyelik eklenemezse Auth hesabını geri alır. Supabase projesine deploy edildi ve `AdminMembers.tsx` formuna bağlandı. İlk canlı denemede genel bir non-2xx hata görüldü; arayüz gerçek hata gövdesini gösterecek şekilde güncellendi. Hata `Geçersiz oturum` olarak ayrıştırıldı; function, oturumu service-role ile token üzerinden doğrulayacak şekilde düzeltildi ve yeniden deploy edildi. Canlı yeni kullanıcı oluşturma testi tekrar bekleniyor.
 - Durum, SKS, mekân ve sonraki işlem alanları bu adımda düzenlenemez.
-- Kararlar için `event_decisions` tablosu, aktif üye okuma politikası, etkinlik sahibi/süper yönetici yazma yetkisi, dönem kilidi ve audit kaydı migration olarak eklendi. Frontend ekranı henüz eklenmedi.
+- Kararlar için `event_decisions` tablosu, aktif üye okuma politikası, etkinlik sahibi/süper yönetici yazma yetkisi, dönem kilidi ve audit kaydı migration olarak eklendi. Etkinlik detayında karar listeleme, ekleme, düzenleme ve pasifleştirme ekranı `EventDetail.tsx` içine eklendi; lint ve build başarılı.
 
 Bu görev şunları **kapsamaz**:
 
@@ -162,7 +162,7 @@ Bu görev şunları **kapsamaz**:
 - Bu düzeltme GitHub `main` dalına gönderildi ve Cloudflare otomatik yeniden yayın yapar.
 - MUPSA logo SVG'si `public/mupsa-logo.svg` olarak eklendi. Giriş ekranındaki eski `+` simgesi ve ana ekran başlığındaki logo alanı bu dosyayı kullanıyor. Supabase, auth, yetki ve veri akışları değiştirilmedi; lint, build ve `git diff --check` başarılı.
 - PWA uygulama ikonları (`public/icon-192.svg` ve `public/icon-512.svg`) siyah arka plan ve MUPSA logosu kullanacak şekilde güncellendi; manifest arka planı da siyah yapıldı. Lint, build ve `git diff --check` başarılı.
-- Kararlar altyapısı `20260808100000_add_event_decisions.sql` migration'ı ve `supabase/tests/event_decisions_scenarios.md` senaryo dosyasıyla eklendi. Migration uzak Supabase projesine uygulandı ve `supabase migration list` ile doğrulandı; frontend ekranı henüz eklenmedi.
+- Kararlar altyapısı `20260808100000_add_event_decisions.sql` migration'ı ve `supabase/tests/event_decisions_scenarios.md` senaryo dosyasıyla eklendi. Migration uzak Supabase projesine uygulandı ve `supabase migration list` ile doğrulandı. `EventDetail.tsx` karar ekranı uzak şemaya bağlandı; gerçek canlı CRUD testi henüz yapılmadı.
 
 ## Kullanım talimatı — yeni yapay zekâ sohbeti
 
