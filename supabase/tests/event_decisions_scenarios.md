@@ -20,12 +20,18 @@ sonra gerçek Supabase projesinde çalıştırılacaktır.
 - Ardından kararı silme/pasifleştirme işlemi yapılır.
 - Beklenen: değişiklik audit log'a `event_decision` olarak yazılır; karar normal listede görünmez.
 
-## 4. Eski dönem kilidi
+## 4. Pasif kararı yeniden aktifleştirme
+
+- Yetkili kullanıcı etkinlik detayında `Pasif kararları göster` seçeneğini açar.
+- Pasif kararı bulup `Yeniden aktifleştir` düğmesine basar.
+- Beklenen: `deleted_at`, `deleted_by` ve `deletion_note` alanları temizlenir; karar normal listede yeniden görünür ve audit log'a güncelleme olarak yazılır.
+
+## 5. Eski dönem kilidi
 
 - Kararın bağlı olduğu dönem kilitlenir.
 - Beklenen: karar ekleme, güncelleme ve silme veritabanı tarafından reddedilir.
 
-## 5. Denetim kaydı
+## 6. Denetim kaydı
 
 - Oluşturma, güncelleme ve silme işlemleri sonrası `audit_logs` kontrol edilir.
 - Beklenen: `entity_type = 'event_decision'`, doğru `entity_id`, aktör ve işlem türü bulunur.

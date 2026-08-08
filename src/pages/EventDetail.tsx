@@ -58,6 +58,7 @@ interface EventDecision {
   createdBy: string
   creatorName: string | null
   createdAt: string
+  deletedAt: string | null
 }
 
 type TasksLoadState = 'loading' | 'ready' | 'error'
@@ -972,6 +973,7 @@ export default function EventDetail() {
   const [decisionFormError, setDecisionFormError] = useState<string | null>(null)
   const [decisionSuccessMessage, setDecisionSuccessMessage] = useState<string | null>(null)
   const [deactivatingDecisionId, setDeactivatingDecisionId] = useState<string | null>(null)
+  const [showInactiveDecisions, setShowInactiveDecisions] = useState(false)
 
   useEffect(() => {
     if (statusLoading) return
@@ -1236,13 +1238,16 @@ export default function EventDetail() {
 
     async function loadDecisions() {
       setDecisionsLoadState('loading')
-      const { data, error } = await supabase
+      let decisionsQuery = supabase
         .from('event_decisions')
-        .select('id, title, decision_text, decided_at, created_by, created_at')
+        .select('id, title, decision_text, decided_at, created_by, created_at, deleted_at')
         .eq('event_id', eventId)
-        .is('deleted_at', null)
         .order('decided_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
+      if (!showInactiveDecisions) {
+        decisionsQuery = decisionsQuery.is('deleted_at', null)
+      }
+      const { data, error } = await decisionsQuery
 
       if (!isMounted) return
       if (error) {
@@ -1270,6 +1275,7 @@ export default function EventDetail() {
           createdBy: row.created_by as string,
           creatorName: profileMap[row.created_by as string] || 'Bilinmeyen Kullanıcı',
           createdAt: row.created_at as string,
+          deletedAt: (row.deleted_at as string | null) ?? null,
         }))
       )
       setDecisionsLoadState('ready')
@@ -1279,7 +1285,7 @@ export default function EventDetail() {
     return () => {
       isMounted = false
     }
-  }, [hasActiveMembership, eventId, statusLoading, decisionsRefreshKey])
+  }, [hasActiveMembership, eventId, statusLoading, decisionsRefreshKey, showInactiveDecisions])
 
   function openTaskForm() {
     setNewTaskTitle('')
@@ -1673,6 +1679,30 @@ export default function EventDetail() {
     setDecisionsRefreshKey((prev) => prev + 1)
   }
 
+  async function handleReactivateDecision(id: string) {
+    if (!profileId || !canEdit) return
+
+    setDeactivatingDecisionId(id)
+    const { error } = await supabase
+      .from('event_decisions')
+      .update({ deleted_at: null, deleted_by: null, deletion_note: null })
+      .eq('id', id)
+
+    setDeactivatingDecisionId(null)
+
+    if (error) {
+      if (error.message.includes('kilitli')) {
+        alert('Dönem kilitli olduğu için karar yeniden aktifleştirilemedi.')
+      } else {
+        alert('Karar yeniden aktifleştirilemedi.')
+      }
+      return
+    }
+
+    setDecisionSuccessMessage('Karar yeniden aktifleştirildi.')
+    setDecisionsRefreshKey((prev) => prev + 1)
+  }
+
   const isOwner = !!event && !!profileId && event.ownerId === profileId
   const isSuperAdmin = appRole === 'super_admin'
   const canEdit = isOwner || isSuperAdmin
@@ -2053,7 +2083,20 @@ export default function EventDetail() {
         {/* Kararlar Bölümü */}
         <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-sm font-semibold text-ink">Kararlar</h2>
+            <div className="flex flex-wrap items-center gap-4">
+              <h2 className="text-sm font-semibold text-ink">Kararlar</h2>
+              {canEdit && (
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
+                  <input
+                    type="checkbox"
+                    checked={showInactiveDecisions}
+                    onChange={(event) => setShowInactiveDecisions(event.target.checked)}
+                    className="rounded border-canvas-border text-ink focus:ring-ink"
+                  />
+                  Pasif kararları göster
+                </label>
+              )}
+            </div>
             {canEdit && !isDecisionFormOpen && (
               <button
                 type="button"
@@ -2159,17 +2202,29 @@ export default function EventDetail() {
           {decisionsLoadState === 'ready' && decisions.length > 0 && (
             <div className="mt-4 flex flex-col gap-4">
               {decisions.map((decision) => (
-                <div key={decision.id} className="rounded-md border border-canvas-border bg-canvas px-4 py-3">
+                <div
+                  key={decision.id}
+                  className={`rounded-md border px-4 py-3 ${
+                    decision.deletedAt ? 'border-red-200 bg-red-50/40' : 'border-canvas-border bg-canvas'
+                  }`}
+                >
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <h4 className="text-sm font-semibold text-ink">{decision.title}</h4>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-sm font-semibold text-ink">{decision.title}</h4>
+                        {decision.deletedAt && (
+                          <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                            Pasif karar
+                          </span>
+                        )}
+                      </div>
                       <p className="mt-1 whitespace-pre-wrap text-sm text-ink-soft">{decision.decisionText}</p>
                       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-soft">
                         <span>{formatDate(decision.decidedAt)}</span>
                         <span>{decision.creatorName}</span>
                       </div>
                     </div>
-                    {canEdit && (
+                    {canEdit && !decision.deletedAt && (
                       <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end sm:gap-2">
                         <button
                           type="button"
@@ -2187,6 +2242,16 @@ export default function EventDetail() {
                           {deactivatingDecisionId === decision.id ? 'İşleniyor…' : 'Pasifleştir'}
                         </button>
                       </div>
+                    )}
+                    {canEdit && decision.deletedAt && (
+                      <button
+                        type="button"
+                        onClick={() => void handleReactivateDecision(decision.id)}
+                        disabled={deactivatingDecisionId === decision.id}
+                        className="shrink-0 rounded border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-700 disabled:opacity-50"
+                      >
+                        {deactivatingDecisionId === decision.id ? 'İşleniyor…' : 'Yeniden aktifleştir'}
+                      </button>
                     )}
                   </div>
                 </div>
