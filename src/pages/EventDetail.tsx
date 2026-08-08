@@ -62,6 +62,17 @@ interface EventDecision {
   deletedAt: string | null
 }
 
+interface EventReport {
+  id: string
+  title: string
+  reportText: string
+  reportDate: string | null
+  createdBy: string
+  creatorName: string | null
+  createdAt: string
+  deletedAt: string | null
+}
+
 type TasksLoadState = 'loading' | 'ready' | 'error'
 
 interface PeriodMemberOption {
@@ -81,6 +92,7 @@ interface SksStatusOption {
 
 type PeriodMembersLoadState = 'idle' | 'loading' | 'ready' | 'error'
 type DecisionsLoadState = 'idle' | 'loading' | 'ready' | 'error'
+type ReportsLoadState = 'idle' | 'loading' | 'ready' | 'error'
 
 const NOT_SPECIFIED = 'Henüz belirtilmedi'
 const TASKS_NOT_FOUND_MESSAGE = 'Bu etkinlik için henüz görev oluşturulmamış.'
@@ -975,6 +987,23 @@ export default function EventDetail() {
   const [decisionSuccessMessage, setDecisionSuccessMessage] = useState<string | null>(null)
   const [deactivatingDecisionId, setDeactivatingDecisionId] = useState<string | null>(null)
   const [showInactiveDecisions, setShowInactiveDecisions] = useState(false)
+
+  // Reports State
+  const [reportsLoadState, setReportsLoadState] = useState<ReportsLoadState>('idle')
+  const [reports, setReports] = useState<EventReport[]>([])
+  const [reportsRefreshKey, setReportsRefreshKey] = useState(0)
+  const [isReportFormOpen, setIsReportFormOpen] = useState(false)
+  const [reportFormMode, setReportFormMode] = useState<'create' | 'edit'>('create')
+  const [editingReportId, setEditingReportId] = useState<string | null>(null)
+  const [reportTitle, setReportTitle] = useState('')
+  const [reportText, setReportText] = useState('')
+  const [reportDate, setReportDate] = useState('')
+  const [isSavingReport, setIsSavingReport] = useState(false)
+  const [reportFormError, setReportFormError] = useState<string | null>(null)
+  const [reportSuccessMessage, setReportSuccessMessage] = useState<string | null>(null)
+  const [deactivatingReportId, setDeactivatingReportId] = useState<string | null>(null)
+  const [showInactiveReports, setShowInactiveReports] = useState(false)
+
   const [isEditingGeneralNote, setIsEditingGeneralNote] = useState(false)
   const [generalNoteInputValue, setGeneralNoteInputValue] = useState('')
   const [isSavingGeneralNote, setIsSavingGeneralNote] = useState(false)
@@ -1299,6 +1328,61 @@ export default function EventDetail() {
       isMounted = false
     }
   }, [hasActiveMembership, eventId, statusLoading, decisionsRefreshKey, showInactiveDecisions])
+
+  useEffect(() => {
+    if (statusLoading || !hasActiveMembership || !eventId) return
+    let isMounted = true
+
+    async function loadReports() {
+      setReportsLoadState('loading')
+      let reportsQuery = supabase
+        .from('event_reports')
+        .select('id, title, report_text, report_date, created_by, created_at, deleted_at')
+        .eq('event_id', eventId)
+        .order('report_date', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false })
+      if (!showInactiveReports) {
+        reportsQuery = reportsQuery.is('deleted_at', null)
+      }
+      const { data, error } = await reportsQuery
+
+      if (!isMounted) return
+      if (error) {
+        setReportsLoadState('error')
+        return
+      }
+
+      const creatorIds = Array.from(new Set((data ?? []).map((r) => r.created_by)))
+      const profileMap: Record<string, string> = {}
+      if (creatorIds.length > 0) {
+        const { data: profilesData } = await supabase.from('profiles').select('id, display_name').in('id', creatorIds)
+        if (profilesData) {
+          for (const p of profilesData) {
+            profileMap[p.id] = p.display_name
+          }
+        }
+      }
+
+      setReports(
+        (data ?? []).map((row) => ({
+          id: row.id as string,
+          title: row.title as string,
+          reportText: row.report_text as string,
+          reportDate: (row.report_date as string | null) ?? null,
+          createdBy: row.created_by as string,
+          creatorName: profileMap[row.created_by as string] || 'Bilinmeyen Kullanıcı',
+          createdAt: row.created_at as string,
+          deletedAt: (row.deleted_at as string | null) ?? null,
+        }))
+      )
+      setReportsLoadState('ready')
+    }
+
+    void loadReports()
+    return () => {
+      isMounted = false
+    }
+  }, [hasActiveMembership, eventId, statusLoading, reportsRefreshKey, showInactiveReports])
 
   function openTaskForm() {
     setNewTaskTitle('')
@@ -1714,6 +1798,150 @@ export default function EventDetail() {
 
     setDecisionSuccessMessage('Karar yeniden aktifleştirildi.')
     setDecisionsRefreshKey((prev) => prev + 1)
+  }
+
+  function openCreateReportForm() {
+    setReportFormMode('create')
+    setEditingReportId(null)
+    setReportTitle('')
+    setReportText('')
+    setReportDate(new Date().toISOString().slice(0, 10))
+    setReportFormError(null)
+    setReportSuccessMessage(null)
+    setIsReportFormOpen(true)
+  }
+
+  function openEditReportForm(report: EventReport) {
+    setReportFormMode('edit')
+    setEditingReportId(report.id)
+    setReportTitle(report.title)
+    setReportText(report.reportText)
+    setReportDate(extractDateOnly(report.reportDate))
+    setReportFormError(null)
+    setReportSuccessMessage(null)
+    setIsReportFormOpen(true)
+  }
+
+  function closeReportForm() {
+    setIsReportFormOpen(false)
+    setReportFormError(null)
+  }
+
+  async function handleSaveReport() {
+    if (!eventId || !profileId || !canEdit) return
+    setReportFormError(null)
+
+    const tTitle = reportTitle.trim()
+    const tText = reportText.trim()
+
+    if (!tTitle || !tText || !reportDate) {
+      setReportFormError('Rapor başlığı, metni ve tarihi boş bırakılamaz.')
+      return
+    }
+
+    if (reportFormMode === 'edit' && !editingReportId) {
+      setReportFormError('Düzenlenecek rapor bulunamadı. Formu kapatıp tekrar deneyin.')
+      return
+    }
+
+    setIsSavingReport(true)
+    const payload = {
+      title: tTitle,
+      report_text: tText,
+      report_date: reportDate,
+    }
+
+    let error
+    if (reportFormMode === 'create') {
+      const res = await supabase.from('event_reports').insert({
+        event_id: eventId,
+        created_by: profileId,
+        ...payload,
+      })
+      error = res.error
+    } else {
+      const res = await supabase.from('event_reports').update(payload).eq('id', editingReportId)
+      error = res.error
+    }
+
+    setIsSavingReport(false)
+
+    if (error) {
+      console.error('Rapor kaydetme hatası:', error)
+      if (error.message.includes('kilitli')) {
+        setReportFormError('Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.')
+      } else if (error.code === '42501') {
+        setReportFormError('Bu etkinlik için rapor ekleme yetkiniz bulunmuyor.')
+      } else if (error.code === '23503') {
+        setReportFormError('Etkinlik veya kullanıcı kaydı bulunamadı. Sayfayı yenileyip tekrar deneyin.')
+      } else if (error.code === '23502') {
+        setReportFormError('Rapor tarihi boş kaldı. Tarihi seçip tekrar deneyin.')
+      } else if (error.code === '42P01') {
+        setReportFormError('Raporlar altyapısı henüz etkin değil. Teknik yöneticinin migration kontrolü yapması gerekiyor.')
+      } else {
+        setReportFormError(`Rapor kaydedilemedi. Hata kodu: ${error.code ?? 'bilinmiyor'}`)
+      }
+      return
+    }
+
+    closeReportForm()
+    setReportSuccessMessage(
+      reportFormMode === 'create' ? 'Rapor başarıyla eklendi.' : 'Rapor başarıyla güncellendi.'
+    )
+    setReportsRefreshKey((prev) => prev + 1)
+  }
+
+  async function handleDeactivateReport(id: string) {
+    if (!profileId || !canEdit) return
+    if (!window.confirm('Bu raporu pasifleştirmek istediğinize emin misiniz?')) return
+
+    setDeactivatingReportId(id)
+    const { error } = await supabase
+      .from('event_reports')
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_by: profileId,
+        deletion_note: 'Rapor pasifleştirildi',
+      })
+      .eq('id', id)
+
+    setDeactivatingReportId(null)
+
+    if (error) {
+      if (error.message.includes('kilitli')) {
+        alert('Dönem kilitli olduğu için rapor pasifleştirilemedi.')
+      } else {
+        alert('Rapor pasifleştirilemedi.')
+      }
+      return
+    }
+
+    setReportSuccessMessage('Rapor pasifleştirildi.')
+    setReportsRefreshKey((prev) => prev + 1)
+  }
+
+  async function handleReactivateReport(id: string) {
+    if (!profileId || !canEdit) return
+
+    setDeactivatingReportId(id)
+    const { error } = await supabase
+      .from('event_reports')
+      .update({ deleted_at: null, deleted_by: null, deletion_note: null })
+      .eq('id', id)
+
+    setDeactivatingReportId(null)
+
+    if (error) {
+      if (error.message.includes('kilitli')) {
+        alert('Dönem kilitli olduğu için rapor yeniden aktifleştirilemedi.')
+      } else {
+        alert('Rapor yeniden aktifleştirilemedi.')
+      }
+      return
+    }
+
+    setReportSuccessMessage('Rapor yeniden aktifleştirildi.')
+    setReportsRefreshKey((prev) => prev + 1)
   }
 
   async function handleSaveGeneralNote() {
@@ -2353,6 +2581,186 @@ export default function EventDetail() {
                         className="shrink-0 rounded border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-700 disabled:opacity-50"
                       >
                         {deactivatingDecisionId === decision.id ? 'İşleniyor…' : 'Yeniden aktifleştir'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Raporlar Bölümü */}
+        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-4">
+              <h2 className="text-sm font-semibold text-ink">Raporlar</h2>
+              {canEdit && (
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
+                  <input
+                    type="checkbox"
+                    checked={showInactiveReports}
+                    onChange={(event) => setShowInactiveReports(event.target.checked)}
+                    className="rounded border-canvas-border text-ink focus:ring-ink"
+                  />
+                  Pasif raporları göster
+                </label>
+              )}
+            </div>
+            {canEdit && !isReportFormOpen && (
+              <button
+                type="button"
+                onClick={openCreateReportForm}
+                className="shrink-0 rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-sm font-medium text-ink hover:bg-canvas-surface"
+              >
+                Rapor ekle
+              </button>
+            )}
+          </div>
+
+          {reportSuccessMessage && !isReportFormOpen && (
+            <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+              {reportSuccessMessage}
+            </p>
+          )}
+
+          {isReportFormOpen && (
+            <div className="mt-4 rounded-md border border-canvas-border bg-canvas px-4 py-4">
+              <h3 className="text-sm font-semibold text-ink">
+                {reportFormMode === 'create' ? 'Yeni rapor' : 'Raporu düzenle'}
+              </h3>
+              <div className="mt-3 flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="report-title" className="text-sm font-medium text-ink-soft">
+                    Rapor başlığı
+                  </label>
+                  <input
+                    id="report-title"
+                    type="text"
+                    value={reportTitle}
+                    onChange={(e) => setReportTitle(e.target.value)}
+                    disabled={isSavingReport}
+                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="report-text" className="text-sm font-medium text-ink-soft">
+                    Rapor metni
+                  </label>
+                  <textarea
+                    id="report-text"
+                    value={reportText}
+                    onChange={(e) => setReportText(e.target.value)}
+                    disabled={isSavingReport}
+                    rows={4}
+                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="report-date" className="text-sm font-medium text-ink-soft">
+                      Rapor tarihi
+                    </label>
+                    <input
+                      id="report-date"
+                      type="date"
+                      value={reportDate}
+                      onChange={(e) => setReportDate(e.target.value)}
+                      disabled={isSavingReport}
+                      className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                    />
+                  </div>
+                </div>
+                {reportFormError && (
+                  <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {reportFormError}
+                  </p>
+                )}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void handleSaveReport()}
+                    disabled={isSavingReport}
+                    className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
+                  >
+                    {isSavingReport ? 'Kaydediliyor…' : 'Kaydet'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeReportForm}
+                    disabled={isSavingReport}
+                    className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
+                  >
+                    İptal
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {reportsLoadState === 'loading' && (
+            <p className="mt-3 text-sm text-ink-soft">Raporlar yükleniyor…</p>
+          )}
+          {reportsLoadState === 'error' && (
+            <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              Raporlar yüklenirken bir hata oluştu.
+            </p>
+          )}
+          {reportsLoadState === 'ready' && reports.length === 0 && (
+            <p className="mt-3 text-sm italic text-ink-soft">Bu etkinlik için henüz rapor eklenmemiş.</p>
+          )}
+          {reportsLoadState === 'ready' && reports.length > 0 && (
+            <div className="mt-4 flex flex-col gap-4">
+              {reports.map((report) => (
+                <div
+                  key={report.id}
+                  className={`rounded-md border px-4 py-3 ${
+                    report.deletedAt ? 'border-red-200 bg-red-50/40' : 'border-canvas-border bg-canvas'
+                  }`}
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-sm font-semibold text-ink">{report.title}</h4>
+                        {report.deletedAt && (
+                          <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                            Pasif rapor
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm text-ink-soft">{report.reportText}</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-soft">
+                        <span>{formatDate(report.reportDate)}</span>
+                        <span>{report.creatorName}</span>
+                      </div>
+                    </div>
+                    {canEdit && !report.deletedAt && (
+                      <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end sm:gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openEditReportForm(report)}
+                          className="text-xs font-medium text-ink-soft underline decoration-dotted"
+                        >
+                          Düzenle
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeactivateReport(report.id)}
+                          disabled={deactivatingReportId === report.id}
+                          className="text-xs font-medium text-red-600 underline decoration-dotted disabled:opacity-50"
+                        >
+                          {deactivatingReportId === report.id ? 'İşleniyor…' : 'Pasifleştir'}
+                        </button>
+                      </div>
+                    )}
+                    {canEdit && report.deletedAt && (
+                      <button
+                        type="button"
+                        onClick={() => void handleReactivateReport(report.id)}
+                        disabled={deactivatingReportId === report.id}
+                        className="shrink-0 rounded border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-700 disabled:opacity-50"
+                      >
+                        {deactivatingReportId === report.id ? 'İşleniyor…' : 'Yeniden aktifleştir'}
                       </button>
                     )}
                   </div>
