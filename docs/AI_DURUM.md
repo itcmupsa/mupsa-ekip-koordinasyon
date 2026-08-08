@@ -86,7 +86,7 @@ Henüz yapılmayan ana özellikler:
 - Etkinlik düzenleme ekranı
 - Görev oluşturma, atama, destekleyen kişi ve bağımlılık ekranları
 - SKS süreç yönetimi ekranları
-- Raporlar ve dosya/link ekranları
+- Rapor, dosya ve bağlantı frontend ekranları
 - Uygulama içi bildirim merkezi
 - Gerçek e-posta teslimat katmanı (Magic Link artık kullanılmıyor; şifreli girişte gerekli değil)
 - İlk şifre belirleme ekranının canlı testi
@@ -97,7 +97,7 @@ Henüz yapılmayan ana özellikler:
 
 ## Şu anki sıradaki küçük görev
 
-**Kararlar ve etkinlik genel notu ekranları tamamlandı; sıradaki iş rapor/not ve dosya-link altyapısını planlamaktır.**
+**Kararlar ve etkinlik genel notu ekranları ile rapor, dosya ve bağlantı veritabanı altyapısı tamamlandı; sıradaki iş bu altyapının frontend ekranlarını planlamaktır.**
 
 Hedef:
 
@@ -145,6 +145,10 @@ Hedef:
 - Durum, SKS, mekân ve sonraki işlem alanları bu adımda düzenlenemez.
 - Kararlar için `event_decisions` tablosu, aktif üye okuma politikası, etkinlik sahibi/süper yönetici yazma yetkisi, dönem kilidi ve audit kaydı migration olarak eklendi. Etkinlik detayında karar listeleme, ekleme, düzenleme, pasifleştirme ve pasif kararı yeniden aktifleştirme ekranı `EventDetail.tsx` içine eklendi. Pasif kararlar varsayılan listede gizlidir; yetkili kullanıcı `Pasif kararları göster` seçeneğiyle görüp geri alabilir. Lint, build ve `git diff --check` başarılı; canlı geri aktifleştirme testi bekleniyor.
 - Etkinlik genel notu `events.general_note` alanına bağlandı. Etkinlik sahibi ve süper yönetici not ekleyebilir/düzenleyebilir; diğer aktif üyeler notu okuyabilir. Boş bırakıldığında not `null` olarak saklanır. Lint, build ve `git diff --check` başarılı; canlı ekleme/düzenleme testi bekleniyor.
+- Faz 2 / Adım 1 veritabanı altyapısı tamamlandı: `event_reports`, `event_links` ve `event_files` metadata tabloları; aktif üyelik RLS politikaları; dönem kilidi; geri alınabilir pasifleştirme; audit kayıtları; event/task ilişki kısıtları ve 5 MB dosya sınırı eklendi.
+- `20260808110000_add_reports_links_files.sql` migration'ı uzak Supabase projesine uygulandı ve migration geçmişi yerel/uzak olarak eşitlendi.
+- Canlı Supabase transaction/rollback testleri başarılı oldu: rapor ve bağlantı audit kayıtları, 5 MB sınırı, ilişki kısıtları ve kilitli dönem yazma engeli doğrulandı. Test verileri rollback ile kalıcı bırakılmadı.
+- Bu adımda Storage bucket/upload akışı ve frontend ekranları eklenmedi; yalnızca veritabanı metadata altyapısı hazırlandı.
 
 Bu görev şunları **kapsamaz**:
 
@@ -164,6 +168,7 @@ Bu görev şunları **kapsamaz**:
 - MUPSA logo SVG'si `public/mupsa-logo.svg` olarak eklendi. Giriş ekranındaki eski `+` simgesi ve ana ekran başlığındaki logo alanı bu dosyayı kullanıyor. Supabase, auth, yetki ve veri akışları değiştirilmedi; lint, build ve `git diff --check` başarılı.
 - PWA uygulama ikonları (`public/icon-192.svg` ve `public/icon-512.svg`) siyah arka plan ve MUPSA logosu kullanacak şekilde güncellendi; manifest arka planı da siyah yapıldı. Lint, build ve `git diff --check` başarılı.
 - Kararlar altyapısı `20260808100000_add_event_decisions.sql` migration'ı ve `supabase/tests/event_decisions_scenarios.md` senaryo dosyasıyla eklendi. Migration uzak Supabase projesine uygulandı ve `supabase migration list` ile doğrulandı. `EventDetail.tsx` karar ekranı uzak şemaya bağlandı; canlı ekleme/pasifleştirme testi yapıldı, yeniden aktifleştirme testi bekleniyor.
+- Rapor, bağlantı ve dosya metadata altyapısı `20260808110000_add_reports_links_files.sql` migration'ı ve `supabase/tests/reports_links_files_scenarios.md` senaryo dosyasıyla eklendi. Migration uzak Supabase projesine uygulandı; canlı rollback testleri başarılı oldu.
 
 ## Kullanım talimatı — yeni yapay zekâ sohbeti
 
