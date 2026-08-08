@@ -138,6 +138,7 @@ Hedef:
 - Uygulama içi bildirim alanı kodlandı: kullanıcıya ait `in_app` bildirimleri listeleniyor, okunmamış sayısı gösteriliyor, bildirimler tek tek veya toplu olarak okundu işaretlenebiliyor ve ilişkili etkinlik detayına yönlendirme yapılıyor.
 - Bildirim alanında yalnızca mevcut kullanıcının kayıtları sorgulanıyor; migration, RLS, auth, e-posta ve push teslimatı değiştirilmedi. Lint, TypeScript/Vite build ve `git diff --check` başarılı. Canlı bildirim testi tamamlandı: görev ataması ve etkinlik tarihi bildirimleri göründü; tekli ve toplu okundu işaretleme kalıcı olarak doğrulandı.
 - PWA temel kurulumu eklendi: manifest, 192/512 SVG ikonları ve service worker kaydı mevcut. Service worker Supabase/auth ve yazma isteklerini cache'lemiyor; kullanıcı verisi offline cache'e alınmıyor. Lint, build ve diff kontrolleri başarılı; canlı telefona kurulum testi bekliyor.
+- Tek ekran kullanıcı oluşturma formu eklendi: Süper Yönetici, ad-soyad, kişisel e-posta, geçici şifre, koordinatörlük ve uygulama rolünü tek panelde girebilir. Bu ilk adım yalnızca form doğrulaması yapar; henüz Supabase hesabı veya üyelik oluşturmaz. Gerçek hesap oluşturma, service_role anahtarını tarayıcıya koymadan güvenli sunucu/Edge Function adımında bağlanacaktır.
 - Durum, SKS, mekân ve sonraki işlem alanları bu adımda düzenlenemez.
 
 Bu görev şunları **kapsamaz**:

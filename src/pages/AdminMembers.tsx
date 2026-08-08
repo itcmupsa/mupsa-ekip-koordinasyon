@@ -34,6 +34,7 @@ interface CoordinatorRoleOption {
 type LoadState = 'loading' | 'ready' | 'error'
 type AddPanelState = 'idle' | 'loading' | 'ready' | 'error'
 type EditPanelState = 'idle' | 'loading' | 'ready' | 'error'
+type CreateUserPanelState = 'idle' | 'loading' | 'ready' | 'error'
 
 function pickOne<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null
@@ -65,6 +66,18 @@ export default function AdminMembers({ session }: { session: Session }) {
   const [formError, setFormError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  // New-user panel state. Account creation is intentionally not connected yet.
+  const [isCreateUserOpen, setIsCreateUserOpen] = useState(false)
+  const [createUserState, setCreateUserState] = useState<CreateUserPanelState>('idle')
+  const [newUserName, setNewUserName] = useState('')
+  const [newUserEmail, setNewUserEmail] = useState('')
+  const [newUserPassword, setNewUserPassword] = useState('')
+  const [newUserPasswordConfirm, setNewUserPasswordConfirm] = useState('')
+  const [newUserCoordinatorRoleId, setNewUserCoordinatorRoleId] = useState('')
+  const [newUserAppRole, setNewUserAppRole] = useState<AppRole | ''>('')
+  const [createUserError, setCreateUserError] = useState<string | null>(null)
+  const [isCreatingUser, setIsCreatingUser] = useState(false)
 
   // Edit-member panel state
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
@@ -139,6 +152,16 @@ export default function AdminMembers({ session }: { session: Session }) {
     setFormError(null)
   }, [])
 
+  const resetCreateUserForm = useCallback(() => {
+    setNewUserName('')
+    setNewUserEmail('')
+    setNewUserPassword('')
+    setNewUserPasswordConfirm('')
+    setNewUserCoordinatorRoleId('')
+    setNewUserAppRole('')
+    setCreateUserError(null)
+  }, [])
+
   const ensureCoordinatorRoleOptions = useCallback(async () => {
     if (coordinatorRoleOptions.length > 0) return coordinatorRoleOptions
 
@@ -182,6 +205,7 @@ export default function AdminMembers({ session }: { session: Session }) {
   function handleOpenAddPanel() {
     setSuccessMessage(null)
     setEditingMemberId(null)
+    setIsCreateUserOpen(false)
     resetAddForm()
     setIsAddOpen(true)
     void loadInvitableData()
@@ -191,6 +215,24 @@ export default function AdminMembers({ session }: { session: Session }) {
     setIsAddOpen(false)
     resetAddForm()
     setAddPanelState('idle')
+  }
+
+  function handleOpenCreateUserPanel() {
+    setSuccessMessage(null)
+    setEditingMemberId(null)
+    setIsAddOpen(false)
+    resetCreateUserForm()
+    setIsCreateUserOpen(true)
+    setCreateUserState('loading')
+    void ensureCoordinatorRoleOptions().then((options) => {
+      setCreateUserState(options === null ? 'error' : 'ready')
+    })
+  }
+
+  function handleCloseCreateUserPanel() {
+    setIsCreateUserOpen(false)
+    resetCreateUserForm()
+    setCreateUserState('idle')
   }
 
   async function handleAddMember() {
@@ -218,6 +260,41 @@ export default function AdminMembers({ session }: { session: Session }) {
     handleCloseAddPanel()
     setSuccessMessage('Üye başarıyla döneme eklendi.')
     await loadMembers()
+  }
+
+  async function handleCreateUser() {
+    setCreateUserError(null)
+
+    if (
+      !newUserName.trim() ||
+      !newUserEmail.trim() ||
+      !newUserPassword ||
+      !newUserPasswordConfirm ||
+      !newUserCoordinatorRoleId ||
+      !newUserAppRole
+    ) {
+      setCreateUserError('Lütfen tüm alanları doldurun.')
+      return
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newUserEmail.trim())) {
+      setCreateUserError('Lütfen geçerli bir e-posta adresi girin.')
+      return
+    }
+    if (newUserPassword.length < 8) {
+      setCreateUserError('Şifre en az 8 karakter olmalıdır.')
+      return
+    }
+    if (newUserPassword !== newUserPasswordConfirm) {
+      setCreateUserError('Şifreler eşleşmiyor.')
+      return
+    }
+
+    setIsCreatingUser(true)
+    await new Promise((resolve) => setTimeout(resolve, 800))
+    setIsCreatingUser(false)
+    handleCloseCreateUserPanel()
+    setSuccessMessage('Form hazırlandı. Hesap oluşturma işlemi sonraki adımda bağlanacak.')
   }
 
   const activeSuperAdminCount = members.filter(
@@ -249,6 +326,7 @@ export default function AdminMembers({ session }: { session: Session }) {
   function handleOpenEditPanel(member: MemberRow) {
     setSuccessMessage(null)
     setIsAddOpen(false)
+    setIsCreateUserOpen(false)
     setEditingMemberId(member.id)
     setEditCoordinatorRoleId(member.coordinatorRoleId ?? '')
     setEditAppRole(member.appRole ?? '')
@@ -324,15 +402,26 @@ export default function AdminMembers({ session }: { session: Session }) {
           <p className="text-sm text-ink-soft">
             {periodLabel ? `Aktif dönem: ${periodLabel}` : 'Aktif dönem'}
           </p>
-          {!isAddOpen && (
-            <button
-              type="button"
-              onClick={handleOpenAddPanel}
-              className="rounded-lg bg-accent-soft px-3 py-2 text-sm font-medium text-ink"
-            >
-              Üye ekle
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {!isCreateUserOpen && (
+              <button
+                type="button"
+                onClick={handleOpenCreateUserPanel}
+                className="rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2 text-sm font-medium text-ink hover:bg-canvas transition-colors"
+              >
+                Yeni kullanıcı oluştur
+              </button>
+            )}
+            {!isAddOpen && (
+              <button
+                type="button"
+                onClick={handleOpenAddPanel}
+                className="rounded-lg bg-accent-soft px-3 py-2 text-sm font-medium text-ink"
+              >
+                Üye ekle
+              </button>
+            )}
+          </div>
         </div>
 
         {successMessage && (
@@ -431,6 +520,145 @@ export default function AdminMembers({ session }: { session: Session }) {
                     >
                       {isSubmitting ? 'Ekleniyor…' : 'Döneme ekle'}
                     </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {isCreateUserOpen && (
+          <div className="mt-4 rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-ink">Yeni kullanıcı oluştur</p>
+              <button
+                type="button"
+                onClick={handleCloseCreateUserPanel}
+                className="text-xs font-medium text-ink-soft"
+              >
+                Kapat
+              </button>
+            </div>
+
+            <p className="mt-2 text-xs text-ink-soft">
+              Bu ekran şu anda yalnızca formu hazırlar; hesap oluşturma bağlantısı sonraki güvenli adımda eklenecek.
+            </p>
+
+            {createUserState === 'loading' && (
+              <p className="mt-3 text-sm text-ink-soft">Koordinatörlükler yükleniyor…</p>
+            )}
+
+            {createUserState === 'error' && (
+              <p className="mt-3 text-sm text-ink-soft">
+                Koordinatörlükler yüklenirken bir hata oluştu. Paneli kapatıp tekrar dene.
+              </p>
+            )}
+
+            {createUserState === 'ready' && (
+              <div className="mt-3 space-y-3">
+                {coordinatorRoleOptions.length === 0 ? (
+                  <p className="text-sm text-ink-soft">Aktif koordinatörlük bulunamadı.</p>
+                ) : (
+                  <>
+                    <label className="block text-sm">
+                      <span className="mb-1 block font-medium text-ink">Ad soyad</span>
+                      <input
+                        type="text"
+                        value={newUserName}
+                        onChange={(event) => setNewUserName(event.target.value)}
+                        placeholder="Örn: Ahmet Yılmaz"
+                        autoComplete="name"
+                        className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                      />
+                    </label>
+
+                    <label className="block text-sm">
+                      <span className="mb-1 block font-medium text-ink">Kişisel e-posta</span>
+                      <input
+                        type="email"
+                        value={newUserEmail}
+                        onChange={(event) => setNewUserEmail(event.target.value)}
+                        placeholder="ahmet@ornek.com"
+                        autoComplete="email"
+                        className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                      />
+                    </label>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <label className="block text-sm">
+                        <span className="mb-1 block font-medium text-ink">Geçici şifre</span>
+                        <input
+                          type="password"
+                          value={newUserPassword}
+                          onChange={(event) => setNewUserPassword(event.target.value)}
+                          placeholder="En az 8 karakter"
+                          autoComplete="new-password"
+                          className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                        />
+                      </label>
+                      <label className="block text-sm">
+                        <span className="mb-1 block font-medium text-ink">Geçici şifre tekrar</span>
+                        <input
+                          type="password"
+                          value={newUserPasswordConfirm}
+                          onChange={(event) => setNewUserPasswordConfirm(event.target.value)}
+                          placeholder="Şifreyi onayla"
+                          autoComplete="new-password"
+                          className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <label className="block text-sm">
+                        <span className="mb-1 block font-medium text-ink">Koordinatörlük</span>
+                        <select
+                          value={newUserCoordinatorRoleId}
+                          onChange={(event) => setNewUserCoordinatorRoleId(event.target.value)}
+                          className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                        >
+                          <option value="">Seç…</option>
+                          {coordinatorRoleOptions.map((role) => (
+                            <option key={role.id} value={role.id}>
+                              {role.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block text-sm">
+                        <span className="mb-1 block font-medium text-ink">Uygulama rolü</span>
+                        <select
+                          value={newUserAppRole}
+                          onChange={(event) => setNewUserAppRole(event.target.value as AppRole | '')}
+                          className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                        >
+                          <option value="">Seç…</option>
+                          <option value="coordinator">Koordinatör</option>
+                          <option value="super_admin">Süper Yönetici</option>
+                        </select>
+                      </label>
+                    </div>
+
+                    {createUserError && <p className="text-sm text-red-600">{createUserError}</p>}
+
+                    <div className="mt-4 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCreateUser}
+                        disabled={isCreatingUser}
+                        className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
+                      >
+                        {isCreatingUser ? 'Kontrol ediliyor…' : 'Formu hazırla'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCloseCreateUserPanel}
+                        disabled={isCreatingUser}
+                        className="rounded-lg border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
+                      >
+                        İptal
+                      </button>
+                    </div>
                   </>
                 )}
               </div>
