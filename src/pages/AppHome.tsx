@@ -346,31 +346,31 @@ export default function AppHome({ session }: { session: Session }) {
   return (
     <div className="min-h-screen bg-canvas pb-12">
       <header className="border-b border-canvas-border bg-canvas-surface">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
-          <span className="text-sm font-semibold text-ink">MUPSA Ekip Koordinasyon</span>
-          <button type="button" onClick={handleSignOut} className="text-sm font-medium text-ink-soft hover:text-ink">Çıkış yap</button>
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:py-4">
+          <span className="min-w-0 truncate text-sm font-semibold text-ink">MUPSA Ekip Koordinasyon</span>
+          <button type="button" onClick={handleSignOut} className="shrink-0 text-sm font-medium text-ink-soft hover:text-ink">Çıkış yap</button>
         </div>
       </header>
-      <main className="mx-auto max-w-3xl px-4 py-8">
+      <main className="mx-auto max-w-3xl px-4 py-6 sm:py-8">
         {membershipLoading ? <p className="text-sm text-ink-soft">Yükleniyor…</p> : !hasActiveMembership ? (
-          <div className="mt-6 rounded-lg border border-accent/30 bg-accent-soft p-6">
+          <div className="mt-6 rounded-lg border border-accent/30 bg-accent-soft p-4 sm:p-6">
             <p className="text-sm font-medium text-ink">Hesabın açık, ancak aktif dönem yetkin henüz tanımlanmamış.</p>
             <p className="mt-2 text-sm text-ink-soft">Yönetim kurulu tarafından bu dönem için bir role atanman gerekiyor. Soruların için Bilişim Teknolojileri Koordinatörlüğü ile iletişime geç.</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-8">
+          <div className="flex flex-col gap-6 sm:gap-8">
             <div>
               <p className="text-sm text-ink-soft">Hoş geldin,</p>
-              <h1 className="mt-1 text-2xl font-semibold text-ink">{displayName}</h1>
-              <p className="mt-1 text-sm text-ink-soft">{periodLabel ? `Aktif dönem: ${periodLabel}` : 'Aktif Dönem'}</p>
+              <h1 className="mt-1 break-words text-2xl font-semibold text-ink">{displayName}</h1>
+              <p className="mt-1 break-words text-sm text-ink-soft">{periodLabel ? `Aktif dönem: ${periodLabel}` : 'Aktif Dönem'}</p>
             </div>
             <section className="rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-sm sm:p-6">
-              <div className="flex items-center justify-between border-b border-canvas-border pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-canvas-border pb-3">
                 <div className="flex items-center gap-2">
                   <h2 className="text-base font-semibold text-ink">Bildirimler</h2>
                   {unreadCount > 0 && <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-white">{unreadCount} yeni</span>}
                 </div>
-                {unreadCount > 0 && <button type="button" onClick={() => void handleMarkAllAsRead()} disabled={markingAllRead} className="text-xs font-medium text-ink-soft hover:text-ink disabled:opacity-60">{markingAllRead ? 'İşaretleniyor…' : 'Tümünü okundu işaretle'}</button>}
+                {unreadCount > 0 && <button type="button" onClick={() => void handleMarkAllAsRead()} disabled={markingAllRead} className="shrink-0 text-xs font-medium text-ink-soft hover:text-ink disabled:opacity-60">{markingAllRead ? 'İşaretleniyor…' : 'Tümünü okundu işaretle'}</button>}
               </div>
               <div className="mt-4">
                 {notificationsLoading ? <p className="text-sm text-ink-soft">Bildirimler yükleniyor…</p> : notificationsError ? <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{notificationsError}</p> : notifications.length === 0 ? <p className="text-sm italic text-ink-soft">Yeni bildirimin bulunmuyor.</p> : (
@@ -380,8 +380,8 @@ export default function AppHome({ session }: { session: Session }) {
                       const isClickable = Boolean(notification.eventId || notification.taskId)
                       const isBusy = markingReadId === notification.id
                       return <li key={notification.id} className={`rounded-md border p-3 transition-colors ${isUnread ? 'border-accent/30 bg-accent-soft/30' : 'border-canvas-border bg-canvas'} ${isClickable ? 'cursor-pointer hover:border-ink/20' : ''}`} onClick={() => { if (!isBusy && (isClickable || isUnread)) void handleNotificationClick(notification) }} role={isClickable || isUnread ? 'button' : 'listitem'} tabIndex={isClickable || isUnread ? 0 : undefined} onKeyDown={event => { if (!isBusy && (event.key === 'Enter' || event.key === ' ') && (isClickable || isUnread)) { event.preventDefault(); void handleNotificationClick(notification) } }}>
-                        <div className="flex items-start justify-between gap-2"><p className="text-sm font-medium text-ink">{notification.title}</p><span className="shrink-0 text-[10px] text-ink-soft">{formatNotificationTime(notification.createdAt)}</span></div>
-                        <p className="mt-1 text-xs text-ink-soft">{notification.body}</p>
+                        <div className="flex items-start justify-between gap-2"><p className="min-w-0 break-words text-sm font-medium text-ink">{notification.title}</p><span className="shrink-0 text-[10px] text-ink-soft">{formatNotificationTime(notification.createdAt)}</span></div>
+                        <p className="mt-1 break-words text-xs text-ink-soft">{notification.body}</p>
                       </li>
                     })}
                   </ul>
@@ -392,37 +392,37 @@ export default function AppHome({ session }: { session: Session }) {
               <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{dataError}</p>
             ) : dashboardData ? (
               <>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <div className="rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-sm"><p className="text-xs font-medium text-ink-soft">Aktif Etkinlik</p><p className="mt-1 text-2xl font-semibold text-ink">{dashboardData.activeEventCount}</p></div>
-                  <div className="rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-sm"><p className="text-xs font-medium text-ink-soft">Açık Görev</p><p className="mt-1 text-2xl font-semibold text-ink">{dashboardData.openTaskCount}</p></div>
-                  <div className="rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-sm"><p className="text-xs font-medium text-ink-soft">Bana Atanan Açık</p><p className="mt-1 text-2xl font-semibold text-ink">{dashboardData.myOpenTaskCount}</p></div>
-                  <div className={`rounded-lg border p-4 shadow-sm ${dashboardData.overdueTaskCount > 0 ? 'border-red-200 bg-red-50' : 'border-canvas-border bg-canvas-surface'}`}><p className={`text-xs font-medium ${dashboardData.overdueTaskCount > 0 ? 'text-red-700' : 'text-ink-soft'}`}>Geciken Görev</p><p className={`mt-1 text-2xl font-semibold ${dashboardData.overdueTaskCount > 0 ? 'text-red-700' : 'text-ink'}`}>{dashboardData.overdueTaskCount}</p></div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+                  <div className="rounded-lg border border-canvas-border bg-canvas-surface p-3 shadow-sm sm:p-4"><p className="break-words text-xs font-medium text-ink-soft">Aktif Etkinlik</p><p className="mt-1 text-2xl font-semibold text-ink">{dashboardData.activeEventCount}</p></div>
+                  <div className="rounded-lg border border-canvas-border bg-canvas-surface p-3 shadow-sm sm:p-4"><p className="break-words text-xs font-medium text-ink-soft">Açık Görev</p><p className="mt-1 text-2xl font-semibold text-ink">{dashboardData.openTaskCount}</p></div>
+                  <div className="rounded-lg border border-canvas-border bg-canvas-surface p-3 shadow-sm sm:p-4"><p className="break-words text-xs font-medium text-ink-soft">Bana Atanan Açık</p><p className="mt-1 text-2xl font-semibold text-ink">{dashboardData.myOpenTaskCount}</p></div>
+                  <div className={`rounded-lg border p-3 shadow-sm sm:p-4 ${dashboardData.overdueTaskCount > 0 ? 'border-red-200 bg-red-50' : 'border-canvas-border bg-canvas-surface'}`}><p className={`break-words text-xs font-medium ${dashboardData.overdueTaskCount > 0 ? 'text-red-700' : 'text-ink-soft'}`}>Geciken Görev</p><p className={`mt-1 text-2xl font-semibold ${dashboardData.overdueTaskCount > 0 ? 'text-red-700' : 'text-ink'}`}>{dashboardData.overdueTaskCount}</p></div>
                 </div>
-                <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-                  <div className="flex flex-col gap-8">
+                <div className="grid grid-cols-1 gap-6 sm:gap-8 md:grid-cols-2">
+                  <div className="flex flex-col gap-6 sm:gap-8">
                     <section>
                       <h2 className="mb-3 border-b border-canvas-border pb-2 text-sm font-semibold text-ink">Bana Atanmış Görevler</h2>
-                      {dashboardData.myTasks.length === 0 ? <p className="text-sm italic text-ink-soft">Size atanmış bir görev bulunmuyor.</p> : <ul className="flex flex-col gap-3">{dashboardData.myTasks.map(task => <li key={task.id} className="rounded-md border border-canvas-border bg-canvas-surface p-3 transition-colors hover:border-ink/20"><Link to={`/app/etkinlikler/${task.eventId}`} className="block rounded-sm focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2"><div className="flex items-start justify-between gap-2"><p className="text-sm font-medium text-ink">{task.title}</p><span className="shrink-0 rounded border border-canvas-border bg-canvas px-2 py-0.5 text-[10px] font-medium text-ink-soft">{task.progressStatusLabel}</span></div><p className="mt-1 truncate text-xs text-ink-soft">{task.eventTitle}</p><div className="mt-2 flex items-center justify-between text-xs text-ink-soft"><span>{formatDateTimeShort(task.deadlineAt)}</span><span className="font-medium">{task.assignmentLabel}</span></div></Link></li>)}</ul>}
+                      {dashboardData.myTasks.length === 0 ? <p className="text-sm italic text-ink-soft">Size atanmış bir görev bulunmuyor.</p> : <ul className="flex flex-col gap-3">{dashboardData.myTasks.map(task => <li key={task.id} className="rounded-md border border-canvas-border bg-canvas-surface p-3 transition-colors hover:border-ink/20"><Link to={`/app/etkinlikler/${task.eventId}`} className="block rounded-sm focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2"><div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1"><p className="min-w-0 break-words text-sm font-medium text-ink">{task.title}</p><span className="shrink-0 rounded border border-canvas-border bg-canvas px-2 py-0.5 text-[10px] font-medium text-ink-soft">{task.progressStatusLabel}</span></div><p className="mt-1 break-words text-xs text-ink-soft">{task.eventTitle}</p><div className="mt-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs text-ink-soft"><span>{formatDateTimeShort(task.deadlineAt)}</span><span className="font-medium">{task.assignmentLabel}</span></div></Link></li>)}</ul>}
                     </section>
                     <section>
                       <h2 className="mb-3 border-b border-canvas-border pb-2 text-sm font-semibold text-ink">Son Etkinlikler</h2>
-                      {dashboardData.recentEvents.length === 0 ? <p className="text-sm italic text-ink-soft">Kayıtlı etkinlik bulunmuyor.</p> : <ul className="flex flex-col gap-3">{dashboardData.recentEvents.map(event => <li key={event.id} className="rounded-md border border-canvas-border bg-canvas-surface p-3 transition-colors hover:border-ink/20"><Link to={`/app/etkinlikler/${event.id}`} className="block rounded-sm focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2"><p className="truncate text-sm font-medium text-ink">{event.title}</p><div className="mt-2 flex items-center justify-between text-xs text-ink-soft"><span>{event.eventStatus ?? 'Durum belirtilmedi'}</span><span>{formatShortDate(event.planningDate)}</span></div></Link></li>)}</ul>}
+                      {dashboardData.recentEvents.length === 0 ? <p className="text-sm italic text-ink-soft">Kayıtlı etkinlik bulunmuyor.</p> : <ul className="flex flex-col gap-3">{dashboardData.recentEvents.map(event => <li key={event.id} className="rounded-md border border-canvas-border bg-canvas-surface p-3 transition-colors hover:border-ink/20"><Link to={`/app/etkinlikler/${event.id}`} className="block rounded-sm focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2"><p className="break-words text-sm font-medium text-ink">{event.title}</p><div className="mt-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs text-ink-soft"><span>{event.eventStatus ?? 'Durum belirtilmedi'}</span><span>{formatShortDate(event.planningDate)}</span></div></Link></li>)}</ul>}
                     </section>
                   </div>
-                  <div className="flex flex-col gap-8">
+                  <div className="flex flex-col gap-6 sm:gap-8">
                     <section>
                       <h2 className="mb-3 border-b border-red-200 pb-2 text-sm font-semibold text-red-700">Geciken Görevler</h2>
-                      {dashboardData.overdueTasks.length === 0 ? <p className="text-sm italic text-ink-soft">Geciken görev bulunmuyor.</p> : <ul className="flex flex-col gap-3">{dashboardData.overdueTasks.map(task => <li key={task.id} className="rounded-md border border-red-200 bg-red-50 p-3 transition-colors hover:border-red-300"><Link to={`/app/etkinlikler/${task.eventId}`} className="block rounded-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"><p className="text-sm font-medium text-red-900">{task.title}</p><p className="mt-1 truncate text-xs text-red-700/80">{task.eventTitle}</p><div className="mt-2 text-xs font-semibold text-red-700">{formatDateTimeShort(task.deadlineAt)}</div></Link></li>)}</ul>}
+                      {dashboardData.overdueTasks.length === 0 ? <p className="text-sm italic text-ink-soft">Geciken görev bulunmuyor.</p> : <ul className="flex flex-col gap-3">{dashboardData.overdueTasks.map(task => <li key={task.id} className="rounded-md border border-red-200 bg-red-50 p-3 transition-colors hover:border-red-300"><Link to={`/app/etkinlikler/${task.eventId}`} className="block rounded-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"><p className="break-words text-sm font-medium text-red-900">{task.title}</p><p className="mt-1 break-words text-xs text-red-700/80">{task.eventTitle}</p><div className="mt-2 text-xs font-semibold text-red-700">{formatDateTimeShort(task.deadlineAt)}</div></Link></li>)}</ul>}
                     </section>
                     <section>
                       <h2 className="mb-3 border-b border-canvas-border pb-2 text-sm font-semibold text-ink">Yaklaşan Görevler</h2>
-                      {dashboardData.upcomingTasks.length === 0 ? <p className="text-sm italic text-ink-soft">Yaklaşan açık görev bulunmuyor.</p> : <ul className="flex flex-col gap-3">{dashboardData.upcomingTasks.map(task => <li key={task.id} className="rounded-md border border-canvas-border bg-canvas-surface p-3 transition-colors hover:border-ink/20"><Link to={`/app/etkinlikler/${task.eventId}`} className="block rounded-sm focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2"><p className="text-sm font-medium text-ink">{task.title}</p><p className="mt-1 truncate text-xs text-ink-soft">{task.eventTitle}</p><div className="mt-2 text-xs text-ink-soft">{formatDateTimeShort(task.deadlineAt)}</div></Link></li>)}</ul>}
+                      {dashboardData.upcomingTasks.length === 0 ? <p className="text-sm italic text-ink-soft">Yaklaşan açık görev bulunmuyor.</p> : <ul className="flex flex-col gap-3">{dashboardData.upcomingTasks.map(task => <li key={task.id} className="rounded-md border border-canvas-border bg-canvas-surface p-3 transition-colors hover:border-ink/20"><Link to={`/app/etkinlikler/${task.eventId}`} className="block rounded-sm focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2"><p className="break-words text-sm font-medium text-ink">{task.title}</p><p className="mt-1 break-words text-xs text-ink-soft">{task.eventTitle}</p><div className="mt-2 text-xs text-ink-soft">{formatDateTimeShort(task.deadlineAt)}</div></Link></li>)}</ul>}
                     </section>
                   </div>
                 </div>
-                <section className="mt-4 border-t border-canvas-border pt-6">
+                <section className="mt-2 border-t border-canvas-border pt-5 sm:mt-4 sm:pt-6">
                   <h2 className="mb-4 text-sm font-semibold text-ink">Hızlı Erişim</h2>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                     <Link to="/app/etkinlikler" className="block rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card transition-colors hover:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2">
                       <p className="text-sm font-semibold text-ink">Tüm Etkinlikler</p>
                       <p className="mt-1 text-xs text-ink-soft">Aktif dönemdeki tüm etkinlikleri ve detaylarını görüntüle.</p>
