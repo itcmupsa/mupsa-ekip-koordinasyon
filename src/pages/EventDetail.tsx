@@ -1620,10 +1620,17 @@ export default function EventDetail() {
     setIsSavingDecision(false)
 
     if (error) {
+      console.error('Karar kaydetme hatası:', error)
       if (error.message.includes('kilitli')) {
         setDecisionFormError('Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.')
+      } else if (error.code === '42501') {
+        setDecisionFormError('Bu etkinlik için karar ekleme yetkiniz bulunmuyor.')
+      } else if (error.code === '23503') {
+        setDecisionFormError('Etkinlik veya kullanıcı kaydı bulunamadı. Sayfayı yenileyip tekrar deneyin.')
+      } else if (error.code === '42P01') {
+        setDecisionFormError('Kararlar altyapısı henüz etkin değil. Teknik yöneticinin migration kontrolü yapması gerekiyor.')
       } else {
-        setDecisionFormError('Karar kaydedilirken bir hata oluştu.')
+        setDecisionFormError(`Karar kaydedilemedi. Hata kodu: ${error.code ?? 'bilinmiyor'}`)
       }
       return
     }
