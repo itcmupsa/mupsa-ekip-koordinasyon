@@ -24,6 +24,6 @@ Gemini teslimindeki policy yalnızca `events/` path başlangıcını kontrol edi
 - Canlı bucket kontrolü başarılı: `event-files`, `public = false`, `file_size_limit = 5242880`.
 - Canlı policy kontrolü başarılı: okuma, upload, update ve super_admin silme policy’leri beklenen tanımlarla mevcut.
 - Anonim public URL kontrolünde dosya erişimi verilmedi; bucket private davranışı doğrulandı.
-- Gerçek oturumlarla dosya upload/indirme ve 5 MB API testleri frontend Storage ekranı olmadığı için henüz yapılmadı.
-- Frontend dosya yükleme ekranı henüz eklenmedi.
+- Gerçek oturumlarla dosya yükleme, indirme, 5 MB sınırı, pasifleştirme ve yeniden aktifleştirme testleri tamamlandı.
+- Frontend dosya yükleme ekranı `src/pages/EventDetail.tsx` içine eklendi ve canlıda doğrulandı.
 - Storage upload ile `event_files` metadata insert işleminin atomik olmadığı ayrıca frontend aşamasında ele alınmalıdır.

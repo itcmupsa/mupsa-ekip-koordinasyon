@@ -86,7 +86,6 @@ Henüz yapılmayan ana özellikler:
 - Etkinlik düzenleme ekranı
 - Görev oluşturma, atama, destekleyen kişi ve bağımlılık ekranları
 - SKS süreç yönetimi ekranları
-- Rapor, dosya ve bağlantı frontend ekranları
 - Uygulama içi bildirim merkezi
 - Gerçek e-posta teslimat katmanı (Magic Link artık kullanılmıyor; şifreli girişte gerekli değil)
 - İlk şifre belirleme ekranının canlı testi
@@ -97,7 +96,7 @@ Henüz yapılmayan ana özellikler:
 
 ## Şu anki sıradaki küçük görev
 
-**Kararlar ve etkinlik genel notu ekranları ile rapor, dosya ve bağlantı veritabanı altyapısı tamamlandı; sıradaki iş bu altyapının frontend ekranlarını planlamaktır.**
+**Rapor, bağlantı ve dosya ekranları tamamlandı; sıradaki iş takvim özelliğinin kapsamını planlamaktır.**
 
 Hedef:
 
@@ -169,7 +168,8 @@ Bu görev şunları **kapsamaz**:
 - PWA uygulama ikonları (`public/icon-192.svg` ve `public/icon-512.svg`) siyah arka plan ve MUPSA logosu kullanacak şekilde güncellendi; manifest arka planı da siyah yapıldı. Lint, build ve `git diff --check` başarılı.
 - Kararlar altyapısı `20260808100000_add_event_decisions.sql` migration'ı ve `supabase/tests/event_decisions_scenarios.md` senaryo dosyasıyla eklendi. Migration uzak Supabase projesine uygulandı ve `supabase migration list` ile doğrulandı. `EventDetail.tsx` karar ekranı uzak şemaya bağlandı; canlı ekleme/pasifleştirme testi yapıldı, yeniden aktifleştirme testi bekleniyor.
 - Rapor, bağlantı ve dosya metadata altyapısı `20260808110000_add_reports_links_files.sql` migration'ı ve `supabase/tests/reports_links_files_scenarios.md` senaryo dosyasıyla eklendi. Migration uzak Supabase projesine uygulandı; canlı rollback testleri başarılı oldu.
-- Dosya Storage altyapısı `20260809010000_add_event_files_storage.sql` migration'ı ile eklendi. `event-files` bucket'ı private, 5 MB limitli ve Storage RLS policy'leri gerçek aktif etkinlik path'ini doğrulayacak şekilde canlı Supabase'e uygulandı. Frontend upload/indirme ekranı ve gerçek oturumlu dosya testi henüz yapılmadı.
+- Dosya Storage altyapısı `20260809010000_add_event_files_storage.sql` migration'ı ile eklendi. `event-files` bucket'ı private, 5 MB limitli ve Storage RLS policy'leri gerçek aktif etkinlik path'ini doğrulayacak şekilde canlı Supabase'e uygulandı.
+- Etkinlik raporları, bağlantıları ve dosya ekranları `EventDetail.tsx` içine eklendi. Aktif kullanıcıların okuma, yetkili kullanıcıların ekleme/düzenleme/pasifleştirme akışları canlıda test edildi; dosya yükleme, indirme, 5 MB sınırı ve soft-delete kontrolleri başarılı.
 - Safari favicon sorunu için `public/favicon.png` ve iOS/PWA PNG ikonları eklendi; giriş arka planlarının responsive görselleri korunuyor. Lint, build ve `git diff --check` başarılı.
 
 ## Kullanım talimatı — yeni yapay zekâ sohbeti
