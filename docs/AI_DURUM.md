@@ -86,7 +86,7 @@ Henüz yapılmayan ana özellikler:
 - Etkinlik düzenleme ekranı
 - Görev oluşturma, atama, destekleyen kişi ve bağımlılık ekranları
 - SKS süreç yönetimi ekranları
-- Kararların frontend ekranı, notlar, raporlar ve dosya ekranları
+- Raporlar ve dosya/link ekranları
 - Uygulama içi bildirim merkezi
 - Gerçek e-posta teslimat katmanı (Magic Link artık kullanılmıyor; şifreli girişte gerekli değil)
 - İlk şifre belirleme ekranının canlı testi
@@ -97,7 +97,7 @@ Henüz yapılmayan ana özellikler:
 
 ## Şu anki sıradaki küçük görev
 
-**Kararlar veritabanı ve etkinlik detayındaki frontend ekranı tamamlandı; sıradaki iş rapor/not ve dosya-link altyapısını planlamaktır.**
+**Kararlar ve etkinlik genel notu ekranları tamamlandı; sıradaki iş rapor/not ve dosya-link altyapısını planlamaktır.**
 
 Hedef:
 
@@ -144,6 +144,7 @@ Hedef:
 - Güvenli kullanıcı oluşturma Edge Function kodu eklendi: `supabase/functions/create-user/index.ts`. Fonksiyon aktif Süper Yönetici oturumunu doğrular, aktif koordinatörlüğü kontrol eder, Auth hesabı ve dönem üyeliği oluşturur; üyelik eklenemezse Auth hesabını geri alır. Supabase projesine deploy edildi ve `AdminMembers.tsx` formuna bağlandı. İlk canlı denemede genel bir non-2xx hata görüldü; arayüz gerçek hata gövdesini gösterecek şekilde güncellendi. Hata `Geçersiz oturum` olarak ayrıştırıldı; function, oturumu service-role ile token üzerinden doğrulayacak şekilde düzeltildi ve yeniden deploy edildi. Canlı yeni kullanıcı oluşturma testi tekrar bekleniyor.
 - Durum, SKS, mekân ve sonraki işlem alanları bu adımda düzenlenemez.
 - Kararlar için `event_decisions` tablosu, aktif üye okuma politikası, etkinlik sahibi/süper yönetici yazma yetkisi, dönem kilidi ve audit kaydı migration olarak eklendi. Etkinlik detayında karar listeleme, ekleme, düzenleme, pasifleştirme ve pasif kararı yeniden aktifleştirme ekranı `EventDetail.tsx` içine eklendi. Pasif kararlar varsayılan listede gizlidir; yetkili kullanıcı `Pasif kararları göster` seçeneğiyle görüp geri alabilir. Lint, build ve `git diff --check` başarılı; canlı geri aktifleştirme testi bekleniyor.
+- Etkinlik genel notu `events.general_note` alanına bağlandı. Etkinlik sahibi ve süper yönetici not ekleyebilir/düzenleyebilir; diğer aktif üyeler notu okuyabilir. Boş bırakıldığında not `null` olarak saklanır. Lint, build ve `git diff --check` başarılı; canlı ekleme/düzenleme testi bekleniyor.
 
 Bu görev şunları **kapsamaz**:
 

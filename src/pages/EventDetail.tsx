@@ -15,6 +15,7 @@ interface EventBasicInfo {
   ownerId: string | null
   venue: string | null
   nextAction: string | null
+  generalNote: string | null
 }
 
 type LoadState = 'loading' | 'ready' | 'not_found' | 'error'
@@ -151,8 +152,6 @@ function formatDate(value: string | null): string {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
   })
 }
 
@@ -173,6 +172,8 @@ function formatDeadline(value: string | null): string {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 
@@ -974,6 +975,11 @@ export default function EventDetail() {
   const [decisionSuccessMessage, setDecisionSuccessMessage] = useState<string | null>(null)
   const [deactivatingDecisionId, setDeactivatingDecisionId] = useState<string | null>(null)
   const [showInactiveDecisions, setShowInactiveDecisions] = useState(false)
+  const [isEditingGeneralNote, setIsEditingGeneralNote] = useState(false)
+  const [generalNoteInputValue, setGeneralNoteInputValue] = useState('')
+  const [isSavingGeneralNote, setIsSavingGeneralNote] = useState(false)
+  const [generalNoteError, setGeneralNoteError] = useState<string | null>(null)
+  const [generalNoteSuccess, setGeneralNoteSuccess] = useState<string | null>(null)
 
   useEffect(() => {
     if (statusLoading) return
@@ -989,7 +995,7 @@ export default function EventDetail() {
       const { data, error } = await supabase
         .from('events')
         .select(
-          'title, description, event_status, planning_date, preparation_start_date, estimated_date, confirmed_date, owner_id, venue, next_action',
+          'title, description, event_status, planning_date, preparation_start_date, estimated_date, confirmed_date, owner_id, venue, next_action, general_note',
         )
         .eq('id', eventId)
         .eq('period_id', periodId)
@@ -1019,6 +1025,7 @@ export default function EventDetail() {
         ownerId,
         venue: (data.venue as string | null) ?? null,
         nextAction: (data.next_action as string | null) ?? null,
+        generalNote: (data.general_note as string | null) ?? null,
       })
       setLoadState('ready')
 
@@ -1054,6 +1061,12 @@ export default function EventDetail() {
       isMounted = false
     }
   }, [hasActiveMembership, periodId, eventId, statusLoading])
+
+  useEffect(() => {
+    if (!isEditingGeneralNote && event) {
+      setGeneralNoteInputValue(event.generalNote ?? '')
+    }
+  }, [event, isEditingGeneralNote])
 
   useEffect(() => {
     if (statusLoading || !hasActiveMembership) return
@@ -1703,6 +1716,32 @@ export default function EventDetail() {
     setDecisionsRefreshKey((prev) => prev + 1)
   }
 
+  async function handleSaveGeneralNote() {
+    if (!eventId || !periodId || !canEdit) return
+
+    setGeneralNoteError(null)
+    setIsSavingGeneralNote(true)
+    const trimmedNote = generalNoteInputValue.trim()
+    const finalNote = trimmedNote.length > 0 ? trimmedNote : null
+
+    const { error } = await supabase
+      .from('events')
+      .update({ general_note: finalNote })
+      .eq('id', eventId)
+      .eq('period_id', periodId)
+
+    setIsSavingGeneralNote(false)
+    if (error) {
+      setGeneralNoteError('Genel not kaydedilemedi. Dönem kilitli olabilir veya yetkiniz yok.')
+      return
+    }
+
+    setEvent((previous) => (previous ? { ...previous, generalNote: finalNote } : previous))
+    setIsEditingGeneralNote(false)
+    setGeneralNoteSuccess('Genel not başarıyla güncellendi.')
+    window.setTimeout(() => setGeneralNoteSuccess(null), 3000)
+  }
+
   const isOwner = !!event && !!profileId && event.ownerId === profileId
   const isSuperAdmin = appRole === 'super_admin'
   const canEdit = isOwner || isSuperAdmin
@@ -2079,6 +2118,69 @@ export default function EventDetail() {
             <p className="text-sm text-ink-soft">{event.description || 'Açıklama eklenmemiş'}</p>
           </div>
         )}
+
+        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+          <h2 className="text-sm font-semibold text-ink">Genel etkinlik notu</h2>
+          <div className="mt-4">
+            {canEdit && isEditingGeneralNote ? (
+              <div className="flex flex-col gap-3">
+                <textarea
+                  value={generalNoteInputValue}
+                  onChange={(event) => setGeneralNoteInputValue(event.target.value)}
+                  disabled={isSavingGeneralNote}
+                  rows={4}
+                  className="w-full rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink disabled:opacity-60"
+                  placeholder="Bu etkinlikle ilgili genel notlarınızı buraya yazabilirsiniz..."
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleSaveGeneralNote()}
+                    disabled={isSavingGeneralNote}
+                    className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
+                  >
+                    {isSavingGeneralNote ? 'Kaydediliyor…' : 'Kaydet'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingGeneralNote(false)}
+                    disabled={isSavingGeneralNote}
+                    className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
+                  >
+                    İptal
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-start gap-3">
+                {event.generalNote ? (
+                  <p className="whitespace-pre-wrap text-sm text-ink">{event.generalNote}</p>
+                ) : (
+                  <p className="text-sm italic text-ink-soft">Not eklenmemiş</p>
+                )}
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingGeneralNote(true)}
+                    className="rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-xs font-medium text-ink hover:bg-canvas-surface"
+                  >
+                    {event.generalNote ? 'Notu Düzenle' : 'Not Ekle'}
+                  </button>
+                )}
+              </div>
+            )}
+            {generalNoteError && (
+              <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                {generalNoteError}
+              </p>
+            )}
+            {generalNoteSuccess && !isEditingGeneralNote && (
+              <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">
+                {generalNoteSuccess}
+              </p>
+            )}
+          </div>
+        </div>
 
         {/* Kararlar Bölümü */}
         <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
