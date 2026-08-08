@@ -68,6 +68,8 @@ Cloudflare Pages için iki Supabase yayınlanabilir ortam değişkeni tanımland
 - Davet kabul edildi.
 - Kullanıcı canlı sitede başarıyla oturum açtı.
 - Önceki Magic Link akışı test edildi; e-posta teslim limitleri nedeniyle gerçek kullanım için kaldırıldı.
+- Vercel üzerinde e-posta + şifre ile çıkış yapıp yeniden giriş testi başarıyla tamamlandı.
+- Mevcut oturumlu kullanıcı, `/app/ayarlar/sifre` üzerinden ilk şifresini başarıyla belirledi.
 - Kullanıcıya henüz dönem üyeliği verilmediği için beklenen “aktif dönem yetkin henüz tanımlanmamış” mesajı görüntülendi.
 - İlk yönetici ataması yapıldı: `odsnmn27@gmail.com` hesabı 2026–2027 döneminde Bilişim Teknolojileri Koordinatörü ve `super_admin` olarak aktif.
 - Canlı `/app` ve `/app/yonetim/uyeler` ekranları açıldı; yönetici üyelik kartı, “Üye ekle” ve “Düzenle” seçenekleri doğrulandı.
@@ -88,6 +90,7 @@ Henüz yapılmayan ana özellikler:
 - Uygulama içi bildirim merkezi
 - Gerçek e-posta teslimat katmanı (Magic Link artık kullanılmıyor; şifreli girişte gerekli değil)
 - İlk şifre belirleme ekranının canlı testi
+- Kullanıcı oluşturma akışının daha pratik bir yönetim ekranına dönüştürülmesi
 - Gerçek web push teslimat katmanı
 - Dışa aktarım ve dönem arşivi ekranları
 - Tam PWA kurulumu: manifest, service worker, kurulum/offline davranışı
