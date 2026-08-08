@@ -8,8 +8,6 @@ on conflict (id) do update set
   public = false,
   file_size_limit = 5242880;
 
-alter table storage.objects enable row level security;
-
 drop policy if exists "active members read event files" on storage.objects;
 drop policy if exists "event managers upload files" on storage.objects;
 drop policy if exists "event managers update files" on storage.objects;
