@@ -24,21 +24,20 @@ serve(async (req: Request) => {
     if (!authHeader) throw new Error('Yetkilendirme başlığı eksik.')
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
+    if (!supabaseUrl || !serviceRoleKey) {
       throw new Error('Sunucu yapılandırması eksik.')
     }
 
-    const callerClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    })
-    const { data: userData, error: userError } = await callerClient.auth.getUser()
-    if (userError || !userData.user) throw new Error('Geçersiz oturum.')
+    const accessToken = authHeader.replace(/^Bearer\s+/i, '').trim()
+    if (!accessToken) throw new Error('Oturum belirteci eksik.')
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     })
+
+    const { data: userData, error: userError } = await adminClient.auth.getUser(accessToken)
+    if (userError || !userData.user) throw new Error('Geçersiz oturum.')
 
     const { data: callerMembership, error: membershipError } = await adminClient
       .from('period_memberships')
