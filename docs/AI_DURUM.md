@@ -39,6 +39,7 @@ Bildirim altyapısı şu anda veritabanında `notifications` kuyruğuna kayıt �
 
 - Vite + React + TypeScript + Tailwind uygulaması
 - E-posta + şifre giriş formu
+- Oturumlu kullanıcı için ilk şifre belirleme ekranı (`/app/ayarlar/sifre`)
 - Yalnızca davetli kullanıcılar için giriş (`shouldCreateUser: false`)
 - Oturum kontrolü ve çıkış yapma
 - `/login`, `/auth/callback`, `/app` route'ları
@@ -86,6 +87,7 @@ Henüz yapılmayan ana özellikler:
 - Kararlar, notlar, raporlar ve dosya ekranları
 - Uygulama içi bildirim merkezi
 - Gerçek e-posta teslimat katmanı (Magic Link artık kullanılmıyor; şifreli girişte gerekli değil)
+- İlk şifre belirleme ekranının canlı testi
 - Gerçek web push teslimat katmanı
 - Dışa aktarım ve dönem arşivi ekranları
 - Tam PWA kurulumu: manifest, service worker, kurulum/offline davranışı
