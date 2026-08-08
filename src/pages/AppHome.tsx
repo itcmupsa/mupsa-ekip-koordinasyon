@@ -420,7 +420,20 @@ export default function AppHome({ session }: { session: Session }) {
                     </section>
                   </div>
                 </div>
-                <section className="mt-4 border-t border-canvas-border pt-6"><h2 className="mb-4 text-sm font-semibold text-ink">Hızlı Erişim</h2><div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><Link to="/app/etkinlikler" className="block rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card transition-colors hover:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2"><p className="text-sm font-semibold text-ink">Tüm Etkinlikler</p><p className="mt-1 text-xs text-ink-soft">Aktif dönemdeki tüm etkinlikleri ve detaylarını görüntüle.</p></Link>{isSuperAdmin && <Link to="/app/yonetim/uyeler" className="block rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card transition-colors hover:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2"><p className="text-sm font-semibold text-ink">Ekip ve yetki yönetimi</p><p className="mt-1 text-xs text-ink-soft">Aktif dönemdeki koordinatörleri ve uygulama yetkilerini yönet.</p></Link>}</div></section>
+                <section className="mt-4 border-t border-canvas-border pt-6">
+                  <h2 className="mb-4 text-sm font-semibold text-ink">Hızlı Erişim</h2>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Link to="/app/etkinlikler" className="block rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card transition-colors hover:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2">
+                      <p className="text-sm font-semibold text-ink">Tüm Etkinlikler</p>
+                      <p className="mt-1 text-xs text-ink-soft">Aktif dönemdeki tüm etkinlikleri ve detaylarını görüntüle.</p>
+                    </Link>
+                    <Link to="/app/ayarlar/sifre" className="block rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card transition-colors hover:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2">
+                      <p className="text-sm font-semibold text-ink">Şifre değiştir</p>
+                      <p className="mt-1 text-xs text-ink-soft">Hesap şifrenizi güvenli bir şekilde güncelleyin.</p>
+                    </Link>
+                    {isSuperAdmin && <Link to="/app/yonetim/uyeler" className="block rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card transition-colors hover:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2"><p className="text-sm font-semibold text-ink">Ekip ve yetki yönetimi</p><p className="mt-1 text-xs text-ink-soft">Aktif dönemdeki koordinatörleri ve uygulama yetkilerini yönet.</p></Link>}
+                  </div>
+                </section>
               </>
             ) : null}
           </div>
