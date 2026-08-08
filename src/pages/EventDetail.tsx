@@ -1563,7 +1563,7 @@ export default function EventDetail() {
     setEditingDecisionId(null)
     setDecisionTitle('')
     setDecisionText('')
-    setDecisionDate('')
+    setDecisionDate(new Date().toISOString().slice(0, 10))
     setDecisionFormError(null)
     setDecisionSuccessMessage(null)
     setIsDecisionFormOpen(true)
@@ -1601,7 +1601,7 @@ export default function EventDetail() {
     const payload = {
       title: tTitle,
       decision_text: tText,
-      decided_at: decisionDate || null,
+      ...(decisionDate ? { decided_at: decisionDate } : {}),
     }
 
     let error
@@ -1627,6 +1627,8 @@ export default function EventDetail() {
         setDecisionFormError('Bu etkinlik için karar ekleme yetkiniz bulunmuyor.')
       } else if (error.code === '23503') {
         setDecisionFormError('Etkinlik veya kullanıcı kaydı bulunamadı. Sayfayı yenileyip tekrar deneyin.')
+      } else if (error.code === '23502') {
+        setDecisionFormError('Karar tarihi boş kaldı. Tarihi seçip tekrar deneyin.')
       } else if (error.code === '42P01') {
         setDecisionFormError('Kararlar altyapısı henüz etkin değil. Teknik yöneticinin migration kontrolü yapması gerekiyor.')
       } else {
