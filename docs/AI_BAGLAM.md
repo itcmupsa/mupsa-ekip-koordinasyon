@@ -28,7 +28,7 @@ Uygulama zamanla şunları kapsayacaktır:
 - SKS, bütçe, tasarım gibi ayrı süreçlerin kendi sorumluları olabilir. Etkinlik sahibi bu süreç alanlarına sınırsız biçimde müdahale edemez.
 - Eski dönemler saklanır ve salt okunur olur; yeni ekip geçmiş rapor ve notları okuyabilir, değiştiremez.
 - Kullanıcı girişi kişisel e-posta ile yapılır. Ortak kulüp e-postası kullanıcı hesabı olarak kullanılmaz.
-- Giriş yöntemi parolasız Magic Link'tir. Sadece önceden davet edilmiş hesaplar giriş yapabilir.
+- Giriş yöntemi e-posta + şifredir. E-posta yalnızca kullanıcı hesabı kimliği olarak kullanılır; giriş sırasında e-posta gönderilmez. Yalnızca yönetici tarafından oluşturulmuş hesaplar giriş yapabilir.
 - Dosya yükleme hedef limiti dosya başına 5 MB'dir. Bu ekran henüz yapılmamıştır.
 
 ## 3. Etkinlik ve görev ilkeleri
@@ -49,7 +49,7 @@ Uygulama zamanla şunları kapsayacaktır:
 | Frontend | Vite + React + TypeScript + Tailwind CSS |
 | Veritabanı ve Auth | Supabase PostgreSQL + Supabase Auth + RLS |
 | Barındırma | Cloudflare Pages |
-| Giriş | Supabase Magic Link, yalnızca davetli kullanıcılar |
+| Giriş | Supabase e-posta + şifre, yalnızca yönetici tarafından oluşturulmuş kullanıcılar |
 | E-posta/Bildirim | Supabase üzerinde bildirim kuyruğu; gerçek teslimat katmanı henüz yok |
 | Zamanlanmış işler | Supabase `pg_cron` |
 | Mobil hedef | Responsive web uygulaması; tam PWA kurulumu henüz yapılmadı |
@@ -61,7 +61,7 @@ Frontend istemcisi yalnızca yayınlanabilir Supabase anahtarını kullanır. `s
 Önemli dosyalar:
 
 - `src/App.tsx`: route tanımları
-- `src/pages/Login.tsx`: Magic Link giriş ekranı
+- `src/pages/Login.tsx`: E-posta + şifre giriş ekranı
 - `src/pages/AuthCallback.tsx`: giriş bağlantısı dönüş ekranı
 - `src/pages/AppHome.tsx`: oturum açmış kullanıcı ana ekranı
 - `src/hooks/useSession.ts`: Supabase oturum yönetimi

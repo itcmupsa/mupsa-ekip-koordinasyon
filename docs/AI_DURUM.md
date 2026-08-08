@@ -2,7 +2,7 @@
 
 Bu dosya, proje bağlamının güncel durum kaydıdır. Bir görev tamamlandığında yalnızca bu dosyadaki ilgili bölümleri güncelle; `AI_BAGLAM.md` dosyasını yalnızca kalıcı karar değiştiğinde değiştir.
 
-**Son güncelleme:** 3 Ağustos 2026
+**Son güncelleme:** 8 Ağustos 2026
 
 ## Canlı sistem
 
@@ -38,7 +38,7 @@ Bildirim altyapısı şu anda veritabanında `notifications` kuyruğuna kayıt �
 Şu özellikler çalışır durumda:
 
 - Vite + React + TypeScript + Tailwind uygulaması
-- Magic Link giriş formu
+- E-posta + şifre giriş formu
 - Yalnızca davetli kullanıcılar için giriş (`shouldCreateUser: false`)
 - Oturum kontrolü ve çıkış yapma
 - `/login`, `/auth/callback`, `/app` route'ları
@@ -66,7 +66,7 @@ Cloudflare Pages için iki Supabase yayınlanabilir ortam değişkeni tanımland
 - Test kullanıcısı Supabase'e davet edildi.
 - Davet kabul edildi.
 - Kullanıcı canlı sitede başarıyla oturum açtı.
-- Magic Link dönüşü doğru çalıştı.
+- Önceki Magic Link akışı test edildi; e-posta teslim limitleri nedeniyle gerçek kullanım için kaldırıldı.
 - Kullanıcıya henüz dönem üyeliği verilmediği için beklenen “aktif dönem yetkin henüz tanımlanmamış” mesajı görüntülendi.
 - İlk yönetici ataması yapıldı: `odsnmn27@gmail.com` hesabı 2026–2027 döneminde Bilişim Teknolojileri Koordinatörü ve `super_admin` olarak aktif.
 - Canlı `/app` ve `/app/yonetim/uyeler` ekranları açıldı; yönetici üyelik kartı, “Üye ekle” ve “Düzenle” seçenekleri doğrulandı.
@@ -85,7 +85,7 @@ Henüz yapılmayan ana özellikler:
 - SKS süreç yönetimi ekranları
 - Kararlar, notlar, raporlar ve dosya ekranları
 - Uygulama içi bildirim merkezi
-- Gerçek e-posta teslimat katmanı
+- Gerçek e-posta teslimat katmanı (Magic Link artık kullanılmıyor; şifreli girişte gerekli değil)
 - Gerçek web push teslimat katmanı
 - Dışa aktarım ve dönem arşivi ekranları
 - Tam PWA kurulumu: manifest, service worker, kurulum/offline davranışı
