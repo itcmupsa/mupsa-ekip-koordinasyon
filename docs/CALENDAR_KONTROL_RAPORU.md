@@ -16,4 +16,4 @@
 - `npm run build`: başarılı
 - `git diff --check`: başarılı
 
-Migration henüz uzak Supabase projesine uygulanmadı. Uygulamadan önce `supabase/tests/calendar_scenarios.md` senaryoları gözden geçirilmeli; migration uygulandıktan sonra RPC, RLS, audit ve dönem kilidi canlıda ayrıca test edilmelidir.
+`20260810050000_add_calendar_entries.sql` migration'ı uzak Supabase projesine uygulandı ve `supabase migration list` ile local/remote eşleşmesi doğrulandı. RPC, RLS, audit ve dönem kilidi için canlı kullanıcı testleri henüz yapılmadı.
