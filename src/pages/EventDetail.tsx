@@ -4546,10 +4546,9 @@ export default function EventDetail() {
               </div>
             )}
           </div>
-        </div>
 
-        {/* Sponsorlar Bölümü */}
-        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+          {/* Sponsorlar Bölümü */}
+          <div className="mt-6 border-t border-canvas-border pt-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-4">
               <h2 className="text-sm font-semibold text-ink">Sponsorlar</h2>
@@ -4729,6 +4728,7 @@ export default function EventDetail() {
               ))}
             </div>
           )}
+          </div>
         </div>
 
         <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
