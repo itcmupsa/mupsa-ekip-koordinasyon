@@ -79,6 +79,7 @@ Frontend istemcisi yalnızca yayınlanabilir Supabase anahtarını kullanır. `s
 - `/app/yonetim/uyeler` (yalnızca Süper Yönetici)
 - `/app/etkinlikler` (aktif dönem üyeleri)
 - `/app/etkinlikler/:eventId` (etkinlik detay iskeleti)
+- `/app/takvim` (aktif dönem takvimi)
 
 Cloudflare Pages istemci tarafı route'lar için otomatik SPA geri dönüşünü kullanır. Eski `_redirects` kuralı bu nedenle projede kullanılmaz.
 
@@ -92,6 +93,7 @@ Cloudflare Pages istemci tarafı route'lar için otomatik SPA geri dönüşünü
 - `period_memberships`: bir kullanıcının bir dönemdeki koordinatörlüğü, dönem bazlı görünen adı (`period_display_name`), uygulama rolü ve aktifliği
 - `events`, `event_members`, `event_process_members`
 - `tasks`, `task_assignees`, `task_dependencies`
+- `calendar_entries`: mevcut kayıtları tekrar etmeden manuel akademik/resmî/toplantı takvim kayıtları
 - `notifications`, `push_subscriptions`, `audit_logs`
 
 `period_memberships.app_role` yalnızca şu değerleri kullanır:
@@ -111,6 +113,7 @@ RLS önemlidir:
 - Aynı profil farklı dönemlerde tekrar kullanılabilir; her dönem için ayrı `period_memberships` kaydı ve ayrı `period_display_name` tutulur.
 - Eski dönem kayıtlarında eski dönem üyeliğinin görünen adı kullanılmalı; `profiles.display_name` tarihsel kayıtların tek kaynağı olarak kullanılmamalıdır.
 - Dönem görünen adını yalnızca Süper Yönetici değiştirir. Kilitli dönem üyelikleri değiştirilemez. Auth e-posta adresi bu işlem sırasında değiştirilmez.
+- Takvimde etkinlik ve farkındalık tarihleri mevcut kayıtlardan üretilir; manuel takvim kayıtlarını yalnızca Süper Yönetici yönetir. Görev son tarihleri yalnızca primary görev sahibine veritabanındaki `auth.uid()` kontrollü RPC ile gösterilir.
 
 ## 7. Çalışma ve teslim kuralları
 

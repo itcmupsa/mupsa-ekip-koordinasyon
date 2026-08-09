@@ -95,7 +95,7 @@ Henüz yapılmayan ana özellikler:
 
 ## Şu anki sıradaki küçük görev
 
-**Etkinlik durum grupları tamamlandı; sıradaki işlem canlı test ve başkanın revizyonlarını beklemektir. Takvim ve görev bağımlılıkları bu testlerden sonra yeniden değerlendirilecektir.**
+**Takvim kodu ve migration hazırlığı tamamlandı; sıradaki işlem migration'ı uzak Supabase'e uygulamak ve takvimi canlıda test etmektir. Renkler başkan revizyonundan sonra değerlendirilecektir.**
 
 Hedef:
 
@@ -176,6 +176,7 @@ Bu görev şunları **kapsamaz**:
 - Etkinlik raporları, bağlantıları ve dosya ekranları `EventDetail.tsx` içine eklendi. Aktif kullanıcıların okuma, yetkili kullanıcıların ekleme/düzenleme/pasifleştirme akışları canlıda test edildi; dosya yükleme, indirme, 5 MB sınırı ve soft-delete kontrolleri başarılı.
 - Safari favicon sorunu için `public/favicon.png` ve iOS/PWA PNG ikonları eklendi; giriş arka planlarının responsive görselleri korunuyor. Lint, build ve `git diff --check` başarılı.
 - Farkındalık Paylaşımları için `awareness_posts` altyapısı, 1 Temmuz dönem düzeltmesi, etkinliklerde 40 gün ve farkındalıklarda 14 gün otomatik hazırlık başlangıcı, RLS ve `AwarenessPosts.tsx` ekranı hazırlandı. `20260809040000_add_awareness_and_period_fixes.sql` migration’ı uzak Supabase’e uygulandı; canlı yetki/tarih/pasifleştirme testleri bekliyor. `npm run lint`, `npm run build` ve `git diff --check` başarılı.
+- Takvim frontend ve veritabanı hazırlığı tamamlandı: mevcut etkinlik/farkındalık tarihleri tekrar kayıt oluşturulmadan takvimde gösteriliyor; manuel kayıtlar için `calendar_entries` tablosu, RLS, soft-delete ve audit eklendi. Görev son tarihleri yalnızca primary görev sahibine, `auth.uid()` kullanan `get_my_calendar_task_deadlines()` RPC'si üzerinden gösteriliyor. `Calendar.tsx`, `/app/takvim` route'u ve ana sayfa bağlantısı eklendi. Lint, build ve `git diff --check` başarılı; migration'ın uzak Supabase'e uygulanması ve canlı takvim testleri bekliyor.
 
 ### Dönem bazlı görünen kullanıcı adı — tamamlandı
 

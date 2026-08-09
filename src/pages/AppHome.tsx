@@ -434,6 +434,10 @@ export default function AppHome({ session }: { session: Session }) {
                       <p className="text-sm font-semibold text-ink">Farkındalık Paylaşımları</p>
                       <p className="mt-1 text-xs text-ink-soft">Farkındalık içeriklerini ve hazırlık süreçlerini görüntüle.</p>
                     </Link>
+                    <Link to="/app/takvim" className="block rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card transition-colors hover:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2">
+                      <p className="text-sm font-semibold text-ink">Takvim</p>
+                      <p className="mt-1 text-xs text-ink-soft">Etkinlik, farkındalık ve size atanmış görev tarihlerini görüntüle.</p>
+                    </Link>
                     <Link to="/app/ayarlar/sifre" className="block rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card transition-colors hover:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2">
                       <p className="text-sm font-semibold text-ink">Şifre değiştir</p>
                       <p className="mt-1 text-xs text-ink-soft">Hesap şifrenizi güvenli bir şekilde güncelleyin.</p>
