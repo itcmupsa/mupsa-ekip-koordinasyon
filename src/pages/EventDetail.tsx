@@ -205,6 +205,16 @@ function extractDateOnly(value: string | null): string {
   return match ? match[1] : ''
 }
 
+function formatOffset(value: string, days: number): string {
+  const dateOnly = extractDateOnly(value)
+  if (!dateOnly) return ''
+  const [year, month, day] = dateOnly.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  if (Number.isNaN(date.getTime())) return ''
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
 function CenteredMessage({ text }: { text: string }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
@@ -1022,7 +1032,6 @@ export default function EventDetail() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [editPlanningDate, setEditPlanningDate] = useState('')
-  const [editPreparationStartDate, setEditPreparationStartDate] = useState('')
   const [editEstimatedDate, setEditEstimatedDate] = useState('')
   const [editConfirmedDate, setEditConfirmedDate] = useState('')
   const [tasksLoadState, setTasksLoadState] = useState<TasksLoadState>('loading')
@@ -3235,7 +3244,6 @@ export default function EventDetail() {
     setEditTitle(event.title)
     setEditDescription(event.description ?? '')
     setEditPlanningDate(extractDateOnly(event.planningDate))
-    setEditPreparationStartDate(extractDateOnly(event.preparationStartDate))
     setEditEstimatedDate(extractDateOnly(event.estimatedDate))
     setEditConfirmedDate(extractDateOnly(event.confirmedDate))
     setSaveError(null)
@@ -3250,7 +3258,6 @@ export default function EventDetail() {
       setEditTitle(event.title)
       setEditDescription(event.description ?? '')
       setEditPlanningDate(extractDateOnly(event.planningDate))
-      setEditPreparationStartDate(extractDateOnly(event.preparationStartDate))
       setEditEstimatedDate(extractDateOnly(event.estimatedDate))
       setEditConfirmedDate(extractDateOnly(event.confirmedDate))
     }
@@ -3269,7 +3276,6 @@ export default function EventDetail() {
     const trimmedDescription = editDescription.trim()
     const nextDescription = trimmedDescription.length > 0 ? trimmedDescription : null
     const nextPlanningDate = editPlanningDate || null
-    const nextPreparationStartDate = editPreparationStartDate || null
     const nextEstimatedDate = editEstimatedDate || null
     const nextConfirmedDate = editConfirmedDate || null
 
@@ -3279,7 +3285,6 @@ export default function EventDetail() {
         title: trimmedTitle,
         description: nextDescription,
         planning_date: nextPlanningDate,
-        preparation_start_date: nextPreparationStartDate,
         estimated_date: nextEstimatedDate,
         confirmed_date: nextConfirmedDate,
       })
@@ -3307,7 +3312,7 @@ export default function EventDetail() {
             title: (data.title as string) ?? trimmedTitle,
             description: (data.description as string | null) ?? nextDescription,
             planningDate: (data.planning_date as string | null) ?? nextPlanningDate,
-            preparationStartDate: (data.preparation_start_date as string | null) ?? nextPreparationStartDate,
+            preparationStartDate: data.preparation_start_date as string | null,
             estimatedDate: (data.estimated_date as string | null) ?? nextEstimatedDate,
             confirmedDate: (data.confirmed_date as string | null) ?? nextConfirmedDate,
           }
@@ -3413,15 +3418,14 @@ export default function EventDetail() {
                 </div>
                 <div className="flex flex-col gap-1">
                   <label htmlFor="event-preparation-start-date" className="text-sm font-medium text-ink-soft">
-                    Hazırlık başlangıç tarihi
+                    Hazırlığa başlangıç tarihi (otomatik)
                   </label>
                   <input
                     id="event-preparation-start-date"
                     type="date"
-                    value={editPreparationStartDate}
-                    onChange={(e) => setEditPreparationStartDate(e.target.value)}
-                    disabled={isSaving}
-                    className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                    value={editConfirmedDate ? formatOffset(editConfirmedDate, -40) : formatOffset(editEstimatedDate, -40)}
+                    disabled
+                    className="cursor-not-allowed rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink-soft opacity-70"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
