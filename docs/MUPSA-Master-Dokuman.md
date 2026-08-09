@@ -136,6 +136,8 @@ Genel durum ile SKS durumu **ayrı** tutulur.
 
 - **Genel durum:** Fikir → Planlanıyor → Kesinleşti → (Ertelendi/İptal) → Gerçekleşti → Raporlandı → Arşivlendi
 - **SKS durumu:** Gerekli Değil / Başvuru Hazırlanıyor / Başvurusu Yapıldı / İnceleme/Beklemede / Revize İstendi / Onaylandı / Reddedildi
+- **Tasarım / Duyuru durumu:** Gerekli Değil / Brief Bekliyor / Tasarımda / Revize / Hazır / Paylaşıldı
+- **Rapor durumu:** Hayır / Hazırlanıyor / Evet. Bu alan rapor kaydının süreç durumudur; rapor metinleri ayrıca Raporlar bölümünde tutulur.
 
 Etkinlikteki **Kesinleşti** durumu, etkinliğin planının veya tarihinin netleştiğini ifade eder; SKS onayı anlamına gelmez. SKS onayı ayrı olarak SKS durumundaki **Onaylandı** seçeneğiyle takip edilir. Kullanıcı ekranında açıklık için “Planı/Tarihi Kesinleşti” şeklinde gösterilebilir.
 

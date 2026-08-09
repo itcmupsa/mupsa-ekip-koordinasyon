@@ -95,7 +95,7 @@ Henüz yapılmayan ana özellikler:
 
 ## Şu anki sıradaki küçük görev
 
-**SKS süreç yönetimi ekranı tamamlandı; sıradaki planlı iş bütçe alanlarıdır. Takvim ve görev bağımlılıkları bu adımdan sonra yeniden değerlendirilecektir.**
+**Etkinlik durum grupları tamamlandı; sıradaki işlem canlı test ve başkanın revizyonlarını beklemektir. Takvim ve görev bağımlılıkları bu testlerden sonra yeniden değerlendirilecektir.**
 
 Hedef:
 
@@ -150,6 +150,7 @@ Hedef:
 - SKS süreç ekranı `EventDetail.tsx` içine eklendi: durumlar veritabanından okunuyor; aktif dönem üyeleri Ana Sorumlu, Destekleyen ve Bilgilendirilen olarak atanabiliyor. Durum değişikliği yalnızca süper yönetici veya SKS ana sorumlusuna, ekip yönetimi ise süper yönetici, etkinlik sahibi veya SKS ana sorumlusuna açılıyor. Aynı kişi bir SKS etkinliğinde yalnızca tek sorumluluk türünde yer alabiliyor; aktif Genel Sekreter ana sorumlu için varsayılan olarak öneriliyor. Lint, build ve `git diff --check` başarılı; canlı SKS yetki ve kilitli dönem testi bekleniyor.
 - Bütçe altyapısı ve ekranı eklendi: `budget_statuses`, tahmini/onaylanan bütçe, gerçekleşen harcama ve bütçe notu alanları; Sayman varsayılan adaylığı; bütçe ekibi ve alan düzenleme akışı. Etkinlik sahibi bütçe alanlarına yazamaz; yalnızca bütçe süreç Ana Sorumlusu ve süper yönetici yazabilir. Remote Supabase migration’ı uygulandı, sütunlar/durumlar/policy/trigger doğrulandı. Lint, build ve `git diff --check` başarılı; canlı bütçe yetki, negatif tutar ve kilitli dönem testi bekleniyor.
 - Bütçe kartının altına Sponsorlar bölümü eklendi: sponsor adı, tutar, not, ekleme/düzenleme, pasifleştirme ve yeniden aktifleştirme. Aktif üyeler sponsorları okuyabilir; yalnızca bütçe Ana Sorumlusu ve Süper Yönetici değiştirebilir. `event_budget_sponsors` migration’ı remote Supabase’e uygulandı; tablo, RLS policy’leri ve audit/dönem kilidi trigger’ları doğrulandı. Lint, build ve `git diff --check` başarılı; canlı sponsor ve bütçe testleri bekleniyor.
+- Etkinlik durum grupları eklendi: Tasarım / Duyuru için `Gerekli Değil`, `Brief Bekliyor`, `Tasarımda`, `Revize`, `Hazır`, `Paylaşıldı`; Rapor durumu için `Hayır`, `Hazırlanıyor`, `Evet`. Alanlar etkinlik detayında okunuyor ve yetkili kullanıcılar tarafından güncellenebiliyor. `20260809060000_add_event_status_groups.sql` ve tasarım/duyuru yetkisini süreç sorumlusuna bağlayan `20260809061000_fix_event_design_status_permissions.sql` migration’ları uzak Supabase’e uygulandı. Tasarım/Basın-Yayın ana sorumlusu veya Süper Yönetici Tasarım / Duyuru durumunu; etkinlik sahibi veya Süper Yönetici Rapor durumunu değiştirebilir. Lint, build ve `git diff --check` başarılı; canlı durum ve dönem kilidi testi bekleniyor.
 - Görev bağımlılıkları için mevcut veritabanı altyapısı korunuyor ancak arayüz, ihtiyaç netleşene kadar ertelendi.
 
 Bu görev şunları **kapsamaz**:

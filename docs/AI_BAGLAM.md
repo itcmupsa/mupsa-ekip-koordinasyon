@@ -26,6 +26,8 @@ Uygulama zamanla şunları kapsayacaktır:
 - Süper Yönetici her şeyi görür, düzenler, siler, kullanıcı/yetki yönetir.
 - Etkinlik açan kişi o etkinliğin sahibi olur ve genel işleyişi yönetir.
 - SKS, bütçe, tasarım gibi ayrı süreçlerin kendi sorumluları olabilir. Etkinlik sahibi bu süreç alanlarına sınırsız biçimde müdahale edemez.
+- Etkinlikte Tasarım / Duyuru durumu `Gerekli Değil`, `Brief Bekliyor`, `Tasarımda`, `Revize`, `Hazır` veya `Paylaşıldı` olabilir; bu alanı Tasarım/Basın-Yayın süreç ana sorumlusu veya Süper Yönetici yönetir.
+- Etkinlik Rapor durumu `Hayır`, `Hazırlanıyor` veya `Evet` olabilir; etkinlik sahibi veya Süper Yönetici yönetir. Rapor metinleri ayrıca rapor kayıtlarında tutulur.
 - Eski dönemler saklanır ve salt okunur olur; yeni ekip geçmiş rapor ve notları okuyabilir, değiştiremez.
 - Kullanıcı girişi Supabase Auth üzerindeki sabit kurumsal veya kişisel e-posta hesabıyla yapılır. Koordinatörlükler için kullanılan kurumsal hesap aynı kalabilir; hesabın dönem içinde görünen adı `period_memberships.period_display_name` alanından gelir.
 - Giriş yöntemi e-posta + şifredir. E-posta yalnızca kullanıcı hesabı kimliği olarak kullanılır; giriş sırasında e-posta gönderilmez. Yalnızca yönetici tarafından oluşturulmuş hesaplar giriş yapabilir.

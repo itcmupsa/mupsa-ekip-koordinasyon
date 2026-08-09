@@ -10,6 +10,8 @@ interface EventBasicInfo {
   eventStatus: string | null
   sksStatus: string | null
   budgetStatus: string | null
+  designAnnouncementStatus: string
+  reportStatus: string
   estimatedBudget: number | null
   approvedBudget: number | null
   actualExpense: number | null
@@ -141,6 +143,16 @@ interface SksStatusOption {
 }
 
 interface BudgetStatusOption {
+  slug: string
+  label: string
+}
+
+interface EventDesignAnnouncementStatusOption {
+  slug: string
+  label: string
+}
+
+interface EventReportStatusOption {
   slug: string
   label: string
 }
@@ -1034,6 +1046,8 @@ export default function EventDetail() {
   const [editPlanningDate, setEditPlanningDate] = useState('')
   const [editEstimatedDate, setEditEstimatedDate] = useState('')
   const [editConfirmedDate, setEditConfirmedDate] = useState('')
+  const [editDesignAnnouncementStatus, setEditDesignAnnouncementStatus] = useState('not_required')
+  const [editReportStatus, setEditReportStatus] = useState('no')
   const [tasksLoadState, setTasksLoadState] = useState<TasksLoadState>('loading')
   const [tasks, setTasks] = useState<TaskItem[]>([])
   const [tasksError, setTasksError] = useState<string | null>(null)
@@ -1067,6 +1081,8 @@ export default function EventDetail() {
   const [processingActiveStatusTaskId, setProcessingActiveStatusTaskId] = useState<string | null>(null)
   const [availableSksStatuses, setAvailableSksStatuses] = useState<SksStatusOption[]>([])
   const [availableBudgetStatuses, setAvailableBudgetStatuses] = useState<BudgetStatusOption[]>([])
+  const [availableEventDesignAnnouncementStatuses, setAvailableEventDesignAnnouncementStatuses] = useState<EventDesignAnnouncementStatusOption[]>([])
+  const [availableEventReportStatuses, setAvailableEventReportStatuses] = useState<EventReportStatusOption[]>([])
   const [processingDependencyTaskId, setProcessingDependencyTaskId] = useState<string | null>(null)
   const [dependencyErrorMap, setDependencyErrorMap] = useState<Record<string, string>>({})
 
@@ -1086,6 +1102,9 @@ export default function EventDetail() {
   const [isUpdatingSksStatus, setIsUpdatingSksStatus] = useState(false)
   const [updateSksStatusError, setUpdateSksStatusError] = useState<string | null>(null)
   const [updateSksStatusSuccess, setUpdateSksStatusSuccess] = useState<string | null>(null)
+  const [isUpdatingDesignAnnouncementStatus, setIsUpdatingDesignAnnouncementStatus] = useState(false)
+  const [designAnnouncementStatusError, setDesignAnnouncementStatusError] = useState<string | null>(null)
+  const [designAnnouncementStatusSuccess, setDesignAnnouncementStatusSuccess] = useState<string | null>(null)
 
   // Budget State
   const [isBudgetPanelOpen, setIsBudgetPanelOpen] = useState(false)
@@ -1204,7 +1223,7 @@ export default function EventDetail() {
       const { data, error } = await supabase
         .from('events')
         .select(
-          'title, description, event_status, sks_status, budget_status, estimated_budget, approved_budget, actual_expense, budget_note, planning_date, preparation_start_date, estimated_date, confirmed_date, owner_id, venue, next_action, general_note',
+          'title, description, event_status, sks_status, budget_status, design_announcement_status, report_status, estimated_budget, approved_budget, actual_expense, budget_note, planning_date, preparation_start_date, estimated_date, confirmed_date, owner_id, venue, next_action, general_note',
         )
         .eq('id', eventId)
         .eq('period_id', periodId)
@@ -1229,6 +1248,8 @@ export default function EventDetail() {
         eventStatus,
         sksStatus: (data.sks_status as string | null) ?? null,
         budgetStatus: (data.budget_status as string | null) ?? null,
+        designAnnouncementStatus: (data.design_announcement_status as string | null) ?? 'not_required',
+        reportStatus: (data.report_status as string | null) ?? 'no',
         estimatedBudget: parseNullableNumber(data.estimated_budget),
         approvedBudget: parseNullableNumber(data.approved_budget),
         actualExpense: parseNullableNumber(data.actual_expense),
@@ -1337,16 +1358,26 @@ export default function EventDetail() {
     let isMounted = true
 
     async function loadReferenceData() {
-      const [{ data: taskData }, { data: sksData }, { data: budgetData }] = await Promise.all([
+      const [
+        { data: taskData },
+        { data: sksData },
+        { data: budgetData },
+        { data: designAnnouncementData },
+        { data: reportStatusData },
+      ] = await Promise.all([
         supabase.from('task_progress_statuses').select('slug, label').order('sort_order', { ascending: true }),
         supabase.from('sks_statuses').select('slug, label').order('sort_order', { ascending: true }),
-        supabase.from('budget_statuses').select('slug, label').order('sort_order', { ascending: true })
+        supabase.from('budget_statuses').select('slug, label').order('sort_order', { ascending: true }),
+        supabase.from('event_design_announcement_statuses').select('slug, label').order('sort_order', { ascending: true }),
+        supabase.from('event_report_statuses').select('slug, label').order('sort_order', { ascending: true }),
       ])
 
       if (!isMounted) return
       setAvailableTaskStatuses((taskData ?? []) as TaskProgressStatusOption[])
       setAvailableSksStatuses((sksData ?? []) as SksStatusOption[])
       setAvailableBudgetStatuses((budgetData ?? []) as BudgetStatusOption[])
+      setAvailableEventDesignAnnouncementStatuses((designAnnouncementData ?? []) as EventDesignAnnouncementStatusOption[])
+      setAvailableEventReportStatuses((reportStatusData ?? []) as EventReportStatusOption[])
     }
 
     void loadReferenceData()
@@ -2807,6 +2838,27 @@ export default function EventDetail() {
     setEvent((previous) => (previous ? { ...previous, sksStatus: newSlug } : previous))
   }
 
+  async function handleUpdateDesignAnnouncementStatus(newSlug: string) {
+    if (!profileId || !eventId) return
+    setIsUpdatingDesignAnnouncementStatus(true)
+    setDesignAnnouncementStatusError(null)
+    setDesignAnnouncementStatusSuccess(null)
+
+    const { error } = await supabase.from('events').update({ design_announcement_status: newSlug }).eq('id', eventId)
+    setIsUpdatingDesignAnnouncementStatus(false)
+    if (error) {
+      setDesignAnnouncementStatusError(error.message.includes('kilitli')
+        ? 'Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.'
+        : error.code === '42501' || error.message.includes('yetkiniz')
+          ? 'Tasarım / Duyuru durumunu değiştirme yetkiniz bulunmuyor.'
+          : 'Tasarım / Duyuru durumu güncellenirken bir hata oluştu.')
+      return
+    }
+
+    setDesignAnnouncementStatusSuccess('Tasarım / Duyuru durumu başarıyla güncellendi.')
+    setEvent((previous) => (previous ? { ...previous, designAnnouncementStatus: newSlug } : previous))
+  }
+
   async function handleAssignBudgetMember() {
     if (!profileId || !eventId || !budgetSelectedProfileId) {
       setAssignBudgetError('Lütfen bir üye seçin.')
@@ -3104,6 +3156,12 @@ export default function EventDetail() {
   const isSksOwner = sksOwner?.profileId === profileId
   const canChangeSksStatus = isSuperAdmin || isSksOwner
   const canManageSksTeam = isSuperAdmin || isOwner || isSksOwner
+  const isDesignOwner = processMembers.some(
+    (member) => (member.processType === 'design' || member.processType === 'press')
+      && member.profileId === profileId
+      && member.responsibilityType === 'owner',
+  )
+  const canChangeDesignAnnouncementStatus = isSuperAdmin || isDesignOwner
 
   const budgetMembers = processMembers.filter(m => m.processType === 'budget')
   const budgetOwner = budgetMembers.find((member) => member.responsibilityType === 'owner')
@@ -3257,6 +3315,8 @@ export default function EventDetail() {
     setEditPlanningDate(extractDateOnly(event.planningDate))
     setEditEstimatedDate(extractDateOnly(event.estimatedDate))
     setEditConfirmedDate(extractDateOnly(event.confirmedDate))
+    setEditDesignAnnouncementStatus(event.designAnnouncementStatus)
+    setEditReportStatus(event.reportStatus)
     setSaveError(null)
     setSuccessMessage(null)
     setIsEditing(true)
@@ -3271,6 +3331,8 @@ export default function EventDetail() {
       setEditPlanningDate(extractDateOnly(event.planningDate))
       setEditEstimatedDate(extractDateOnly(event.estimatedDate))
       setEditConfirmedDate(extractDateOnly(event.confirmedDate))
+      setEditDesignAnnouncementStatus(event.designAnnouncementStatus)
+      setEditReportStatus(event.reportStatus)
     }
   }
 
@@ -3298,11 +3360,13 @@ export default function EventDetail() {
         planning_date: nextPlanningDate,
         estimated_date: nextEstimatedDate,
         confirmed_date: nextConfirmedDate,
+        design_announcement_status: editDesignAnnouncementStatus,
+        report_status: editReportStatus,
       })
       .eq('id', eventId)
       .eq('period_id', periodId)
       .is('deleted_at', null)
-      .select('title, description, planning_date, preparation_start_date, estimated_date, confirmed_date')
+      .select('title, description, planning_date, preparation_start_date, estimated_date, confirmed_date, design_announcement_status, report_status')
       .maybeSingle()
 
     setIsSaving(false)
@@ -3326,6 +3390,8 @@ export default function EventDetail() {
             preparationStartDate: data.preparation_start_date as string | null,
             estimatedDate: (data.estimated_date as string | null) ?? nextEstimatedDate,
             confirmedDate: (data.confirmed_date as string | null) ?? nextConfirmedDate,
+            designAnnouncementStatus: (data.design_announcement_status as string | null) ?? editDesignAnnouncementStatus,
+            reportStatus: (data.report_status as string | null) ?? editReportStatus,
           }
         : current,
     )
@@ -3464,6 +3530,40 @@ export default function EventDetail() {
                     disabled={isSaving}
                     className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
                   />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="event-design-announcement-status" className="text-sm font-medium text-ink-soft">
+                    Tasarım / Duyuru
+                  </label>
+                  <select
+                    id="event-design-announcement-status"
+                    value={editDesignAnnouncementStatus}
+                    onChange={(e) => setEditDesignAnnouncementStatus(e.target.value)}
+                    disabled={isSaving || !canChangeDesignAnnouncementStatus || availableEventDesignAnnouncementStatuses.length === 0}
+                    className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink disabled:opacity-60"
+                  >
+                    {availableEventDesignAnnouncementStatuses.map((status) => (
+                      <option key={status.slug} value={status.slug}>{status.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="event-report-status" className="text-sm font-medium text-ink-soft">
+                    Rapor durumu
+                  </label>
+                  <select
+                    id="event-report-status"
+                    value={editReportStatus}
+                    onChange={(e) => setEditReportStatus(e.target.value)}
+                    disabled={isSaving || availableEventReportStatuses.length === 0}
+                    className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink disabled:opacity-60"
+                  >
+                    {availableEventReportStatuses.map((status) => (
+                      <option key={status.slug} value={status.slug}>{status.label}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               {saveError && (
@@ -4278,11 +4378,42 @@ export default function EventDetail() {
           <h2 className="text-sm font-semibold text-ink">Durum ve tarihler</h2>
           <div className="mt-3 divide-y divide-canvas-border">
             <DetailRow label="Durum" value={displayedStatus} />
+            <DetailRow
+              label="Tasarım / Duyuru"
+              value={availableEventDesignAnnouncementStatuses.find((status) => status.slug === event.designAnnouncementStatus)?.label ?? event.designAnnouncementStatus}
+            />
+            <DetailRow
+              label="Rapor durumu"
+              value={availableEventReportStatuses.find((status) => status.slug === event.reportStatus)?.label ?? event.reportStatus}
+            />
             <DetailRow label="Planlama tarihi" value={formatDate(event.planningDate)} />
             <DetailRow label="Hazırlık başlangıç tarihi" value={formatDate(event.preparationStartDate)} />
             <DetailRow label="Tahmini etkinlik tarihi" value={formatDate(event.estimatedDate)} />
             <DetailRow label="Kesinleşmiş tarih" value={formatDate(event.confirmedDate)} />
           </div>
+          {canChangeDesignAnnouncementStatus && (
+            <div className="mt-4 border-t border-canvas-border pt-4">
+              <label htmlFor="event-design-announcement-inline-status" className="text-sm font-medium text-ink-soft">
+                Tasarım / Duyuru durumunu güncelle
+              </label>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <select
+                  id="event-design-announcement-inline-status"
+                  value={event.designAnnouncementStatus}
+                  onChange={(e) => void handleUpdateDesignAnnouncementStatus(e.target.value)}
+                  disabled={isUpdatingDesignAnnouncementStatus || availableEventDesignAnnouncementStatuses.length === 0}
+                  className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink disabled:opacity-60"
+                >
+                  {availableEventDesignAnnouncementStatuses.map((status) => (
+                    <option key={status.slug} value={status.slug}>{status.label}</option>
+                  ))}
+                </select>
+                {isUpdatingDesignAnnouncementStatus && <span className="text-xs text-ink-soft">Kaydediliyor…</span>}
+              </div>
+              {designAnnouncementStatusError && <p className="mt-1 text-xs text-red-600">{designAnnouncementStatusError}</p>}
+              {designAnnouncementStatusSuccess && <p className="mt-1 text-xs text-green-600">{designAnnouncementStatusSuccess}</p>}
+            </div>
+          )}
         </div>
         <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
           <h2 className="text-sm font-semibold text-ink">Süreç bilgileri</h2>
