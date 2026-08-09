@@ -59,7 +59,7 @@ export function useMembershipStatus(session: Session | null): MembershipStatus {
         supabase.from('profiles').select('display_name').eq('id', userId).maybeSingle(),
         supabase
           .from('period_memberships')
-          .select('id, period_id, app_role, is_active, coordinator_roles(name), periods!inner(label, is_active)')
+          .select('id, period_id, period_display_name, app_role, is_active, coordinator_roles(name), periods!inner(label, is_active)')
           .eq('profile_id', userId)
           .eq('is_active', true)
           .eq('periods.is_active', true)
@@ -68,9 +68,12 @@ export function useMembershipStatus(session: Session | null): MembershipStatus {
       ])
       if (!isMounted) return
 
-      setDisplayName(profileResult.data?.display_name || fallbackName)
-
       const membership = membershipResult.data
+      setDisplayName(
+        (membership?.period_display_name as string | null) ||
+          profileResult.data?.display_name ||
+          fallbackName,
+      )
       const activePeriod = pickOne(
         membership?.periods as PeriodRelation | PeriodRelation[] | null | undefined,
       )

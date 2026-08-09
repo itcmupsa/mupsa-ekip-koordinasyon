@@ -9,13 +9,9 @@ interface StatusOption {
   label: string
 }
 
-interface ProfileRelation {
-  display_name: string
-}
-
 interface MembershipRow {
   profile_id: string
-  profiles: ProfileRelation | ProfileRelation[] | null
+  period_display_name: string
 }
 
 interface AwarenessRow {
@@ -74,11 +70,6 @@ interface AwarenessPost {
 }
 
 type FormMode = 'closed' | 'create' | 'edit'
-
-function getProfileRelation(value: ProfileRelation | ProfileRelation[] | null): ProfileRelation | null {
-  if (!value) return null
-  return Array.isArray(value) ? value[0] ?? null : value
-}
 
 function parseDateOnly(value: string | null): Date | null {
   if (!value) return null
@@ -186,7 +177,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
     async function loadData() {
       setLoadState('loading')
       const [membersResult, designResult, announcementResult, sharingResult, checkResult] = await Promise.all([
-        supabase.from('period_memberships').select('profile_id, profiles(display_name)').eq('period_id', periodId).eq('is_active', true),
+        supabase.from('period_memberships').select('profile_id, period_display_name').eq('period_id', periodId).eq('is_active', true),
         supabase.from('awareness_design_statuses').select('slug, label').eq('is_active', true).order('sort_order'),
         supabase.from('awareness_announcement_statuses').select('slug, label').eq('is_active', true).order('sort_order'),
         supabase.from('awareness_sharing_statuses').select('slug, label').eq('is_active', true).order('sort_order'),
@@ -202,7 +193,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
       const membershipRows = (membersResult.data ?? []) as unknown as MembershipRow[]
       setProfiles(membershipRows.map((member) => ({
         id: member.profile_id,
-        name: getProfileRelation(member.profiles)?.display_name ?? 'İsimsiz',
+        name: member.period_display_name || 'İsimsiz',
       })))
       setDesignStatuses((designResult.data ?? []) as unknown as StatusOption[])
       setAnnouncementStatuses((announcementResult.data ?? []) as unknown as StatusOption[])

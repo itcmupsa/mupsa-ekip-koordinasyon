@@ -1259,13 +1259,14 @@ export default function EventDetail() {
 
       if (ownerId) {
         const { data: ownerData } = await supabase
-          .from('profiles')
-          .select('display_name')
-          .eq('id', ownerId)
+          .from('period_memberships')
+          .select('period_display_name')
+          .eq('period_id', periodId)
+          .eq('profile_id', ownerId)
           .maybeSingle()
 
         if (!isMounted) return
-        setOwnerName((ownerData?.display_name as string | null) ?? null)
+        setOwnerName((ownerData?.period_display_name as string | null) ?? null)
       } else {
         setOwnerName(null)
       }
@@ -1278,7 +1279,7 @@ export default function EventDetail() {
   }, [hasActiveMembership, periodId, eventId, statusLoading])
 
   useEffect(() => {
-    if (statusLoading || !hasActiveMembership || !eventId) return
+    if (statusLoading || !hasActiveMembership || !eventId || !periodId) return
     let isMounted = true
 
     async function loadProcessMembers() {
@@ -1298,13 +1299,14 @@ export default function EventDetail() {
       const profileNameMap: Record<string, string> = {}
       if (profileIds.length > 0) {
         const { data: profileRows } = await supabase
-          .from('profiles')
-          .select('id, display_name')
-          .in('id', profileIds)
+          .from('period_memberships')
+          .select('profile_id, period_display_name')
+          .eq('period_id', periodId)
+          .in('profile_id', profileIds)
 
         if (!isMounted) return
         for (const profileRow of profileRows ?? []) {
-          profileNameMap[profileRow.id as string] = (profileRow.display_name as string | null) ?? 'İsimsiz üye'
+          profileNameMap[profileRow.profile_id as string] = (profileRow.period_display_name as string | null) ?? 'İsimsiz üye'
         }
       }
 
@@ -1322,7 +1324,7 @@ export default function EventDetail() {
     return () => {
       isMounted = false
     }
-  }, [hasActiveMembership, eventId, statusLoading, processMembersRefreshKey])
+  }, [hasActiveMembership, eventId, periodId, statusLoading, processMembersRefreshKey])
 
   useEffect(() => {
     if (!isEditingGeneralNote && event) {
@@ -1355,7 +1357,7 @@ export default function EventDetail() {
 
   useEffect(() => {
     if (statusLoading) return
-    if (!hasActiveMembership || !eventId) {
+    if (!hasActiveMembership || !eventId || !periodId) {
       setTasksLoadState('ready')
       setTasks([])
       return
@@ -1433,13 +1435,14 @@ export default function EventDetail() {
       const profileNameMap: Record<string, string> = {}
       if (profileIds.length > 0) {
         const { data: profileRows } = await supabase
-          .from('profiles')
-          .select('id, display_name')
-          .in('id', profileIds)
+          .from('period_memberships')
+          .select('profile_id, period_display_name')
+          .eq('period_id', periodId)
+          .in('profile_id', profileIds)
 
         if (!isMounted) return
         for (const profileRow of profileRows ?? []) {
-          profileNameMap[profileRow.id as string] = (profileRow.display_name as string | null) ?? 'İsimsiz üye'
+          profileNameMap[profileRow.profile_id as string] = (profileRow.period_display_name as string | null) ?? 'İsimsiz üye'
         }
       }
 
@@ -1493,10 +1496,10 @@ export default function EventDetail() {
     return () => {
       isMounted = false
     }
-  }, [hasActiveMembership, eventId, statusLoading, tasksRefreshKey, appRole, showInactiveTasks])
+  }, [hasActiveMembership, eventId, periodId, statusLoading, tasksRefreshKey, appRole, showInactiveTasks])
 
   useEffect(() => {
-    if (statusLoading || !hasActiveMembership || !eventId) return
+    if (statusLoading || !hasActiveMembership || !eventId || !periodId) return
     let isMounted = true
 
     async function loadDecisions() {
@@ -1521,10 +1524,14 @@ export default function EventDetail() {
       const creatorIds = Array.from(new Set((data ?? []).map((d) => d.created_by)))
       const profileMap: Record<string, string> = {}
       if (creatorIds.length > 0) {
-        const { data: profilesData } = await supabase.from('profiles').select('id, display_name').in('id', creatorIds)
+        const { data: profilesData } = await supabase
+          .from('period_memberships')
+          .select('profile_id, period_display_name')
+          .eq('period_id', periodId)
+          .in('profile_id', creatorIds)
         if (profilesData) {
           for (const p of profilesData) {
-            profileMap[p.id] = p.display_name
+            profileMap[p.profile_id] = p.period_display_name
           }
         }
       }
@@ -1548,10 +1555,10 @@ export default function EventDetail() {
     return () => {
       isMounted = false
     }
-  }, [hasActiveMembership, eventId, statusLoading, decisionsRefreshKey, showInactiveDecisions])
+  }, [hasActiveMembership, eventId, periodId, statusLoading, decisionsRefreshKey, showInactiveDecisions])
 
   useEffect(() => {
-    if (statusLoading || !hasActiveMembership || !eventId) return
+    if (statusLoading || !hasActiveMembership || !eventId || !periodId) return
     let isMounted = true
 
     async function loadReports() {
@@ -1576,10 +1583,14 @@ export default function EventDetail() {
       const creatorIds = Array.from(new Set((data ?? []).map((r) => r.created_by)))
       const profileMap: Record<string, string> = {}
       if (creatorIds.length > 0) {
-        const { data: profilesData } = await supabase.from('profiles').select('id, display_name').in('id', creatorIds)
+        const { data: profilesData } = await supabase
+          .from('period_memberships')
+          .select('profile_id, period_display_name')
+          .eq('period_id', periodId)
+          .in('profile_id', creatorIds)
         if (profilesData) {
           for (const p of profilesData) {
-            profileMap[p.id] = p.display_name
+            profileMap[p.profile_id] = p.period_display_name
           }
         }
       }
@@ -1603,10 +1614,10 @@ export default function EventDetail() {
     return () => {
       isMounted = false
     }
-  }, [hasActiveMembership, eventId, statusLoading, reportsRefreshKey, showInactiveReports])
+  }, [hasActiveMembership, eventId, periodId, statusLoading, reportsRefreshKey, showInactiveReports])
 
   useEffect(() => {
-    if (statusLoading || !hasActiveMembership || !eventId) return
+    if (statusLoading || !hasActiveMembership || !eventId || !periodId) return
     let isMounted = true
 
     async function loadLinks() {
@@ -1631,10 +1642,14 @@ export default function EventDetail() {
       const creatorIds = Array.from(new Set((data ?? []).map((l) => l.created_by)))
       const profileMap: Record<string, string> = {}
       if (creatorIds.length > 0) {
-        const { data: profilesData } = await supabase.from('profiles').select('id, display_name').in('id', creatorIds)
+        const { data: profilesData } = await supabase
+          .from('period_memberships')
+          .select('profile_id, period_display_name')
+          .eq('period_id', periodId)
+          .in('profile_id', creatorIds)
         if (profilesData) {
           for (const p of profilesData) {
-            profileMap[p.id] = p.display_name
+            profileMap[p.profile_id] = p.period_display_name
           }
         }
       }
@@ -1658,10 +1673,10 @@ export default function EventDetail() {
     return () => {
       isMounted = false
     }
-  }, [hasActiveMembership, eventId, statusLoading, linksRefreshKey, showInactiveLinks])
+  }, [hasActiveMembership, eventId, periodId, statusLoading, linksRefreshKey, showInactiveLinks])
 
   useEffect(() => {
-    if (statusLoading || !hasActiveMembership || !eventId) return
+    if (statusLoading || !hasActiveMembership || !eventId || !periodId) return
     let isMounted = true
 
     async function loadFiles() {
@@ -1686,10 +1701,14 @@ export default function EventDetail() {
       const uploaderIds = Array.from(new Set((data ?? []).map((f) => f.uploaded_by)))
       const profileMap: Record<string, string> = {}
       if (uploaderIds.length > 0) {
-        const { data: profilesData } = await supabase.from('profiles').select('id, display_name').in('id', uploaderIds)
+        const { data: profilesData } = await supabase
+          .from('period_memberships')
+          .select('profile_id, period_display_name')
+          .eq('period_id', periodId)
+          .in('profile_id', uploaderIds)
         if (profilesData) {
           for (const p of profilesData) {
-            profileMap[p.id] = p.display_name
+            profileMap[p.profile_id] = p.period_display_name
           }
         }
       }
@@ -1714,10 +1733,10 @@ export default function EventDetail() {
     return () => {
       isMounted = false
     }
-  }, [hasActiveMembership, eventId, statusLoading, filesRefreshKey, showInactiveFiles])
+  }, [hasActiveMembership, eventId, periodId, statusLoading, filesRefreshKey, showInactiveFiles])
 
   useEffect(() => {
-    if (statusLoading || !hasActiveMembership || !eventId) return
+    if (statusLoading || !hasActiveMembership || !eventId || !periodId) return
     const targetEventId = eventId
     let isMounted = true
 
@@ -1743,10 +1762,14 @@ export default function EventDetail() {
       const creatorIds = Array.from(new Set((data ?? []).map((s) => s.created_by)))
       const profileMap: Record<string, string> = {}
       if (creatorIds.length > 0) {
-        const { data: profilesData } = await supabase.from('profiles').select('id, display_name').in('id', creatorIds)
+        const { data: profilesData } = await supabase
+          .from('period_memberships')
+          .select('profile_id, period_display_name')
+          .eq('period_id', periodId)
+          .in('profile_id', creatorIds)
         if (profilesData) {
           for (const p of profilesData) {
-            profileMap[p.id] = p.display_name
+            profileMap[p.profile_id] = p.period_display_name
           }
         }
       }
@@ -1771,7 +1794,7 @@ export default function EventDetail() {
     return () => {
       isMounted = false
     }
-  }, [hasActiveMembership, eventId, statusLoading, sponsorsRefreshKey, showInactiveSponsors])
+  }, [hasActiveMembership, eventId, periodId, statusLoading, sponsorsRefreshKey, showInactiveSponsors])
 
   function openTaskForm() {
     setNewTaskTitle('')
@@ -3100,7 +3123,7 @@ export default function EventDetail() {
       setPeriodMembersLoadState('loading')
       const { data: membershipRows, error: membershipError } = await supabase
         .from('period_memberships')
-        .select('profile_id, coordinator_roles(slug)')
+        .select('profile_id, period_display_name, coordinator_roles(slug)')
         .eq('period_id', periodId)
         .eq('is_active', true)
 
@@ -3118,18 +3141,6 @@ export default function EventDetail() {
         return
       }
 
-      const { data: profileRows, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, display_name')
-        .in('id', profileIds)
-
-      if (!isMounted) return
-      if (profilesError) {
-        setPeriodMembers([])
-        setPeriodMembersLoadState('error')
-        return
-      }
-
       const membershipRoleByProfileId = new Map<string, string | null>()
       for (const membership of membershipRows ?? []) {
         const relation = membership.coordinator_roles as { slug?: string } | { slug?: string }[] | null | undefined
@@ -3138,10 +3149,10 @@ export default function EventDetail() {
       }
 
       setPeriodMembers(
-        (profileRows ?? []).map((row) => ({
-          profileId: row.id as string,
-          displayName: (row.display_name as string | null) ?? 'İsimsiz üye',
-          coordinatorRoleSlug: membershipRoleByProfileId.get(row.id as string) ?? null,
+        (membershipRows ?? []).map((row) => ({
+          profileId: row.profile_id as string,
+          displayName: (row.period_display_name as string | null) ?? 'İsimsiz üye',
+          coordinatorRoleSlug: membershipRoleByProfileId.get(row.profile_id as string) ?? null,
         })),
       )
       setPeriodMembersLoadState('ready')

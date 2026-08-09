@@ -93,6 +93,7 @@ serve(async (req: Request) => {
     const { error: insertError } = await adminClient.from('period_memberships').insert({
       period_id: callerMembership.period_id,
       profile_id: newUserId,
+      period_display_name: fullName,
       coordinator_role_id: coordinatorRoleId,
       app_role: appRole,
       is_active: true,

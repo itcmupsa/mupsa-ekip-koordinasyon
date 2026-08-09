@@ -2,7 +2,7 @@
 
 Bu dosya, proje bağlamının güncel durum kaydıdır. Bir görev tamamlandığında yalnızca bu dosyadaki ilgili bölümleri güncelle; `AI_BAGLAM.md` dosyasını yalnızca kalıcı karar değiştiğinde değiştir.
 
-**Son güncelleme:** 8 Ağustos 2026
+**Son güncelleme:** 9 Ağustos 2026
 
 ## Canlı sistem
 
@@ -175,6 +175,21 @@ Bu görev şunları **kapsamaz**:
 - Etkinlik raporları, bağlantıları ve dosya ekranları `EventDetail.tsx` içine eklendi. Aktif kullanıcıların okuma, yetkili kullanıcıların ekleme/düzenleme/pasifleştirme akışları canlıda test edildi; dosya yükleme, indirme, 5 MB sınırı ve soft-delete kontrolleri başarılı.
 - Safari favicon sorunu için `public/favicon.png` ve iOS/PWA PNG ikonları eklendi; giriş arka planlarının responsive görselleri korunuyor. Lint, build ve `git diff --check` başarılı.
 - Farkındalık Paylaşımları için `awareness_posts` altyapısı, 1 Temmuz dönem düzeltmesi, etkinliklerde 40 gün ve farkındalıklarda 14 gün otomatik hazırlık başlangıcı, RLS ve `AwarenessPosts.tsx` ekranı hazırlandı. `20260809040000_add_awareness_and_period_fixes.sql` migration’ı uzak Supabase’e uygulandı; canlı yetki/tarih/pasifleştirme testleri bekliyor. `npm run lint`, `npm run build` ve `git diff --check` başarılı.
+
+### Dönem bazlı görünen kullanıcı adı — tamamlandı
+
+Sabit kurumsal/kişisel Auth hesabı korunarak dönem bazlı görünen ad modeli uygulandı:
+
+- Sabit kurumsal/kişisel Auth e-posta hesabı korunacak.
+- Aynı profil farklı dönemlerde farklı görünen ad taşıyabilecek.
+- Dönem görünen adı `period_memberships.period_display_name` alanında tutuluyor.
+- Mevcut üyelikler `profiles.display_name` ile geriye dönük dolduruldu.
+- Kullanıcı, profil veya Auth hesabı silinmiyor; dönem üyelikleri pasifleştiriliyor.
+- Dönem görünen adını yalnızca Süper Yönetici değiştirebiliyor; kilitli dönem değiştirilemiyor.
+- `useMembershipStatus`, AdminMembers, EventsList, EventDetail ve AwarenessPosts dönem üyeliği adını kullanıyor.
+- `create-user` Edge Function yeni üyelikte dönem görünen adını dolduracak şekilde deploy edildi.
+- `20260809050000_add_period_display_names.sql` migration’ı uzak Supabase’e uygulandı.
+- `npm run lint`, `npm run build` ve `git diff --check` başarılı geçti.
 
 ## Kullanım talimatı — yeni yapay zekâ sohbeti
 

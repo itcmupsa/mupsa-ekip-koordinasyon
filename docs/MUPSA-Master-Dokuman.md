@@ -25,7 +25,7 @@ Excel dosyası (`MUPSA_2026-2027_ETKINLIK_VE_GOREV_TAKIP.xlsx`) veri kaynağı o
 | Katman | Seçim |
 |---|---|
 | Barındırma | Cloudflare Pages (ücretsiz) |
-| Giriş / kimlik / rol / yetki | **Supabase Auth — tek ve ana giriş sistemi.** Kişisel e-posta ile hesap, kimlik, rol ataması ve kayıt bazlı yetkilendirme burada yönetilir. |
+| Giriş / kimlik / rol / yetki | **Supabase Auth — tek ve ana giriş sistemi.** Sabit kurumsal veya kişisel e-posta hesabı kimlik olarak kullanılır; rol ataması ve kayıt bazlı yetkilendirme dönem üyeliği üzerinden yönetilir. |
 | Veritabanı + Dosya | Supabase (ücretsiz katman: 500MB DB, 1GB depolama) |
 | E-posta | Kulübün SMTP'si (Roundcube arkası) varsa o, yoksa Resend (ücretsiz, ayda 3000 mail) |
 | Push bildirim | PWA Web Push — **baştan dahil**, ikinci aşamaya ertelenmiyor |
@@ -65,20 +65,20 @@ Excel dosyası (`MUPSA_2026-2027_ETKINLIK_VE_GOREV_TAKIP.xlsx`) veri kaynağı o
 
 ## 5. Kullanıcı Hesap Modeli — KARARLAŞTIRILDI
 
-**Kişisel e-posta ile hesap.** Ortak kulüp e-postası normal kullanıcı hesabı olarak kullanılmayacak (yalnızca bildirim gönderici adresi / kurtarma adresi olabilir).
+**Sabit Auth hesabı + dönem bazlı görünen ad.** Koordinatörlüklerin kullandığı kurumsal e-posta hesabı dönemler arasında aynı kalabilir. Kişisel e-posta hesapları da aynı modelle kullanılabilir. E-posta, hesabın sabit kimliğidir; dönem içindeki ekranda görünen ad `period_memberships.period_display_name` alanından okunur.
 
-**Giriş yöntemi:** Supabase Auth magic link (tek kullanımlık e-posta bağlantısı). Kullanıcı parolası oluşturmaz. Giriş bağlantısı yalnızca Başkan veya IT tarafından önceden davet edilmiş hesaba gönderilir; uygulama ekranı yeni hesap oluşturamaz.
+**Giriş yöntemi:** Supabase Auth e-posta + şifre. Yalnızca yönetici tarafından oluşturulmuş veya davet edilmiş hesaplar giriş yapabilir; uygulama ekranı herkese açık hesap oluşturma sunmaz.
 
-Gerekçe: ortak hesapta "bu değişikliği kim yaptı" belirsizleşir, şifre devri güvenlik riski oluşturur, bildirim kişiye değil hesaba gider. Kişisel hesapla değişiklik geçmişinde kişi adı görünür, görev gerçekten kişiye atanır.
+Gerekçe: kurumsal hesapların her yıl yeniden oluşturulması gerekmezken, geçmiş dönemlerde işlemi yapan kişinin o dönemdeki görünen adı korunur. Aynı hesabın aynı dönem içinde hangi gerçek kişi tarafından kullanıldığı ayrıca kanıtlanamaz; bu, kurumsal hesap kullanımının kabul edilmiş sınırlamasıdır. Kritik işlemler audit kayıtlarında hesap kimliği, dönem ve zaman bilgisiyle tutulur.
 
 Süreç:
-1. Başkan veya IT yeni kullanıcıyı davet eder
-2. Kullanıcı kişisel e-postasıyla hesabını aktive eder
-3. Koordinatörlük ve dönem atanır, sistem rolü atanır
-4. Dönem değişiminde: eski kullanıcı **pasifleştirilir** (silinmez), yeni kullanıcı davet edilir
-5. Eski dönem kayıtları korunur, değiştirilemez; yeni ekip okuyabilir
+1. Başkan veya IT sabit Auth hesabını oluşturur ya da mevcut hesabı aktif döneme ekler.
+2. Üyelik oluşturulurken o dönem için görünen ad girilir.
+3. Aynı profil yeni dönemde tekrar kullanılacaksa yeni dönem için yeni `period_memberships` kaydı açılır ve yeni görünen ad yazılır.
+4. Eski dönem üyeliği korunur ve dönem kapanınca pasifleştirilir; eski kayıtlar eski görünen adla okunur.
+5. Kullanıcı/profil/Auth hesabı silinmez; üyelik yaşam döngüsü pasifleştirme ile yönetilir.
 
-**Maliyeti:** yılda bir kez Başkan/IT'nin birkaç dakikalık kullanıcı devretme işlemi — otomatik değil ama düşük yük.
+Bu planın uygulanması için `period_memberships.period_display_name` alanı, dönem bazlı adın yalnızca Süper Yönetici tarafından düzenlenmesi ve kişi adı sorgularının kayıt dönemine göre yapılması gerekir.
 
 ## 6. Yetkilendirme Modeli
 

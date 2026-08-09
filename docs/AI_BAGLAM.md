@@ -27,7 +27,7 @@ Uygulama zamanla şunları kapsayacaktır:
 - Etkinlik açan kişi o etkinliğin sahibi olur ve genel işleyişi yönetir.
 - SKS, bütçe, tasarım gibi ayrı süreçlerin kendi sorumluları olabilir. Etkinlik sahibi bu süreç alanlarına sınırsız biçimde müdahale edemez.
 - Eski dönemler saklanır ve salt okunur olur; yeni ekip geçmiş rapor ve notları okuyabilir, değiştiremez.
-- Kullanıcı girişi kişisel e-posta ile yapılır. Ortak kulüp e-postası kullanıcı hesabı olarak kullanılmaz.
+- Kullanıcı girişi Supabase Auth üzerindeki sabit kurumsal veya kişisel e-posta hesabıyla yapılır. Koordinatörlükler için kullanılan kurumsal hesap aynı kalabilir; hesabın dönem içinde görünen adı `period_memberships.period_display_name` alanından gelir.
 - Giriş yöntemi e-posta + şifredir. E-posta yalnızca kullanıcı hesabı kimliği olarak kullanılır; giriş sırasında e-posta gönderilmez. Yalnızca yönetici tarafından oluşturulmuş hesaplar giriş yapabilir.
 - Dosya yükleme hedef limiti dosya başına 5 MB'dir. Bu ekran henüz yapılmamıştır.
 
@@ -84,10 +84,10 @@ Cloudflare Pages istemci tarafı route'lar için otomatik SPA geri dönüşünü
 
 Önemli tablolar:
 
-- `profiles`: `id`, `display_name`, `is_active`
+- `profiles`: `id`, `display_name`, `is_active` — sabit Auth/profil kimliği ve geriye dönük fallback bilgisi
 - `periods`: dönem bilgisi ve kilit durumu
 - `coordinator_roles`: koordinatörlük tanımları
-- `period_memberships`: bir kullanıcının bir dönemdeki koordinatörlüğü, uygulama rolü ve aktifliği
+- `period_memberships`: bir kullanıcının bir dönemdeki koordinatörlüğü, dönem bazlı görünen adı (`period_display_name`), uygulama rolü ve aktifliği
 - `events`, `event_members`, `event_process_members`
 - `tasks`, `task_assignees`, `task_dependencies`
 - `notifications`, `push_subscriptions`, `audit_logs`
@@ -106,6 +106,9 @@ RLS önemlidir:
 - Sıradan kullanıcı kendi kendini Süper Yönetici yapamaz.
 - İlk Süper Yönetici ataması uygulama arayüzüyle değil, kontrollü bir yönetici/SQL işlemiyle yapılır.
 - Süper Yönetici üyelik ekranında mevcut davetli kullanıcı aktif döneme eklenebilir; mevcut üyelerin koordinatörlüğü, uygulama rolü ve aktifliği de güncellenebilir. Silme yerine pasifleştirme kullanılır.
+- Aynı profil farklı dönemlerde tekrar kullanılabilir; her dönem için ayrı `period_memberships` kaydı ve ayrı `period_display_name` tutulur.
+- Eski dönem kayıtlarında eski dönem üyeliğinin görünen adı kullanılmalı; `profiles.display_name` tarihsel kayıtların tek kaynağı olarak kullanılmamalıdır.
+- Dönem görünen adını yalnızca Süper Yönetici değiştirir. Kilitli dönem üyelikleri değiştirilemez. Auth e-posta adresi bu işlem sırasında değiştirilmez.
 
 ## 7. Çalışma ve teslim kuralları
 

@@ -61,6 +61,7 @@ export default function AdminMembers({ session }: { session: Session }) {
   const [invitableProfiles, setInvitableProfiles] = useState<InvitableProfile[]>([])
   const [coordinatorRoleOptions, setCoordinatorRoleOptions] = useState<CoordinatorRoleOption[]>([])
   const [selectedProfileId, setSelectedProfileId] = useState('')
+  const [selectedPeriodDisplayName, setSelectedPeriodDisplayName] = useState('')
   const [selectedCoordinatorRoleId, setSelectedCoordinatorRoleId] = useState('')
   const [selectedAppRole, setSelectedAppRole] = useState<AppRole | ''>('')
   const [formError, setFormError] = useState<string | null>(null)
@@ -83,6 +84,7 @@ export default function AdminMembers({ session }: { session: Session }) {
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null)
   const [editPanelState, setEditPanelState] = useState<EditPanelState>('idle')
   const [editCoordinatorRoleId, setEditCoordinatorRoleId] = useState('')
+  const [editPeriodDisplayName, setEditPeriodDisplayName] = useState('')
   const [editAppRole, setEditAppRole] = useState<AppRole | ''>('')
   const [editIsActive, setEditIsActive] = useState(true)
   const [editError, setEditError] = useState<string | null>(null)
@@ -97,7 +99,7 @@ export default function AdminMembers({ session }: { session: Session }) {
     setLoadState('loading')
     const { data, error } = await supabase
       .from('period_memberships')
-      .select('id, profile_id, coordinator_role_id, app_role, is_active, profiles!inner(display_name), coordinator_roles(name)')
+      .select('id, profile_id, period_display_name, coordinator_role_id, app_role, is_active, profiles!inner(display_name), coordinator_roles(name)')
       .eq('period_id', periodId)
 
     if (error) {
@@ -115,7 +117,7 @@ export default function AdminMembers({ session }: { session: Session }) {
       return {
         id: row.id as string,
         profileId: row.profile_id as string,
-        displayName: profile?.display_name ?? 'İsimsiz üye',
+        displayName: (row.period_display_name as string | null) ?? profile?.display_name ?? 'İsimsiz üye',
         coordinatorRoleId: (row.coordinator_role_id as string | null) ?? null,
         coordinatorRoleName: coordinatorRole?.name ?? null,
         appRole: (row.app_role as AppRole | null) ?? null,
@@ -147,6 +149,7 @@ export default function AdminMembers({ session }: { session: Session }) {
 
   const resetAddForm = useCallback(() => {
     setSelectedProfileId('')
+    setSelectedPeriodDisplayName('')
     setSelectedCoordinatorRoleId('')
     setSelectedAppRole('')
     setFormError(null)
@@ -238,7 +241,11 @@ export default function AdminMembers({ session }: { session: Session }) {
   async function handleAddMember() {
     setFormError(null)
     if (!periodId || !selectedProfileId || !selectedCoordinatorRoleId || !selectedAppRole) {
-      setFormError('Kullanıcı, koordinatörlük ve uygulama rolü seçilmelidir.')
+      setFormError('Kullanıcı, dönem görünen adı, koordinatörlük ve uygulama rolü seçilmelidir.')
+      return
+    }
+    if (!selectedPeriodDisplayName.trim()) {
+      setFormError('Dönem görünen adı boş olamaz.')
       return
     }
 
@@ -246,6 +253,7 @@ export default function AdminMembers({ session }: { session: Session }) {
     const { error } = await supabase.from('period_memberships').insert({
       period_id: periodId,
       profile_id: selectedProfileId,
+      period_display_name: selectedPeriodDisplayName.trim(),
       coordinator_role_id: selectedCoordinatorRoleId,
       app_role: selectedAppRole,
       is_active: true,
@@ -359,6 +367,7 @@ export default function AdminMembers({ session }: { session: Session }) {
     setIsAddOpen(false)
     setIsCreateUserOpen(false)
     setEditingMemberId(member.id)
+    setEditPeriodDisplayName(member.displayName)
     setEditCoordinatorRoleId(member.coordinatorRoleId ?? '')
     setEditAppRole(member.appRole ?? '')
     setEditIsActive(member.isActive)
@@ -377,8 +386,8 @@ export default function AdminMembers({ session }: { session: Session }) {
 
   async function handleSaveEdit(member: MemberRow) {
     setEditError(null)
-    if (!editCoordinatorRoleId || !editAppRole) {
-      setEditError('Koordinatörlük ve uygulama rolü seçilmelidir.')
+    if (!editPeriodDisplayName.trim() || !editCoordinatorRoleId || !editAppRole) {
+      setEditError('Dönem görünen adı, koordinatörlük ve uygulama rolü seçilmelidir.')
       return
     }
 
@@ -392,6 +401,7 @@ export default function AdminMembers({ session }: { session: Session }) {
     const { error } = await supabase
       .from('period_memberships')
       .update({
+        period_display_name: editPeriodDisplayName.trim(),
         coordinator_role_id: editCoordinatorRoleId,
         app_role: editAppRole,
         is_active: editIsActive,
@@ -500,7 +510,12 @@ export default function AdminMembers({ session }: { session: Session }) {
                       <span className="mb-1 block font-medium text-ink">Kullanıcı</span>
                       <select
                         value={selectedProfileId}
-                        onChange={(event) => setSelectedProfileId(event.target.value)}
+                        onChange={(event) => {
+                          const nextProfileId = event.target.value
+                          setSelectedProfileId(nextProfileId)
+                          const selectedProfile = invitableProfiles.find((profile) => profile.id === nextProfileId)
+                          setSelectedPeriodDisplayName(selectedProfile?.displayName ?? '')
+                        }}
                         className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
                       >
                         <option value="">Seç…</option>
@@ -510,6 +525,17 @@ export default function AdminMembers({ session }: { session: Session }) {
                           </option>
                         ))}
                       </select>
+                    </label>
+
+                    <label className="block text-sm">
+                      <span className="mb-1 block font-medium text-ink">Dönem görünen adı</span>
+                      <input
+                        type="text"
+                        value={selectedPeriodDisplayName}
+                        onChange={(event) => setSelectedPeriodDisplayName(event.target.value)}
+                        placeholder="Örn: Numan Öndeş"
+                        className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                      />
                     </label>
 
                     <label className="block text-sm">
@@ -572,7 +598,7 @@ export default function AdminMembers({ session }: { session: Session }) {
             </div>
 
             <p className="mt-2 text-xs text-ink-soft">
-              Bu ekran şu anda yalnızca formu hazırlar; hesap oluşturma bağlantısı sonraki güvenli adımda eklenecek.
+              E-posta hesabı sabit kimliktir; aşağıdaki ad, aktif dönemde görünen addır.
             </p>
 
             {createUserState === 'loading' && (
@@ -592,7 +618,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                 ) : (
                   <>
                     <label className="block text-sm">
-                      <span className="mb-1 block font-medium text-ink">Ad soyad</span>
+                      <span className="mb-1 block font-medium text-ink">Dönem görünen adı</span>
                       <input
                         type="text"
                         value={newUserName}
@@ -772,6 +798,17 @@ export default function AdminMembers({ session }: { session: Session }) {
                             </p>
                           ) : (
                             <>
+                              <label className="block text-sm">
+                                <span className="mb-1 block font-medium text-ink">Dönem görünen adı</span>
+                                <input
+                                  type="text"
+                                  value={editPeriodDisplayName}
+                                  onChange={(event) => setEditPeriodDisplayName(event.target.value)}
+                                  placeholder="Örn: Numan Öndeş"
+                                  className="w-full rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                                />
+                              </label>
+
                               <label className="block text-sm">
                                 <span className="mb-1 block font-medium text-ink">Koordinatörlük</span>
                                 <select

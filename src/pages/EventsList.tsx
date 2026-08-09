@@ -15,8 +15,8 @@ interface EventRow {
 }
 
 interface ProfileRow {
-  id: string
-  display_name: string
+  profile_id: string
+  period_display_name: string
 }
 
 interface StatusRow {
@@ -86,7 +86,11 @@ export default function EventsList({ session }: { session: Session }) {
       const statusSlugs = [...new Set(eventRows.map((event) => event.event_status as string))]
       const [profilesResult, statusesResult] = await Promise.all([
         ownerIds.length > 0
-          ? supabase.from('profiles').select('id, display_name').in('id', ownerIds)
+          ? supabase
+              .from('period_memberships')
+              .select('profile_id, period_display_name')
+              .eq('period_id', periodId)
+              .in('profile_id', ownerIds)
           : Promise.resolve({ data: [], error: null }),
         statusSlugs.length > 0
           ? supabase.from('event_statuses').select('slug, label').in('slug', statusSlugs)
@@ -100,7 +104,7 @@ export default function EventsList({ session }: { session: Session }) {
       }
 
       const profiles = new Map(
-        ((profilesResult.data ?? []) as ProfileRow[]).map((profile) => [profile.id, profile.display_name]),
+        ((profilesResult.data ?? []) as ProfileRow[]).map((profile) => [profile.profile_id, profile.period_display_name]),
       )
       const statuses = new Map(
         ((statusesResult.data ?? []) as StatusRow[]).map((status) => [status.slug, status.label]),
