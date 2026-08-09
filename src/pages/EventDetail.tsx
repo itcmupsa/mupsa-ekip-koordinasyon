@@ -110,6 +110,18 @@ interface EventProcessMemberInfo {
   processType: string
 }
 
+interface EventBudgetSponsor {
+  id: string
+  eventId: string
+  sponsorName: string
+  amount: number
+  note: string | null
+  createdBy: string
+  creatorName: string | null
+  createdAt: string
+  deletedAt: string | null
+}
+
 type TasksLoadState = 'loading' | 'ready' | 'error'
 
 interface PeriodMemberOption {
@@ -1085,6 +1097,22 @@ export default function EventDetail() {
   const [budgetSaveError, setBudgetSaveError] = useState<string | null>(null)
   const [budgetSaveSuccess, setBudgetSaveSuccess] = useState<string | null>(null)
 
+  // Sponsors State
+  const [sponsorsLoadState, setSponsorsLoadState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const [sponsors, setSponsors] = useState<EventBudgetSponsor[]>([])
+  const [sponsorsRefreshKey, setSponsorsRefreshKey] = useState(0)
+  const [showInactiveSponsors, setShowInactiveSponsors] = useState(false)
+  const [isSponsorFormOpen, setIsSponsorFormOpen] = useState(false)
+  const [sponsorFormMode, setSponsorFormMode] = useState<'create' | 'edit'>('create')
+  const [editingSponsorId, setEditingSponsorId] = useState<string | null>(null)
+  const [sponsorName, setSponsorName] = useState('')
+  const [sponsorAmount, setSponsorAmount] = useState<string>('')
+  const [sponsorNote, setSponsorNote] = useState('')
+  const [isSavingSponsor, setIsSavingSponsor] = useState(false)
+  const [sponsorFormError, setSponsorFormError] = useState<string | null>(null)
+  const [sponsorSuccessMessage, setSponsorSuccessMessage] = useState<string | null>(null)
+  const [deactivatingSponsorId, setDeactivatingSponsorId] = useState<string | null>(null)
+
   // Decisions State
   const [decisionsLoadState, setDecisionsLoadState] = useState<DecisionsLoadState>('idle')
   const [decisions, setDecisions] = useState<EventDecision[]>([])
@@ -1678,6 +1706,63 @@ export default function EventDetail() {
       isMounted = false
     }
   }, [hasActiveMembership, eventId, statusLoading, filesRefreshKey, showInactiveFiles])
+
+  useEffect(() => {
+    if (statusLoading || !hasActiveMembership || !eventId) return
+    const targetEventId = eventId
+    let isMounted = true
+
+    async function loadSponsors() {
+      setSponsorsLoadState('loading')
+      let query = supabase
+        .from('event_budget_sponsors')
+        .select('id, sponsor_name, amount, note, created_by, created_at, deleted_at')
+        .eq('event_id', targetEventId)
+        .order('created_at', { ascending: false })
+
+      if (!showInactiveSponsors) {
+        query = query.is('deleted_at', null)
+      }
+      const { data, error } = await query
+
+      if (!isMounted) return
+      if (error) {
+        setSponsorsLoadState('error')
+        return
+      }
+
+      const creatorIds = Array.from(new Set((data ?? []).map((s) => s.created_by)))
+      const profileMap: Record<string, string> = {}
+      if (creatorIds.length > 0) {
+        const { data: profilesData } = await supabase.from('profiles').select('id, display_name').in('id', creatorIds)
+        if (profilesData) {
+          for (const p of profilesData) {
+            profileMap[p.id] = p.display_name
+          }
+        }
+      }
+
+      setSponsors(
+        (data ?? []).map((row) => ({
+          id: row.id as string,
+          eventId: targetEventId,
+          sponsorName: row.sponsor_name as string,
+          amount: parseNullableNumber(row.amount) ?? 0,
+          note: (row.note as string | null) ?? null,
+          createdBy: row.created_by as string,
+          creatorName: profileMap[row.created_by as string] || 'Bilinmeyen Kullanıcı',
+          createdAt: row.created_at as string,
+          deletedAt: (row.deleted_at as string | null) ?? null,
+        }))
+      )
+      setSponsorsLoadState('ready')
+    }
+
+    void loadSponsors()
+    return () => {
+      isMounted = false
+    }
+  }, [hasActiveMembership, eventId, statusLoading, sponsorsRefreshKey, showInactiveSponsors])
 
   function openTaskForm() {
     setNewTaskTitle('')
@@ -2840,6 +2925,144 @@ export default function EventDetail() {
     setIsEditingBudget(true)
   }
 
+  function openCreateSponsorForm() {
+    setSponsorFormMode('create')
+    setEditingSponsorId(null)
+    setSponsorName('')
+    setSponsorAmount('')
+    setSponsorNote('')
+    setSponsorFormError(null)
+    setSponsorSuccessMessage(null)
+    setIsSponsorFormOpen(true)
+  }
+
+  function openEditSponsorForm(sponsor: EventBudgetSponsor) {
+    setSponsorFormMode('edit')
+    setEditingSponsorId(sponsor.id)
+    setSponsorName(sponsor.sponsorName)
+    setSponsorAmount(String(sponsor.amount))
+    setSponsorNote(sponsor.note ?? '')
+    setSponsorFormError(null)
+    setSponsorSuccessMessage(null)
+    setIsSponsorFormOpen(true)
+  }
+
+  function closeSponsorForm() {
+    setIsSponsorFormOpen(false)
+    setSponsorFormError(null)
+  }
+
+  async function handleSaveSponsor() {
+    if (!eventId || !profileId) return
+    setSponsorFormError(null)
+
+    const tName = sponsorName.trim()
+    const parsedAmount = sponsorAmount === '' ? null : parseFloat(sponsorAmount)
+    const tNote = sponsorNote.trim()
+
+    if (!tName) {
+      setSponsorFormError('Sponsor adı boş bırakılamaz.')
+      return
+    }
+
+    if (parsedAmount === null || isNaN(parsedAmount) || parsedAmount < 0) {
+      setSponsorFormError('Lütfen geçerli ve pozitif bir tutar girin.')
+      return
+    }
+
+    setIsSavingSponsor(true)
+    const payload = {
+      sponsor_name: tName,
+      amount: parsedAmount,
+      note: tNote.length > 0 ? tNote : null,
+    }
+
+    let error
+    if (sponsorFormMode === 'create') {
+      const res = await supabase.from('event_budget_sponsors').insert({
+        event_id: eventId,
+        created_by: profileId,
+        ...payload,
+      })
+      error = res.error
+    } else {
+      const res = await supabase.from('event_budget_sponsors').update(payload).eq('id', editingSponsorId)
+      error = res.error
+    }
+
+    setIsSavingSponsor(false)
+
+    if (error) {
+      if (error.message.includes('kilitli')) {
+        setSponsorFormError('Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.')
+      } else if (error.code === '42501') {
+        setSponsorFormError('Sponsor ekleme veya düzenleme yetkiniz bulunmuyor.')
+      } else {
+        setSponsorFormError('Sponsor kaydedilirken bir hata oluştu.')
+      }
+      return
+    }
+
+    closeSponsorForm()
+    setSponsorSuccessMessage(
+      sponsorFormMode === 'create' ? 'Sponsor başarıyla eklendi.' : 'Sponsor başarıyla güncellendi.'
+    )
+    setSponsorsRefreshKey((prev) => prev + 1)
+  }
+
+  async function handleDeactivateSponsor(id: string) {
+    if (!profileId) return
+    if (!window.confirm('Bu sponsoru pasifleştirmek istediğinize emin misiniz?')) return
+
+    setDeactivatingSponsorId(id)
+    const { error } = await supabase
+      .from('event_budget_sponsors')
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_by: profileId,
+        deletion_note: 'Sponsor pasifleştirildi',
+      })
+      .eq('id', id)
+
+    setDeactivatingSponsorId(null)
+
+    if (error) {
+      if (error.message.includes('kilitli')) {
+        alert('Dönem kilitli olduğu için sponsor pasifleştirilemedi.')
+      } else {
+        alert('Sponsor pasifleştirilemedi.')
+      }
+      return
+    }
+
+    setSponsorSuccessMessage('Sponsor pasifleştirildi.')
+    setSponsorsRefreshKey((prev) => prev + 1)
+  }
+
+  async function handleReactivateSponsor(id: string) {
+    if (!profileId) return
+
+    setDeactivatingSponsorId(id)
+    const { error } = await supabase
+      .from('event_budget_sponsors')
+      .update({ deleted_at: null, deleted_by: null, deletion_note: null })
+      .eq('id', id)
+
+    setDeactivatingSponsorId(null)
+
+    if (error) {
+      if (error.message.includes('kilitli')) {
+        alert('Dönem kilitli olduğu için sponsor yeniden aktifleştirilemedi.')
+      } else {
+        alert('Sponsor yeniden aktifleştirilemedi.')
+      }
+      return
+    }
+
+    setSponsorSuccessMessage('Sponsor yeniden aktifleştirildi.')
+    setSponsorsRefreshKey((prev) => prev + 1)
+  }
+
   const isOwner = !!event && !!profileId && event.ownerId === profileId
   const isSuperAdmin = appRole === 'super_admin'
   const canEdit = isOwner || isSuperAdmin
@@ -3116,6 +3339,10 @@ export default function EventDetail() {
   const displayedOwner = event.ownerId ? ownerName ?? NOT_SPECIFIED : NOT_SPECIFIED
   const displayedVenue = event.venue || NOT_SPECIFIED
   const displayedNextAction = event.nextAction || NOT_SPECIFIED
+
+  const assignableBudgetMembers = periodMembers.filter((member) => !budgetMembers.some((assignedMember) => assignedMember.profileId === member.profileId))
+  const budgetOwnerCandidates = assignableBudgetMembers.filter(m => m.coordinatorRoleSlug === 'treasurer')
+  const displayBudgetMembers = budgetSelectedResponsibility === 'owner' ? budgetOwnerCandidates : assignableBudgetMembers
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -4292,7 +4519,7 @@ export default function EventDetail() {
                     Üye
                     <select value={budgetSelectedProfileId} onChange={(e) => setBudgetSelectedProfileId(e.target.value)} disabled={isAssigningBudget || periodMembersLoadState === 'loading'} className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink">
                       <option value="">Üye seçin</option>
-                      {periodMembers.filter((member) => !budgetMembers.some((assignedMember) => assignedMember.profileId === member.profileId)).map((member) => <option key={member.profileId} value={member.profileId}>{member.displayName}</option>)}
+                      {displayBudgetMembers.map((member) => <option key={member.profileId} value={member.profileId}>{member.displayName}</option>)}
                     </select>
                   </label>
                   <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-ink-soft">
@@ -4301,8 +4528,11 @@ export default function EventDetail() {
                       <option value="owner">Ana sorumlu</option><option value="supporting">Destekleyen</option><option value="informed">Bilgilendirilen</option>
                     </select>
                   </label>
-                  <button type="button" onClick={() => void handleAssignBudgetMember()} disabled={isAssigningBudget} className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60">{isAssigningBudget ? 'Ekleniyor…' : 'Ekle'}</button>
+                  <button type="button" onClick={() => void handleAssignBudgetMember()} disabled={isAssigningBudget || (budgetSelectedResponsibility === 'owner' && budgetOwnerCandidates.length === 0)} className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60">{isAssigningBudget ? 'Ekleniyor…' : 'Ekle'}</button>
                 </div>
+                {budgetSelectedResponsibility === 'owner' && budgetOwnerCandidates.length === 0 && (
+                  <p className="mt-1 text-xs text-amber-600">Aktif dönemde atanabilecek Sayman bulunamadı.</p>
+                )}
                 {assignBudgetError && <p className="mt-2 text-xs text-red-600">{assignBudgetError}</p>}
                 {removeBudgetError && <p className="mt-2 text-xs text-red-600">{removeBudgetError}</p>}
                 <div className="mt-4 flex flex-col gap-2">
@@ -4316,6 +4546,189 @@ export default function EventDetail() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Sponsorlar Bölümü */}
+        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-4">
+              <h2 className="text-sm font-semibold text-ink">Sponsorlar</h2>
+              {canChangeBudgetFields && (
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
+                  <input
+                    type="checkbox"
+                    checked={showInactiveSponsors}
+                    onChange={(event) => setShowInactiveSponsors(event.target.checked)}
+                    className="rounded border-canvas-border text-ink focus:ring-ink"
+                  />
+                  Pasif sponsorları göster
+                </label>
+              )}
+            </div>
+            {canChangeBudgetFields && !isSponsorFormOpen && (
+              <button
+                type="button"
+                onClick={openCreateSponsorForm}
+                className="shrink-0 rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-sm font-medium text-ink hover:bg-canvas-surface"
+              >
+                Sponsor ekle
+              </button>
+            )}
+          </div>
+
+          {sponsorSuccessMessage && !isSponsorFormOpen && (
+            <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+              {sponsorSuccessMessage}
+            </p>
+          )}
+
+          {isSponsorFormOpen && (
+            <div className="mt-4 rounded-md border border-canvas-border bg-canvas px-4 py-4">
+              <h3 className="text-sm font-semibold text-ink">
+                {sponsorFormMode === 'create' ? 'Yeni Sponsor' : 'Sponsoru Düzenle'}
+              </h3>
+              <div className="mt-3 flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="sponsor-name" className="text-sm font-medium text-ink-soft">
+                    Sponsor Adı
+                  </label>
+                  <input
+                    id="sponsor-name"
+                    type="text"
+                    value={sponsorName}
+                    onChange={(e) => setSponsorName(e.target.value)}
+                    disabled={isSavingSponsor}
+                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="sponsor-amount" className="text-sm font-medium text-ink-soft">
+                    Tutar (₺)
+                  </label>
+                  <input
+                    id="sponsor-amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={sponsorAmount}
+                    onChange={(e) => setSponsorAmount(e.target.value)}
+                    disabled={isSavingSponsor}
+                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="sponsor-note" className="text-sm font-medium text-ink-soft">
+                    Not (İsteğe bağlı)
+                  </label>
+                  <textarea
+                    id="sponsor-note"
+                    value={sponsorNote}
+                    onChange={(e) => setSponsorNote(e.target.value)}
+                    disabled={isSavingSponsor}
+                    rows={2}
+                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                  />
+                </div>
+                {sponsorFormError && (
+                  <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {sponsorFormError}
+                  </p>
+                )}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void handleSaveSponsor()}
+                    disabled={isSavingSponsor}
+                    className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
+                  >
+                    {isSavingSponsor ? 'Kaydediliyor…' : 'Kaydet'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeSponsorForm}
+                    disabled={isSavingSponsor}
+                    className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
+                  >
+                    İptal
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {sponsorsLoadState === 'loading' && (
+            <p className="mt-3 text-sm text-ink-soft">Sponsorlar yükleniyor…</p>
+          )}
+          {sponsorsLoadState === 'error' && (
+            <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              Sponsorlar yüklenirken bir hata oluştu.
+            </p>
+          )}
+          {sponsorsLoadState === 'ready' && sponsors.length === 0 && (
+            <p className="mt-3 text-sm italic text-ink-soft">Bu etkinlik için henüz sponsor eklenmemiş.</p>
+          )}
+          {sponsorsLoadState === 'ready' && sponsors.length > 0 && (
+            <div className="mt-4 flex flex-col gap-4">
+              {sponsors.map((sponsor) => (
+                <div
+                  key={sponsor.id}
+                  className={`rounded-md border px-4 py-3 ${
+                    sponsor.deletedAt ? 'border-red-200 bg-red-50/40' : 'border-canvas-border bg-canvas'
+                  }`}
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-sm font-semibold text-ink">{sponsor.sponsorName}</h4>
+                        {sponsor.deletedAt && (
+                          <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                            Pasif
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-sm font-medium text-brand">{formatCurrency(sponsor.amount)}</p>
+                      {sponsor.note && (
+                        <p className="mt-1 whitespace-pre-wrap text-sm text-ink-soft">{sponsor.note}</p>
+                      )}
+                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-soft">
+                        <span>{formatDate(sponsor.createdAt)}</span>
+                        <span>{sponsor.creatorName}</span>
+                      </div>
+                    </div>
+                    {canChangeBudgetFields && !sponsor.deletedAt && (
+                      <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end sm:gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openEditSponsorForm(sponsor)}
+                          className="text-xs font-medium text-ink-soft underline decoration-dotted"
+                        >
+                          Düzenle
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeactivateSponsor(sponsor.id)}
+                          disabled={deactivatingSponsorId === sponsor.id}
+                          className="text-xs font-medium text-red-600 underline decoration-dotted disabled:opacity-50"
+                        >
+                          {deactivatingSponsorId === sponsor.id ? 'İşleniyor…' : 'Pasifleştir'}
+                        </button>
+                      </div>
+                    )}
+                    {canChangeBudgetFields && sponsor.deletedAt && (
+                      <button
+                        type="button"
+                        onClick={() => void handleReactivateSponsor(sponsor.id)}
+                        disabled={deactivatingSponsorId === sponsor.id}
+                        className="shrink-0 rounded border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-700 disabled:opacity-50"
+                      >
+                        {deactivatingSponsorId === sponsor.id ? 'İşleniyor…' : 'Yeniden aktifleştir'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
