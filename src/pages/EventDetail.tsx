@@ -1046,7 +1046,6 @@ export default function EventDetail() {
   const [editPlanningDate, setEditPlanningDate] = useState('')
   const [editEstimatedDate, setEditEstimatedDate] = useState('')
   const [editConfirmedDate, setEditConfirmedDate] = useState('')
-  const [editDesignAnnouncementStatus, setEditDesignAnnouncementStatus] = useState('not_required')
   const [editReportStatus, setEditReportStatus] = useState('no')
   const [tasksLoadState, setTasksLoadState] = useState<TasksLoadState>('loading')
   const [tasks, setTasks] = useState<TaskItem[]>([])
@@ -3315,7 +3314,6 @@ export default function EventDetail() {
     setEditPlanningDate(extractDateOnly(event.planningDate))
     setEditEstimatedDate(extractDateOnly(event.estimatedDate))
     setEditConfirmedDate(extractDateOnly(event.confirmedDate))
-    setEditDesignAnnouncementStatus(event.designAnnouncementStatus)
     setEditReportStatus(event.reportStatus)
     setSaveError(null)
     setSuccessMessage(null)
@@ -3331,7 +3329,6 @@ export default function EventDetail() {
       setEditPlanningDate(extractDateOnly(event.planningDate))
       setEditEstimatedDate(extractDateOnly(event.estimatedDate))
       setEditConfirmedDate(extractDateOnly(event.confirmedDate))
-      setEditDesignAnnouncementStatus(event.designAnnouncementStatus)
       setEditReportStatus(event.reportStatus)
     }
   }
@@ -3360,13 +3357,12 @@ export default function EventDetail() {
         planning_date: nextPlanningDate,
         estimated_date: nextEstimatedDate,
         confirmed_date: nextConfirmedDate,
-        design_announcement_status: editDesignAnnouncementStatus,
         report_status: editReportStatus,
       })
       .eq('id', eventId)
       .eq('period_id', periodId)
       .is('deleted_at', null)
-      .select('title, description, planning_date, preparation_start_date, estimated_date, confirmed_date, design_announcement_status, report_status')
+      .select('title, description, planning_date, preparation_start_date, estimated_date, confirmed_date, report_status')
       .maybeSingle()
 
     setIsSaving(false)
@@ -3390,7 +3386,6 @@ export default function EventDetail() {
             preparationStartDate: data.preparation_start_date as string | null,
             estimatedDate: (data.estimated_date as string | null) ?? nextEstimatedDate,
             confirmedDate: (data.confirmed_date as string | null) ?? nextConfirmedDate,
-            designAnnouncementStatus: (data.design_announcement_status as string | null) ?? editDesignAnnouncementStatus,
             reportStatus: (data.report_status as string | null) ?? editReportStatus,
           }
         : current,
@@ -3533,22 +3528,6 @@ export default function EventDetail() {
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="event-design-announcement-status" className="text-sm font-medium text-ink-soft">
-                    Tasarım / Duyuru
-                  </label>
-                  <select
-                    id="event-design-announcement-status"
-                    value={editDesignAnnouncementStatus}
-                    onChange={(e) => setEditDesignAnnouncementStatus(e.target.value)}
-                    disabled={isSaving || !canChangeDesignAnnouncementStatus || availableEventDesignAnnouncementStatuses.length === 0}
-                    className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink disabled:opacity-60"
-                  >
-                    {availableEventDesignAnnouncementStatuses.map((status) => (
-                      <option key={status.slug} value={status.slug}>{status.label}</option>
-                    ))}
-                  </select>
-                </div>
                 <div className="flex flex-col gap-1">
                   <label htmlFor="event-report-status" className="text-sm font-medium text-ink-soft">
                     Rapor durumu
