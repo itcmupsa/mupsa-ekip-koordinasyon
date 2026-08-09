@@ -4378,10 +4378,29 @@ export default function EventDetail() {
           <h2 className="text-sm font-semibold text-ink">Durum ve tarihler</h2>
           <div className="mt-3 divide-y divide-canvas-border">
             <DetailRow label="Durum" value={displayedStatus} />
-            <DetailRow
-              label="Tasarım / Duyuru"
-              value={availableEventDesignAnnouncementStatuses.find((status) => status.slug === event.designAnnouncementStatus)?.label ?? event.designAnnouncementStatus}
-            />
+            {canChangeDesignAnnouncementStatus ? (
+              <div className="flex flex-col gap-1 py-2 sm:flex-row sm:items-center sm:justify-between">
+                <label htmlFor="event-design-announcement-inline-status" className="text-sm font-medium text-ink-soft">
+                  Tasarım / Duyuru
+                </label>
+                <select
+                  id="event-design-announcement-inline-status"
+                  value={event.designAnnouncementStatus}
+                  onChange={(e) => void handleUpdateDesignAnnouncementStatus(e.target.value)}
+                  disabled={isUpdatingDesignAnnouncementStatus || availableEventDesignAnnouncementStatuses.length === 0}
+                  className="rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-sm text-ink disabled:opacity-60"
+                >
+                  {availableEventDesignAnnouncementStatuses.map((status) => (
+                    <option key={status.slug} value={status.slug}>{status.label}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <DetailRow
+                label="Tasarım / Duyuru"
+                value={availableEventDesignAnnouncementStatuses.find((status) => status.slug === event.designAnnouncementStatus)?.label ?? event.designAnnouncementStatus}
+              />
+            )}
             <DetailRow
               label="Rapor durumu"
               value={availableEventReportStatuses.find((status) => status.slug === event.reportStatus)?.label ?? event.reportStatus}
@@ -4391,29 +4410,8 @@ export default function EventDetail() {
             <DetailRow label="Tahmini etkinlik tarihi" value={formatDate(event.estimatedDate)} />
             <DetailRow label="Kesinleşmiş tarih" value={formatDate(event.confirmedDate)} />
           </div>
-          {canChangeDesignAnnouncementStatus && (
-            <div className="mt-4 border-t border-canvas-border pt-4">
-              <label htmlFor="event-design-announcement-inline-status" className="text-sm font-medium text-ink-soft">
-                Tasarım / Duyuru durumunu güncelle
-              </label>
-              <div className="mt-2 flex flex-wrap items-center gap-3">
-                <select
-                  id="event-design-announcement-inline-status"
-                  value={event.designAnnouncementStatus}
-                  onChange={(e) => void handleUpdateDesignAnnouncementStatus(e.target.value)}
-                  disabled={isUpdatingDesignAnnouncementStatus || availableEventDesignAnnouncementStatuses.length === 0}
-                  className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink disabled:opacity-60"
-                >
-                  {availableEventDesignAnnouncementStatuses.map((status) => (
-                    <option key={status.slug} value={status.slug}>{status.label}</option>
-                  ))}
-                </select>
-                {isUpdatingDesignAnnouncementStatus && <span className="text-xs text-ink-soft">Kaydediliyor…</span>}
-              </div>
-              {designAnnouncementStatusError && <p className="mt-1 text-xs text-red-600">{designAnnouncementStatusError}</p>}
-              {designAnnouncementStatusSuccess && <p className="mt-1 text-xs text-green-600">{designAnnouncementStatusSuccess}</p>}
-            </div>
-          )}
+          {designAnnouncementStatusError && <p className="mt-3 text-xs text-red-600">{designAnnouncementStatusError}</p>}
+          {designAnnouncementStatusSuccess && <p className="mt-3 text-xs text-green-600">{designAnnouncementStatusSuccess}</p>}
         </div>
         <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
           <h2 className="text-sm font-semibold text-ink">Süreç bilgileri</h2>
