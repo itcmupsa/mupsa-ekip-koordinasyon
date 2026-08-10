@@ -49,6 +49,7 @@ interface TaskItem {
   id: string
   title: string
   description: string | null
+  activationStatusSlug: string
   progressStatusSlug: string | null
   progressStatusLabel: string | null
   deadlineAt: string | null
@@ -363,6 +364,7 @@ interface TaskCardProps {
   updateTaskInfoError: string | null
   onDeactivateTask: (taskId: string) => void
   onReactivateTask: (taskId: string) => void
+  onActivateTask: (taskId: string) => void
   isProcessingActiveStatus: boolean
   onAddDependency: (
     taskId: string,
@@ -416,6 +418,7 @@ function TaskCard({
   updateTaskInfoError,
   onDeactivateTask,
   onReactivateTask,
+  onActivateTask,
   isProcessingActiveStatus,
   onAddDependency,
   onDeleteDependency,
@@ -527,6 +530,7 @@ function TaskCard({
   }
 
   const statusLabel = task.progressStatusLabel ?? task.progressStatusSlug ?? 'Durum belirtilmemiş'
+  const activationStatusLabel = task.activationStatusSlug === 'active' ? 'Aktif' : 'Taslak'
   const priorityLabel = task.priority
     ? TASK_PRIORITY_LABELS[task.priority] ?? task.priority
     : 'Belirtilmemiş'
@@ -613,6 +617,25 @@ function TaskCard({
                   <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
                     Pasif görev
                   </span>
+                )}
+                {!isDeactivated && (
+                  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
+                    task.activationStatusSlug === 'active'
+                      ? 'border-green-200 bg-green-50 text-green-700'
+                      : 'border-amber-200 bg-amber-50 text-amber-700'
+                  }`}>
+                    {activationStatusLabel}
+                  </span>
+                )}
+                {effectiveCanEditTask && !isDeactivated && task.activationStatusSlug !== 'active' && (
+                  <button
+                    type="button"
+                    onClick={() => onActivateTask(task.id)}
+                    disabled={isProcessingActiveStatus}
+                    className="rounded border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 disabled:opacity-60"
+                  >
+                    {isProcessingActiveStatus ? 'Aktifleştiriliyor…' : 'Aktifleştir'}
+                  </button>
                 )}
                 {effectiveCanEditTask && (
                   <button
@@ -1400,7 +1423,7 @@ export default function EventDetail() {
 
       let tasksQuery = supabase
         .from('tasks')
-        .select('id, title, description, progress_status, deadline_at, priority, notes, deleted_at')
+        .select('id, title, description, activation_status, progress_status, deadline_at, priority, notes, deleted_at')
         .eq('event_id', eventId)
         .order('deadline_at', { ascending: true, nullsFirst: false })
 
@@ -1421,6 +1444,7 @@ export default function EventDetail() {
         id: row.id as string,
         title: row.title as string,
         description: (row.description as string | null) ?? null,
+        activationStatusSlug: (row.activation_status as string) ?? 'draft',
         progressStatusSlug: (row.progress_status as string | null) ?? null,
         progressStatusLabel: null,
         deadlineAt: (row.deadline_at as string | null) ?? null,
@@ -1867,6 +1891,7 @@ export default function EventDetail() {
       title: trimmedTitle,
       description: trimmedDescription || null,
       created_by: profileId,
+      activation_status: 'active',
       deadline_at: deadlineAt,
       priority: newTaskPriority,
     })
@@ -2009,6 +2034,25 @@ export default function EventDetail() {
     setTaskSuccessMessage('Görev başarıyla güncellendi.')
     setTasksRefreshKey((current) => current + 1)
     return true
+  }
+
+  async function handleActivateTask(taskId: string) {
+    if (!profileId || !canEdit) return
+
+    setProcessingActiveStatusTaskId(taskId)
+    const { error } = await supabase
+      .from('tasks')
+      .update({ activation_status: 'active' })
+      .eq('id', taskId)
+
+    setProcessingActiveStatusTaskId(null)
+    if (error) {
+      setTaskSuccessMessage('Görev aktifleştirilemedi.')
+      return
+    }
+
+    setTaskSuccessMessage('Görev aktifleştirildi ve takvime eklenebilir.')
+    setTasksRefreshKey((current) => current + 1)
   }
 
   async function handleDeactivateTask(taskId: string) {
@@ -5036,6 +5080,7 @@ export default function EventDetail() {
                     updateTaskInfoError={updateTaskInfoErrorMap[task.id] ?? null}
                     onDeactivateTask={handleDeactivateTask}
                     onReactivateTask={handleReactivateTask}
+                    onActivateTask={handleActivateTask}
                     isProcessingActiveStatus={processingActiveStatusTaskId === task.id}
                     onAddDependency={handleAddDependency}
                     onDeleteDependency={handleDeleteDependency}
