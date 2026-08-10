@@ -351,7 +351,7 @@ export default function AppHome({ session }: { session: Session }) {
             <span className="truncate text-sm font-semibold text-ink">MUPSA Ekip Koordinasyon</span>
           </div>
           <div className="flex shrink-0 items-center gap-3">
-            <Link to="/app/ayarlar" className="max-w-32 truncate text-sm font-medium text-ink-soft hover:text-ink">{displayName || 'Hesabım'}</Link>
+            <Link to="/app/ayarlar" className="text-sm font-medium text-ink-soft hover:text-ink">Hesabım</Link>
             <button type="button" onClick={handleSignOut} className="text-sm font-medium text-ink-soft hover:text-ink">Çıkış yap</button>
           </div>
         </div>
