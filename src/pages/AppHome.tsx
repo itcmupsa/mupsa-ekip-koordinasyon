@@ -9,7 +9,19 @@ interface DashboardEvent {
   title: string
   planningDate: string | null
   eventStatus: string | null
+  ownerId: string
   createdAt: string
+}
+
+interface DashboardAwareness {
+  id: string
+  title: string
+  shareDate: string | null
+  estimatedDate: string | null
+  startDate: string | null
+  createdBy: string
+  designResponsibleId: string | null
+  pressResponsibleId: string | null
 }
 
 interface DashboardTask {
@@ -24,7 +36,17 @@ interface DashboardTask {
 
 interface DashboardAssignment {
   task_id: string
+  profile_id: string
   assignment_type: string
+}
+
+interface DashboardResponsibility {
+  id: string
+  title: string
+  kind: 'event' | 'awareness'
+  kindLabel: string
+  date: string | null
+  href: string
 }
 
 interface MyTask extends DashboardTask {
@@ -37,10 +59,16 @@ interface DashboardData {
   openTaskCount: number
   myOpenTaskCount: number
   overdueTaskCount: number
+  myOverdueTaskCount: number
+  managedEventCount: number
+  managedAwarenessCount: number
+  activeMemberCount: number | null
+  unassignedOpenTaskCount: number | null
   myTasks: MyTask[]
   upcomingTasks: DashboardTask[]
   overdueTasks: DashboardTask[]
   recentEvents: DashboardEvent[]
+  responsibilities: DashboardResponsibility[]
 }
 
 interface NotificationItem {
@@ -91,7 +119,7 @@ function formatNotificationTime(value: string): string {
 
 export default function AppHome({ session }: { session: Session }) {
   const navigate = useNavigate()
-  const { displayName, hasActiveMembership, periodLabel, periodId, profileId, loading: membershipLoading } = useMembershipStatus(session)
+  const { displayName, hasActiveMembership, periodLabel, periodId, profileId, appRole, coordinatorRoleName, loading: membershipLoading } = useMembershipStatus(session)
   const [dataLoading, setDataLoading] = useState(false)
   const [dataError, setDataError] = useState<string | null>(null)
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
@@ -129,7 +157,7 @@ export default function AppHome({ session }: { session: Session }) {
 
       const { data: eventRows, error: eventsError } = await supabase
         .from('events')
-        .select('id, title, planning_date, event_status, created_at')
+        .select('id, title, planning_date, event_status, owner_id, created_at')
         .eq('period_id', periodId)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
@@ -146,12 +174,36 @@ export default function AppHome({ session }: { session: Session }) {
         title: row.title as string,
         planningDate: (row.planning_date as string | null) ?? null,
         eventStatus: row.event_status ? (eventStatusMap[row.event_status as string] ?? row.event_status as string) : null,
+        ownerId: row.owner_id as string,
         createdAt: row.created_at as string,
       }))
       const eventTitleMap = Object.fromEntries(events.map(event => [event.id, event.title]))
 
+      const { data: awarenessRows, error: awarenessError } = await supabase
+        .from('awareness_posts')
+        .select('id, awareness_name, share_date, estimated_date, start_date, created_by, design_responsible_id, press_publication_responsible_id')
+        .eq('period_id', periodId)
+        .is('deleted_at', null)
+
+      if (!isMounted) return
+      if (awarenessError) {
+        setDataError('Farkındalık verileri yüklenirken bir hata oluştu.')
+        setDataLoading(false)
+        return
+      }
+
+      const awareness: DashboardAwareness[] = (awarenessRows ?? []).map(row => ({
+        id: row.id as string,
+        title: row.awareness_name as string,
+        shareDate: (row.share_date as string | null) ?? null,
+        estimatedDate: (row.estimated_date as string | null) ?? null,
+        startDate: (row.start_date as string | null) ?? null,
+        createdBy: row.created_by as string,
+        designResponsibleId: (row.design_responsible_id as string | null) ?? null,
+        pressResponsibleId: (row.press_publication_responsible_id as string | null) ?? null,
+      }))
+
       let allTasks: DashboardTask[] = []
-      let myRawAssignments: DashboardAssignment[] = []
 
       const { data: taskRows, error: tasksError } = await supabase
         .from('tasks')
@@ -166,12 +218,8 @@ export default function AppHome({ session }: { session: Session }) {
         return
       }
 
-      const awarenessIds = Array.from(new Set((taskRows ?? []).map(row => row.awareness_post_id as string | null).filter((id): id is string => Boolean(id))))
       const awarenessTitleMap: Record<string, string> = {}
-      if (awarenessIds.length > 0) {
-        const { data: awarenessRows } = await supabase.from('awareness_posts').select('id, awareness_name').in('id', awarenessIds)
-        for (const row of awarenessRows ?? []) awarenessTitleMap[row.id as string] = row.awareness_name as string
-      }
+      for (const row of awareness) awarenessTitleMap[row.id] = row.title
 
       allTasks = (taskRows ?? []).map(row => ({
         id: row.id as string,
@@ -188,12 +236,12 @@ export default function AppHome({ session }: { session: Session }) {
       }))
 
       const taskIds = allTasks.map(task => task.id)
+      let allAssignments: DashboardAssignment[] = []
       if (taskIds.length > 0) {
         const { data: assignmentRows, error: assignError } = await supabase
           .from('task_assignees')
-          .select('task_id, assignment_type')
+          .select('task_id, profile_id, assignment_type')
           .in('task_id', taskIds)
-          .eq('profile_id', profileId)
 
         if (!isMounted) return
         if (assignError) {
@@ -201,7 +249,7 @@ export default function AppHome({ session }: { session: Session }) {
           setDataLoading(false)
           return
         }
-        myRawAssignments = (assignmentRows ?? []) as DashboardAssignment[]
+        allAssignments = (assignmentRows ?? []) as DashboardAssignment[]
       }
 
       const now = new Date()
@@ -213,7 +261,9 @@ export default function AppHome({ session }: { session: Session }) {
       upcomingTasksRaw.sort((a, b) => new Date(a.deadlineAt!).getTime() - new Date(b.deadlineAt!).getTime())
 
       const myAssignmentsMap: Record<string, string> = {}
-      for (const row of myRawAssignments) myAssignmentsMap[row.task_id] = row.assignment_type
+      for (const row of allAssignments) {
+        if (row.profile_id === profileId) myAssignmentsMap[row.task_id] = row.assignment_type
+      }
 
       const myTasks: MyTask[] = []
       let myOpenTaskCount = 0
@@ -234,23 +284,77 @@ export default function AppHome({ session }: { session: Session }) {
         return 0
       })
 
+      const managedEvents = events.filter(event => event.ownerId === profileId)
+      const managedAwareness = awareness.filter(post => post.createdBy === profileId || post.designResponsibleId === profileId || post.pressResponsibleId === profileId)
+      const responsibilities: DashboardResponsibility[] = [
+        ...managedEvents.map(event => ({
+          id: event.id,
+          title: event.title,
+          kind: 'event' as const,
+          kindLabel: 'Sorumlu olduğun etkinlik',
+          date: event.planningDate,
+          href: `/app/etkinlikler/${event.id}`,
+        })),
+        ...managedAwareness.map(post => ({
+          id: post.id,
+          title: post.title,
+          kind: 'awareness' as const,
+          kindLabel: 'Sorumlu olduğun farkındalık',
+          date: post.shareDate ?? post.estimatedDate ?? post.startDate,
+          href: '/app/farkindalik',
+        })),
+      ]
+      responsibilities.sort((a, b) => {
+        if (!a.date && !b.date) return 0
+        if (!a.date) return 1
+        if (!b.date) return -1
+        return new Date(a.date).getTime() - new Date(b.date).getTime()
+      })
+
+      const myOverdueTasks = myTasks.filter(task => isOpen(task) && task.deadlineAt && new Date(task.deadlineAt) < now)
+      const myUpcomingTasks = myTasks.filter(task => isOpen(task) && task.deadlineAt && new Date(task.deadlineAt) >= now)
+      myUpcomingTasks.sort((a, b) => new Date(a.deadlineAt!).getTime() - new Date(b.deadlineAt!).getTime())
+      const assignedTaskIds = new Set(allAssignments.map(row => row.task_id))
+      const unassignedOpenTaskCount = openTasks.filter(task => !assignedTaskIds.has(task.id)).length
+      let activeMemberCount: number | null = null
+      if (appRole === 'super_admin') {
+        const { count, error: membersError } = await supabase
+          .from('period_memberships')
+          .select('id', { count: 'exact', head: true })
+          .eq('period_id', periodId)
+          .eq('is_active', true)
+        if (!isMounted) return
+        if (membersError) {
+          setDataError('Ekip özeti yüklenirken bir hata oluştu.')
+          setDataLoading(false)
+          return
+        }
+        activeMemberCount = count ?? 0
+      }
+
       if (!isMounted) return
       setDashboardData({
         activeEventCount: events.length,
         openTaskCount: openTasks.length,
         myOpenTaskCount,
-        overdueTaskCount: overdueTasksRaw.length,
+        overdueTaskCount: appRole === 'super_admin' ? overdueTasksRaw.length : myOverdueTasks.length,
+        myOverdueTaskCount: myOverdueTasks.length,
+        managedEventCount: managedEvents.length,
+        managedAwarenessCount: managedAwareness.length,
+        activeMemberCount,
+        unassignedOpenTaskCount: appRole === 'super_admin' ? unassignedOpenTaskCount : null,
         myTasks,
-        upcomingTasks: upcomingTasksRaw.slice(0, 5),
-        overdueTasks: overdueTasksRaw.slice(0, 5),
+        upcomingTasks: (appRole === 'super_admin' ? upcomingTasksRaw : myUpcomingTasks).slice(0, 5),
+        overdueTasks: (appRole === 'super_admin' ? overdueTasksRaw : myOverdueTasks).slice(0, 5),
         recentEvents: events.slice(0, 5),
+        responsibilities: responsibilities.slice(0, 6),
       })
       setDataLoading(false)
     }
 
     void loadDashboard()
     return () => { isMounted = false }
-  }, [hasActiveMembership, periodId, profileId, membershipLoading])
+  }, [appRole, hasActiveMembership, periodId, profileId, membershipLoading])
 
   useEffect(() => {
     if (membershipLoading || !hasActiveMembership || !profileId) return
@@ -383,6 +487,31 @@ export default function AppHome({ session }: { session: Session }) {
               <h1 className="mt-1 break-words text-2xl font-semibold text-ink">{displayName}</h1>
               <p className="mt-1 break-words text-sm text-ink-soft">{periodLabel ? `Aktif dönem: ${periodLabel}` : 'Aktif Dönem'}</p>
             </div>
+            <section className="rounded-lg border border-accent/30 bg-accent-soft/20 p-4 shadow-sm sm:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-accent/20 pb-3">
+                <div>
+                  <h2 className="text-base font-semibold text-ink">{appRole === 'super_admin' ? 'Yönetim özeti' : 'Kişisel çalışma özeti'}</h2>
+                  <p className="mt-1 text-xs text-ink-soft">{appRole === 'super_admin' ? 'Aktif dönemdeki ekip ve iş akışının genel görünümü.' : `${coordinatorRoleName ?? 'Koordinatör'} olarak sorumlu olduğun çalışmalar ve görevler.`}</p>
+                </div>
+                <Link to={appRole === 'super_admin' ? '/app/yonetim/uyeler' : '/app/gorevler'} className="text-xs font-medium text-ink-soft hover:text-ink">{appRole === 'super_admin' ? 'Ekibi yönet' : 'Görevlerime git'}</Link>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {appRole === 'super_admin' ? (
+                  <>
+                    <div className="rounded-md border border-canvas-border bg-canvas-surface p-3"><p className="text-xs text-ink-soft">Aktif ekip üyesi</p><p className="mt-1 text-xl font-semibold text-ink">{dashboardData?.activeMemberCount ?? '—'}</p></div>
+                    <div className="rounded-md border border-canvas-border bg-canvas-surface p-3"><p className="text-xs text-ink-soft">Açık görev</p><p className="mt-1 text-xl font-semibold text-ink">{dashboardData?.openTaskCount ?? '—'}</p></div>
+                    <div className="rounded-md border border-canvas-border bg-canvas-surface p-3"><p className="text-xs text-ink-soft">Atanmamış açık görev</p><p className="mt-1 text-xl font-semibold text-ink">{dashboardData?.unassignedOpenTaskCount ?? '—'}</p></div>
+                  </>
+                ) : (
+                  <>
+                    <div className="rounded-md border border-canvas-border bg-canvas-surface p-3"><p className="text-xs text-ink-soft">Sorumlu etkinlik</p><p className="mt-1 text-xl font-semibold text-ink">{dashboardData?.managedEventCount ?? '—'}</p></div>
+                    <div className="rounded-md border border-canvas-border bg-canvas-surface p-3"><p className="text-xs text-ink-soft">Sorumlu farkındalık</p><p className="mt-1 text-xl font-semibold text-ink">{dashboardData?.managedAwarenessCount ?? '—'}</p></div>
+                    <div className="rounded-md border border-canvas-border bg-canvas-surface p-3"><p className="text-xs text-ink-soft">Bana ait geciken</p><p className={`mt-1 text-xl font-semibold ${dashboardData?.myOverdueTaskCount ? 'text-red-700' : 'text-ink'}`}>{dashboardData?.myOverdueTaskCount ?? '—'}</p></div>
+                  </>
+                )}
+              </div>
+              {dashboardData && <div className="mt-4 border-t border-accent/20 pt-4"><h3 className="text-xs font-semibold text-ink">{appRole === 'super_admin' ? 'Yaklaşan ekip sorumlulukları' : 'Yaklaşan sorumluluklarım'}</h3>{dashboardData.responsibilities.length === 0 ? <p className="mt-2 text-xs italic text-ink-soft">Gösterilecek sorumluluk bulunmuyor.</p> : <ul className="mt-2 grid gap-2 sm:grid-cols-2">{dashboardData.responsibilities.map(item => <li key={`${item.kind}-${item.id}`}><Link to={item.href} className="block rounded-md border border-canvas-border bg-canvas-surface p-3 transition-colors hover:border-ink/20"><p className="break-words text-sm font-medium text-ink">{item.title}</p><div className="mt-1 flex flex-wrap justify-between gap-2 text-[11px] text-ink-soft"><span>{item.kindLabel}</span><span>{formatShortDate(item.date)}</span></div></Link></li>)}</ul>}</div>}
+            </section>
             <section className="rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-sm sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-canvas-border pb-3">
                 <div className="flex items-center gap-2">
@@ -415,7 +544,7 @@ export default function AppHome({ session }: { session: Session }) {
                   <div className="rounded-lg border border-canvas-border bg-canvas-surface p-3 shadow-sm sm:p-4"><p className="break-words text-xs font-medium text-ink-soft">Aktif Etkinlik</p><p className="mt-1 text-2xl font-semibold text-ink">{dashboardData.activeEventCount}</p></div>
                   <div className="rounded-lg border border-canvas-border bg-canvas-surface p-3 shadow-sm sm:p-4"><p className="break-words text-xs font-medium text-ink-soft">Açık Görev</p><p className="mt-1 text-2xl font-semibold text-ink">{dashboardData.openTaskCount}</p></div>
                   <div className="rounded-lg border border-canvas-border bg-canvas-surface p-3 shadow-sm sm:p-4"><p className="break-words text-xs font-medium text-ink-soft">Bana Atanan Açık</p><p className="mt-1 text-2xl font-semibold text-ink">{dashboardData.myOpenTaskCount}</p></div>
-                  <div className={`rounded-lg border p-3 shadow-sm sm:p-4 ${dashboardData.overdueTaskCount > 0 ? 'border-red-200 bg-red-50' : 'border-canvas-border bg-canvas-surface'}`}><p className={`break-words text-xs font-medium ${dashboardData.overdueTaskCount > 0 ? 'text-red-700' : 'text-ink-soft'}`}>Geciken Görev</p><p className={`mt-1 text-2xl font-semibold ${dashboardData.overdueTaskCount > 0 ? 'text-red-700' : 'text-ink'}`}>{dashboardData.overdueTaskCount}</p></div>
+                  <div className={`rounded-lg border p-3 shadow-sm sm:p-4 ${dashboardData.overdueTaskCount > 0 ? 'border-red-200 bg-red-50' : 'border-canvas-border bg-canvas-surface'}`}><p className={`break-words text-xs font-medium ${dashboardData.overdueTaskCount > 0 ? 'text-red-700' : 'text-ink-soft'}`}>{appRole === 'super_admin' ? 'Geciken Görev' : 'Bana Ait Geciken'}</p><p className={`mt-1 text-2xl font-semibold ${dashboardData.overdueTaskCount > 0 ? 'text-red-700' : 'text-ink'}`}>{dashboardData.overdueTaskCount}</p></div>
                 </div>
                 <div className="grid grid-cols-1 gap-6 sm:gap-8 md:grid-cols-2">
                   <div className="flex flex-col gap-6 sm:gap-8">

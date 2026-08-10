@@ -15,6 +15,7 @@ Uygulama Cloudflare Pages üzerinde yayınlanır ve Supabase ile çalışır. Me
 - Görevleri pasifleştirme ve yeniden aktifleştirme
 - Merkezi Görevler sayfası: etkinlik, farkındalık ve bağımsız görev oluşturma, atama ve filtreleme
 - Dashboard özetleri ve uygulama içi bildirimler
+- Role göre kişiselleştirilmiş anasayfa özeti: koordinatör sorumlulukları ve Süper Yönetici ekip görünümü
 - Mobil Web Push bildirimi, cihaz aboneliği ve bildirim ayarları
 - Süper Yönetici duyuruları: herkese, seçili koordinatörlüklere veya belirli kişilere; isteğe bağlı ileri tarihli gönderim
 - Hesabım ve Ayarlar sayfası: hesap bilgileri, şifre, bildirimler ve yetkili yönetim bağlantıları
