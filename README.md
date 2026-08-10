@@ -14,15 +14,17 @@ Uygulama Cloudflare Pages üzerinde yayınlanır ve Supabase ile çalışır. Me
 - Görev oluşturma, düzenleme, atama, durum ve not yönetimi
 - Görevleri pasifleştirme ve yeniden aktifleştirme
 - Dashboard özetleri ve uygulama içi bildirimler
-- Bildirim kuyruğu, audit kayıtları ve PWA için temel kurulum dosyaları
+- Mobil Web Push bildirimi, cihaz aboneliği ve bildirim ayarları
+- Hesabım ve Ayarlar sayfası: hesap bilgileri, şifre, bildirimler ve yetkili yönetim bağlantıları
+- Rapor, bağlantı, dosya metadata/Storage, SKS, bütçe ve sponsor yönetimi
+- Farkındalık paylaşımları ve takvim
+- Bildirim kuyruğu, audit kayıtları ve PWA kurulum dosyaları
 
 ## Henüz tamamlanmayanlar
 
-- Rapor, dosya ve bağlantı yönetimi
-- SKS süreç ekranları ve bütçe alanları
 - Görev bağımlılıklarının kullanıcı arayüzü
-- Gerçek e-posta ve web push bildirim gönderimi
-- Yeni dönem oluşturma, dönem arşivi, dışa aktarma ve dönem kilidi ekranları
+- Gerçek e-posta teslimat katmanı
+- Yeni dönem oluşturma, dönem arşivi ve dışa aktarma ekranları
 - Kişiye özel dashboard'ların tüm kapsamı ve görev şablonları
 
 ## Yerelde çalıştırma

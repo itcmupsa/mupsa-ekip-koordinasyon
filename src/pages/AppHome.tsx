@@ -3,13 +3,6 @@ import type { Session } from '@supabase/supabase-js'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
-import {
-  disablePushNotifications,
-  enablePushNotifications,
-  getCurrentPushSubscription,
-  getPushSupportState,
-  type PushSupportState,
-} from '../lib/pushNotifications'
 
 interface DashboardEvent {
   id: string
@@ -98,8 +91,7 @@ function formatNotificationTime(value: string): string {
 
 export default function AppHome({ session }: { session: Session }) {
   const navigate = useNavigate()
-  const { displayName, hasActiveMembership, periodLabel, periodId, profileId, appRole, loading: membershipLoading } = useMembershipStatus(session)
-  const isSuperAdmin = hasActiveMembership && appRole === 'super_admin'
+  const { displayName, hasActiveMembership, periodLabel, periodId, profileId, loading: membershipLoading } = useMembershipStatus(session)
   const [dataLoading, setDataLoading] = useState(false)
   const [dataError, setDataError] = useState<string | null>(null)
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
@@ -109,62 +101,6 @@ export default function AppHome({ session }: { session: Session }) {
   const [notificationsRefreshKey, setNotificationsRefreshKey] = useState(0)
   const [markingReadId, setMarkingReadId] = useState<string | null>(null)
   const [markingAllRead, setMarkingAllRead] = useState(false)
-  const [pushSupportState, setPushSupportState] = useState<PushSupportState>('unsupported')
-  const [pushEnabled, setPushEnabled] = useState(false)
-  const [pushActionState, setPushActionState] = useState<'idle' | 'loading' | 'error'>('idle')
-  const [pushError, setPushError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (membershipLoading || !hasActiveMembership || !profileId) return
-
-    let isMounted = true
-    async function loadPushState() {
-      const supportState = getPushSupportState()
-      if (!isMounted) return
-      setPushSupportState(supportState)
-      if (supportState !== 'supported') return
-
-      try {
-        const subscription = await getCurrentPushSubscription()
-        if (isMounted) setPushEnabled(Boolean(subscription))
-      } catch {
-        if (isMounted) setPushError('Bildirim durumu kontrol edilemedi.')
-      }
-    }
-
-    void loadPushState()
-    return () => {
-      isMounted = false
-    }
-  }, [hasActiveMembership, membershipLoading, profileId])
-
-  async function handleEnablePush() {
-    if (!profileId || pushSupportState !== 'supported') return
-    setPushActionState('loading')
-    setPushError(null)
-    try {
-      await enablePushNotifications(profileId)
-      setPushEnabled(true)
-      setPushActionState('idle')
-    } catch (error) {
-      setPushActionState('error')
-      setPushError(error instanceof Error ? error.message : 'Mobil bildirimler açılamadı.')
-    }
-  }
-
-  async function handleDisablePush() {
-    if (!profileId) return
-    setPushActionState('loading')
-    setPushError(null)
-    try {
-      await disablePushNotifications(profileId)
-      setPushEnabled(false)
-      setPushActionState('idle')
-    } catch (error) {
-      setPushActionState('error')
-      setPushError(error instanceof Error ? error.message : 'Mobil bildirimler kapatılamadı.')
-    }
-  }
 
   useEffect(() => {
     if (membershipLoading || !hasActiveMembership || !periodId || !profileId) return
@@ -414,7 +350,10 @@ export default function AppHome({ session }: { session: Session }) {
             <img src="/mupsa-logo.svg" alt="MUPSA Logo" className="h-6 w-auto shrink-0 object-contain" />
             <span className="truncate text-sm font-semibold text-ink">MUPSA Ekip Koordinasyon</span>
           </div>
-          <button type="button" onClick={handleSignOut} className="shrink-0 text-sm font-medium text-ink-soft hover:text-ink">Çıkış yap</button>
+          <div className="flex shrink-0 items-center gap-3">
+            <Link to="/app/ayarlar" className="max-w-32 truncate text-sm font-medium text-ink-soft hover:text-ink">{displayName || 'Hesabım'}</Link>
+            <button type="button" onClick={handleSignOut} className="text-sm font-medium text-ink-soft hover:text-ink">Çıkış yap</button>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-4 py-6 sm:py-8">
@@ -453,39 +392,6 @@ export default function AppHome({ session }: { session: Session }) {
                   </ul>
                 )}
               </div>
-            </section>
-            <section className="rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-sm sm:p-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-base font-semibold text-ink">Mobil bildirimler</h2>
-                  <p className="mt-1 text-sm text-ink-soft">Görev ataması, yaklaşan son tarih ve diğer önemli bildirimleri cihazında al.</p>
-                </div>
-                {pushSupportState === 'supported' && (
-                  pushEnabled ? (
-                    <button
-                      type="button"
-                      onClick={() => void handleDisablePush()}
-                      disabled={pushActionState === 'loading'}
-                      className="rounded-md border border-canvas-border px-3 py-2 text-xs font-medium text-ink-soft disabled:opacity-60"
-                    >
-                      {pushActionState === 'loading' ? 'Kapatılıyor…' : 'Bildirimleri kapat'}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => void handleEnablePush()}
-                      disabled={pushActionState === 'loading'}
-                      className="rounded-md bg-accent-soft px-3 py-2 text-xs font-medium text-ink disabled:opacity-60"
-                    >
-                      {pushActionState === 'loading' ? 'Açılıyor…' : 'Bildirimleri aç'}
-                    </button>
-                  )
-                )}
-              </div>
-              {pushSupportState === 'unsupported' && <p className="mt-3 text-xs text-ink-soft">Bu tarayıcı mobil Web Push bildirimlerini desteklemiyor.</p>}
-              {pushSupportState === 'not_configured' && <p className="mt-3 text-xs text-ink-soft">Mobil bildirim yapılandırması henüz tamamlanmadı.</p>}
-              {pushSupportState === 'supported' && !pushEnabled && <p className="mt-3 text-xs text-ink-soft">iPhone’da bildirimleri kullanmak için siteyi Ana Ekrana Ekle ve izni bu düğmeden ver.</p>}
-              {pushError && <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{pushError}</p>}
             </section>
             {dataLoading ? <p className="text-sm text-ink-soft">Özet bilgileri yükleniyor…</p> : dataError ? (
               <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{dataError}</p>
@@ -534,11 +440,10 @@ export default function AppHome({ session }: { session: Session }) {
                       <p className="text-sm font-semibold text-ink">Takvim</p>
                       <p className="mt-1 text-xs text-ink-soft">Etkinlik, farkındalık ve size atanmış görev tarihlerini görüntüle.</p>
                     </Link>
-                    <Link to="/app/ayarlar/sifre" className="block rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card transition-colors hover:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2">
-                      <p className="text-sm font-semibold text-ink">Şifre değiştir</p>
-                      <p className="mt-1 text-xs text-ink-soft">Hesap şifrenizi güvenli bir şekilde güncelleyin.</p>
+                    <Link to="/app/ayarlar" className="block rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card transition-colors hover:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2">
+                      <p className="text-sm font-semibold text-ink">Hesabım ve Ayarlar</p>
+                      <p className="mt-1 text-xs text-ink-soft">Hesap, şifre, mobil bildirim ve yönetim ayarlarına git.</p>
                     </Link>
-                    {isSuperAdmin && <Link to="/app/yonetim/uyeler" className="block rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card transition-colors hover:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2"><p className="text-sm font-semibold text-ink">Ekip ve yetki yönetimi</p><p className="mt-1 text-xs text-ink-soft">Aktif dönemdeki koordinatörleri ve uygulama yetkilerini yönet.</p></Link>}
                   </div>
                 </section>
               </>

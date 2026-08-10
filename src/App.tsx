@@ -7,6 +7,7 @@ import AdminMembers from './pages/AdminMembers'
 import EventsList from './pages/EventsList'
 import EventDetail from './pages/EventDetail'
 import SetPassword from './pages/SetPassword'
+import AccountSettings from './pages/AccountSettings'
 import AwarenessPosts from './pages/AwarenessPosts'
 import Calendar from './pages/Calendar'
 
@@ -23,6 +24,7 @@ export default function App() {
     <Route path="/app/takvim" element={session ? <Calendar session={session} /> : <Navigate to="/login" replace />} />
     <Route path="/app/yonetim/uyeler" element={session ? <AdminMembers session={session} /> : <Navigate to="/login" replace />} />
     <Route path="/app/ayarlar/sifre" element={session ? <SetPassword /> : <Navigate to="/login" replace />} />
+    <Route path="/app/ayarlar" element={session ? <AccountSettings session={session} /> : <Navigate to="/login" replace />} />
     <Route path="*" element={<Navigate to={session ? '/app' : '/login'} replace />} />
   </Routes>
 }
