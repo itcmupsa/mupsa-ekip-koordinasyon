@@ -48,7 +48,7 @@ interface ManualEntry {
 
 interface TaskRow {
   id: string
-  eventId: string
+  eventId: string | null
   eventTitle: string
   title: string
   deadlineAt: string
@@ -56,7 +56,7 @@ interface TaskRow {
 
 interface RpcTaskRow {
   id: string
-  event_id: string
+  event_id: string | null
   event_title: string
   title: string
   deadline_at: string
@@ -252,7 +252,7 @@ export default function Calendar({ session }: { session: Session }) {
       })))
       setTasks(((taskResult.data ?? []) as RpcTaskRow[]).map((row) => ({
         id: row.id as string,
-        eventId: row.event_id as string,
+        eventId: (row.event_id as string | null) ?? null,
         eventTitle: row.event_title as string,
         title: row.title as string,
         deadlineAt: row.deadline_at as string,
@@ -305,7 +305,7 @@ export default function Calendar({ session }: { session: Session }) {
       const date = new Date(task.deadlineAt)
       if (Number.isNaN(date.getTime())) continue
       const key = dateKey(new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())))
-      add(key, { id: task.id, label: `${task.title} · Görev son tarihi`, kind: 'task', linkTo: `/app/etkinlikler/${task.eventId}` })
+      add(key, { id: task.id, label: `${task.title} · Görev son tarihi`, kind: 'task', linkTo: task.eventId ? `/app/etkinlikler/${task.eventId}` : '/app/gorevler' })
     }
 
     return map

@@ -13,6 +13,7 @@ Uygulama Cloudflare Pages üzerinde yayınlanır ve Supabase ile çalışır. Me
 - Etkinlik detayında süreç bilgileri, görevler, kararlar ve genel not
 - Görev oluşturma, düzenleme, atama, durum ve not yönetimi
 - Görevleri pasifleştirme ve yeniden aktifleştirme
+- Merkezi Görevler sayfası: etkinlik, farkındalık ve bağımsız görev oluşturma, atama ve filtreleme
 - Dashboard özetleri ve uygulama içi bildirimler
 - Mobil Web Push bildirimi, cihaz aboneliği ve bildirim ayarları
 - Süper Yönetici duyuruları: herkese, seçili koordinatörlüklere veya belirli kişilere; isteğe bağlı ileri tarihli gönderim

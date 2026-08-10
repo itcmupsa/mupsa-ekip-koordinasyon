@@ -1887,6 +1887,7 @@ export default function EventDetail() {
     setCreateTaskError(null)
     const trimmedDescription = newTaskDescription.trim()
     const { error } = await supabase.from('tasks').insert({
+      period_id: periodId,
       event_id: eventId,
       title: trimmedTitle,
       description: trimmedDescription || null,

@@ -10,6 +10,7 @@ import SetPassword from './pages/SetPassword'
 import AccountSettings from './pages/AccountSettings'
 import AwarenessPosts from './pages/AwarenessPosts'
 import Calendar from './pages/Calendar'
+import Tasks from './pages/Tasks'
 
 export default function App() {
   const { session, loading } = useSession()
@@ -22,6 +23,7 @@ export default function App() {
     <Route path="/app/etkinlikler/:eventId" element={session ? <EventDetail /> : <Navigate to="/login" replace />} />
     <Route path="/app/farkindalik" element={session ? <AwarenessPosts session={session} /> : <Navigate to="/login" replace />} />
     <Route path="/app/takvim" element={session ? <Calendar session={session} /> : <Navigate to="/login" replace />} />
+    <Route path="/app/gorevler" element={session ? <Tasks session={session} /> : <Navigate to="/login" replace />} />
     <Route path="/app/yonetim/uyeler" element={session ? <AdminMembers session={session} /> : <Navigate to="/login" replace />} />
     <Route path="/app/ayarlar/sifre" element={session ? <SetPassword /> : <Navigate to="/login" replace />} />
     <Route path="/app/ayarlar" element={session ? <AccountSettings session={session} /> : <Navigate to="/login" replace />} />

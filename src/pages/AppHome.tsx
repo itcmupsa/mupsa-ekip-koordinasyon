@@ -14,7 +14,7 @@ interface DashboardEvent {
 
 interface DashboardTask {
   id: string
-  eventId: string
+  eventId: string | null
   eventTitle: string
   title: string
   deadlineAt: string | null
@@ -148,52 +148,60 @@ export default function AppHome({ session }: { session: Session }) {
         eventStatus: row.event_status ? (eventStatusMap[row.event_status as string] ?? row.event_status as string) : null,
         createdAt: row.created_at as string,
       }))
-      const eventIds = events.map(event => event.id)
       const eventTitleMap = Object.fromEntries(events.map(event => [event.id, event.title]))
 
       let allTasks: DashboardTask[] = []
       let myRawAssignments: DashboardAssignment[] = []
 
-      if (eventIds.length > 0) {
-        const { data: taskRows, error: tasksError } = await supabase
-          .from('tasks')
-          .select('id, event_id, title, progress_status, deadline_at')
-          .in('event_id', eventIds)
-          .is('deleted_at', null)
+      const { data: taskRows, error: tasksError } = await supabase
+        .from('tasks')
+        .select('id, event_id, awareness_post_id, title, progress_status, deadline_at')
+        .eq('period_id', periodId)
+        .is('deleted_at', null)
+
+      if (!isMounted) return
+      if (tasksError) {
+        setDataError('Görev verileri yüklenirken bir hata oluştu.')
+        setDataLoading(false)
+        return
+      }
+
+      const awarenessIds = Array.from(new Set((taskRows ?? []).map(row => row.awareness_post_id as string | null).filter((id): id is string => Boolean(id))))
+      const awarenessTitleMap: Record<string, string> = {}
+      if (awarenessIds.length > 0) {
+        const { data: awarenessRows } = await supabase.from('awareness_posts').select('id, awareness_name').in('id', awarenessIds)
+        for (const row of awarenessRows ?? []) awarenessTitleMap[row.id as string] = row.awareness_name as string
+      }
+
+      allTasks = (taskRows ?? []).map(row => ({
+        id: row.id as string,
+        eventId: (row.event_id as string | null) ?? null,
+        eventTitle: row.event_id
+          ? eventTitleMap[row.event_id as string] ?? 'Bilinmeyen Etkinlik'
+          : row.awareness_post_id
+            ? awarenessTitleMap[row.awareness_post_id as string] ?? 'Farkındalık'
+            : 'Bağımsız görev',
+        title: row.title as string,
+        deadlineAt: (row.deadline_at as string | null) ?? null,
+        progressStatusSlug: (row.progress_status as string | null) ?? null,
+        progressStatusLabel: row.progress_status ? (statusMap[row.progress_status as string] ?? row.progress_status as string) : 'Durum Yok',
+      }))
+
+      const taskIds = allTasks.map(task => task.id)
+      if (taskIds.length > 0) {
+        const { data: assignmentRows, error: assignError } = await supabase
+          .from('task_assignees')
+          .select('task_id, assignment_type')
+          .in('task_id', taskIds)
+          .eq('profile_id', profileId)
 
         if (!isMounted) return
-        if (tasksError) {
-          setDataError('Görev verileri yüklenirken bir hata oluştu.')
+        if (assignError) {
+          setDataError('Görev atamaları yüklenirken bir hata oluştu.')
           setDataLoading(false)
           return
         }
-
-        allTasks = (taskRows ?? []).map(row => ({
-          id: row.id as string,
-          eventId: row.event_id as string,
-          eventTitle: eventTitleMap[row.event_id as string] ?? 'Bilinmeyen Etkinlik',
-          title: row.title as string,
-          deadlineAt: (row.deadline_at as string | null) ?? null,
-          progressStatusSlug: (row.progress_status as string | null) ?? null,
-          progressStatusLabel: row.progress_status ? (statusMap[row.progress_status as string] ?? row.progress_status as string) : 'Durum Yok',
-        }))
-
-        const taskIds = allTasks.map(task => task.id)
-        if (taskIds.length > 0) {
-          const { data: assignmentRows, error: assignError } = await supabase
-            .from('task_assignees')
-            .select('task_id, assignment_type')
-            .in('task_id', taskIds)
-            .eq('profile_id', profileId)
-
-          if (!isMounted) return
-          if (assignError) {
-            setDataError('Görev atamaları yüklenirken bir hata oluştu.')
-            setDataLoading(false)
-            return
-          }
-          myRawAssignments = (assignmentRows ?? []) as DashboardAssignment[]
-        }
+        myRawAssignments = (assignmentRows ?? []) as DashboardAssignment[]
       }
 
       const now = new Date()
@@ -313,7 +321,11 @@ export default function AppHome({ session }: { session: Session }) {
         .eq('id', notification.taskId)
         .maybeSingle()
 
-      if (!error && data?.event_id) navigate(`/app/etkinlikler/${data.event_id as string}`)
+      if (!error && data?.event_id) {
+        navigate(`/app/etkinlikler/${data.event_id as string}`)
+      } else if (!error) {
+        navigate('/app/gorevler')
+      }
     }
   }
 
@@ -409,7 +421,7 @@ export default function AppHome({ session }: { session: Session }) {
                   <div className="flex flex-col gap-6 sm:gap-8">
                     <section>
                       <h2 className="mb-3 border-b border-canvas-border pb-2 text-sm font-semibold text-ink">Bana Atanmış Görevler</h2>
-                      {dashboardData.myTasks.length === 0 ? <p className="text-sm italic text-ink-soft">Size atanmış bir görev bulunmuyor.</p> : <ul className="flex flex-col gap-3">{dashboardData.myTasks.map(task => <li key={task.id} className="rounded-md border border-canvas-border bg-canvas-surface p-3 transition-colors hover:border-ink/20"><Link to={`/app/etkinlikler/${task.eventId}`} className="block rounded-sm focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2"><div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1"><p className="min-w-0 break-words text-sm font-medium text-ink">{task.title}</p><span className="shrink-0 rounded border border-canvas-border bg-canvas px-2 py-0.5 text-[10px] font-medium text-ink-soft">{task.progressStatusLabel}</span></div><p className="mt-1 break-words text-xs text-ink-soft">{task.eventTitle}</p><div className="mt-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs text-ink-soft"><span>{formatDateTimeShort(task.deadlineAt)}</span><span className="font-medium">{task.assignmentLabel}</span></div></Link></li>)}</ul>}
+                      {dashboardData.myTasks.length === 0 ? <p className="text-sm italic text-ink-soft">Size atanmış bir görev bulunmuyor.</p> : <ul className="flex flex-col gap-3">{dashboardData.myTasks.map(task => <li key={task.id} className="rounded-md border border-canvas-border bg-canvas-surface p-3 transition-colors hover:border-ink/20"><Link to={task.eventId ? `/app/etkinlikler/${task.eventId}` : '/app/gorevler'} className="block rounded-sm focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2"><div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1"><p className="min-w-0 break-words text-sm font-medium text-ink">{task.title}</p><span className="shrink-0 rounded border border-canvas-border bg-canvas px-2 py-0.5 text-[10px] font-medium text-ink-soft">{task.progressStatusLabel}</span></div><p className="mt-1 break-words text-xs text-ink-soft">{task.eventTitle}</p><div className="mt-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs text-ink-soft"><span>{formatDateTimeShort(task.deadlineAt)}</span><span className="font-medium">{task.assignmentLabel}</span></div></Link></li>)}</ul>}
                     </section>
                     <section>
                       <h2 className="mb-3 border-b border-canvas-border pb-2 text-sm font-semibold text-ink">Son Etkinlikler</h2>
@@ -419,17 +431,21 @@ export default function AppHome({ session }: { session: Session }) {
                   <div className="flex flex-col gap-6 sm:gap-8">
                     <section>
                       <h2 className="mb-3 border-b border-red-200 pb-2 text-sm font-semibold text-red-700">Geciken Görevler</h2>
-                      {dashboardData.overdueTasks.length === 0 ? <p className="text-sm italic text-ink-soft">Geciken görev bulunmuyor.</p> : <ul className="flex flex-col gap-3">{dashboardData.overdueTasks.map(task => <li key={task.id} className="rounded-md border border-red-200 bg-red-50 p-3 transition-colors hover:border-red-300"><Link to={`/app/etkinlikler/${task.eventId}`} className="block rounded-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"><p className="break-words text-sm font-medium text-red-900">{task.title}</p><p className="mt-1 break-words text-xs text-red-700/80">{task.eventTitle}</p><div className="mt-2 text-xs font-semibold text-red-700">{formatDateTimeShort(task.deadlineAt)}</div></Link></li>)}</ul>}
+                      {dashboardData.overdueTasks.length === 0 ? <p className="text-sm italic text-ink-soft">Geciken görev bulunmuyor.</p> : <ul className="flex flex-col gap-3">{dashboardData.overdueTasks.map(task => <li key={task.id} className="rounded-md border border-red-200 bg-red-50 p-3 transition-colors hover:border-red-300"><Link to={task.eventId ? `/app/etkinlikler/${task.eventId}` : '/app/gorevler'} className="block rounded-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"><p className="break-words text-sm font-medium text-red-900">{task.title}</p><p className="mt-1 break-words text-xs text-red-700/80">{task.eventTitle}</p><div className="mt-2 text-xs font-semibold text-red-700">{formatDateTimeShort(task.deadlineAt)}</div></Link></li>)}</ul>}
                     </section>
                     <section>
                       <h2 className="mb-3 border-b border-canvas-border pb-2 text-sm font-semibold text-ink">Yaklaşan Görevler</h2>
-                      {dashboardData.upcomingTasks.length === 0 ? <p className="text-sm italic text-ink-soft">Yaklaşan açık görev bulunmuyor.</p> : <ul className="flex flex-col gap-3">{dashboardData.upcomingTasks.map(task => <li key={task.id} className="rounded-md border border-canvas-border bg-canvas-surface p-3 transition-colors hover:border-ink/20"><Link to={`/app/etkinlikler/${task.eventId}`} className="block rounded-sm focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2"><p className="break-words text-sm font-medium text-ink">{task.title}</p><p className="mt-1 break-words text-xs text-ink-soft">{task.eventTitle}</p><div className="mt-2 text-xs text-ink-soft">{formatDateTimeShort(task.deadlineAt)}</div></Link></li>)}</ul>}
+                      {dashboardData.upcomingTasks.length === 0 ? <p className="text-sm italic text-ink-soft">Yaklaşan açık görev bulunmuyor.</p> : <ul className="flex flex-col gap-3">{dashboardData.upcomingTasks.map(task => <li key={task.id} className="rounded-md border border-canvas-border bg-canvas-surface p-3 transition-colors hover:border-ink/20"><Link to={task.eventId ? `/app/etkinlikler/${task.eventId}` : '/app/gorevler'} className="block rounded-sm focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2"><p className="break-words text-sm font-medium text-ink">{task.title}</p><p className="mt-1 break-words text-xs text-ink-soft">{task.eventTitle}</p><div className="mt-2 text-xs text-ink-soft">{formatDateTimeShort(task.deadlineAt)}</div></Link></li>)}</ul>}
                     </section>
                   </div>
                 </div>
                 <section className="mt-2 border-t border-canvas-border pt-5 sm:mt-4 sm:pt-6">
                   <h2 className="mb-4 text-sm font-semibold text-ink">Hızlı Erişim</h2>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                    <Link to="/app/gorevler" className="block rounded-lg border border-accent/30 bg-accent-soft/20 p-4 shadow-card transition-colors hover:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2">
+                      <p className="text-sm font-semibold text-ink">Görevler</p>
+                      <p className="mt-1 text-xs text-ink-soft">Tüm görevleri, atamaları ve bağlı kayıtları tek yerden yönet.</p>
+                    </Link>
                     <Link to="/app/etkinlikler" className="block rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card transition-colors hover:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2">
                       <p className="text-sm font-semibold text-ink">Tüm Etkinlikler</p>
                       <p className="mt-1 text-xs text-ink-soft">Aktif dönemdeki tüm etkinlikleri ve detaylarını görüntüle.</p>
