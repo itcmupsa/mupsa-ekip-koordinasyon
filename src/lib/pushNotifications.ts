@@ -2,7 +2,9 @@ import { supabase } from './supabaseClient'
 
 export type PushSupportState = 'supported' | 'unsupported' | 'not_configured'
 
-const vapidPublicKey = import.meta.env.VITE_WEB_PUSH_PUBLIC_KEY
+// Public VAPID key'i gizli degildir. Ortam degiskeni varsa onu kullanir;
+// iki hosting ortami icin de varsayilan anahtarla build ayari olmadan calisir.
+const vapidPublicKey = import.meta.env.VITE_WEB_PUSH_PUBLIC_KEY || 'BMw3Qixduo1KGqkVxuKpmUhcdmFoe4zHzcmyzB5y-vBAQkuJWTzZA8PebaHF0BzeSwYsFViaFha83K7Jk5Ib6sQ'
 
 function urlBase64ToUint8Array(value: string): Uint8Array {
   const padding = '='.repeat((4 - (value.length % 4)) % 4)

@@ -6,7 +6,7 @@
 
 **Şu an neredeyiz:** Faz 1 / Adım 1 tamamlandı. Faz 1 / Adım 2'de “görev atandı”, “SKS durumu değişti”, “bağımlı görev aktifleşti”, “etkinlik tarihi değişti”, “görev gecikti” ve “görev son tarihi yaklaşıyor” kuralları, push abonelik altyapısı, `pg_cron` zamanlamaları ve ayrı test senaryoları eklendi; gerçek Supabase projesinde uygulama ve işlev testleri başarıyla tamamlandı. İlk migration'lar için Supabase CLI bağlantısı ve uzak migration geçmişi baseline senkronizasyonu da tamamlandı. E-posta/push kayıtlarını gerçek kanallara teslim edecek katman henüz yazılmadı.
 
-**Henüz kurulmadı:** Canlı ortam değişkenleri, e-posta teslimat katmanı ve gerçek tarayıcı push gönderimi. Uygulama istemcisinin Faz 1 web temeli kuruldu: Vite + React + TypeScript + Tailwind CSS ile mobil uyumlu giriş, magic-link dönüşü ve korumalı uygulama kabuğu hazırdır; etkinlik/görev ekranları henüz yoktur.
+**Henüz kurulmadı:** E-posta teslimat katmanı. Web Push için VAPID secret'ları, güvenli teslim Edge Function'ı ve dakikalık Supabase Cron zamanlaması kuruldu; gerçek tarayıcı push testi, cihaz aboneliği ve kullanıcı izni verildikten sonra yapılacak. Uygulama istemcisinin Faz 1 web temeli kuruldu: Vite + React + TypeScript + Tailwind CSS ile mobil uyumlu giriş ve korumalı uygulama kabuğu hazırdır.
 
 **Yeni bir Claude/GPT sohbetine bu projeyi anlatman gerekirse:** bu dokümanı yükle + "MUPSA projesine devam ediyoruz, bu dokümanı oku, Güncel Durum bölümünden devam et" de. GitHub repo: `https://github.com/onndd/mupsa-ekip-koordinasyon`.
 
