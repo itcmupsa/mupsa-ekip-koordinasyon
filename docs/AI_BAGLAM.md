@@ -113,7 +113,7 @@ RLS önemlidir:
 - Aynı profil farklı dönemlerde tekrar kullanılabilir; her dönem için ayrı `period_memberships` kaydı ve ayrı `period_display_name` tutulur.
 - Eski dönem kayıtlarında eski dönem üyeliğinin görünen adı kullanılmalı; `profiles.display_name` tarihsel kayıtların tek kaynağı olarak kullanılmamalıdır.
 - Dönem görünen adını yalnızca Süper Yönetici değiştirir. Kilitli dönem üyelikleri değiştirilemez. Auth e-posta adresi bu işlem sırasında değiştirilmez.
-- Takvimde etkinlik ve farkındalık tarihleri mevcut kayıtlardan üretilir; manuel takvim kayıtlarını yalnızca Süper Yönetici yönetir. Görev son tarihleri yalnızca primary görev sahibine veritabanındaki `auth.uid()` kontrollü RPC ile gösterilir.
+- Takvimde etkinlik ve farkındalık tarihleri mevcut kayıtlardan üretilir; manuel takvim kayıtlarını yalnızca Süper Yönetici yönetir. Görev son tarihleri `auth.uid()` kullanan veritabanı RPC'si ile yalnızca primary ve supporting atanan kişilere gösterilir.
 
 ## 7. Çalışma ve teslim kuralları
 

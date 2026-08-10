@@ -10,8 +10,8 @@ Bu senaryolar test verileri canlıda kalıcı bırakılmadan uygulanmalıdır.
 6. Koordinatör manuel kayıt yönetim kontrollerini görmez ve doğrudan `calendar_entries` yazma denemesi RLS tarafından reddedilir.
 7. Pasifleştirme fiziksel silme yapmaz; `deleted_at`, `deleted_by` ve `deletion_note` dolar.
 8. `calendar_entry` için oluşturma, düzenleme, pasifleştirme ve yeniden aktifleştirme audit kayıtları oluşur.
-9. Takvim görevleri yalnızca `get_my_calendar_task_deadlines()` RPC'sinin `auth.uid()` ile eşleştirdiği primary görev sahibine gösterilir.
-10. Destekleyen, bilgilendirilen, etkinlik sahibi ve başka bir Süper Yönetici primary ataması yoksa görev son tarihini takvimde göremez.
+9. Takvim görevleri `get_my_calendar_task_deadlines()` RPC'sinin `auth.uid()` ile eşleştirdiği ana sorumlu (`primary`) ve destekleyen (`supporting`) kişilere gösterilir.
+10. Bilgilendirilen (`informed`), atanmamış kullanıcı, yalnızca etkinlik sahibi ve başka bir Süper Yönetici görev ataması yoksa görev son tarihini takvimde göremez.
 11. Primary sahibi olmayan, taslak, tamamlanmış, iptal edilmiş veya silinmiş görev takvimde görünmez.
 12. Silinmiş etkinliğe bağlı görev, görev sahibi olsa bile takvimde görünmez.
 13. 30 Haziran ve 1 Temmuz tarihleri farklı dönemlerde doğru görünür.
