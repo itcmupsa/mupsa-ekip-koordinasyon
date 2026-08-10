@@ -69,6 +69,11 @@ interface CalendarItem {
   linkTo?: string
 }
 
+interface CalendarCell {
+  key: string
+  isCurrentMonth: boolean
+}
+
 function parseDateOnly(value: string | null): Date | null {
   if (!value) return null
   const [year, month, day] = value.split('-').map(Number)
@@ -310,11 +315,22 @@ export default function Calendar({ session }: { session: Session }) {
     const first = new Date(Date.UTC(viewYear, viewMonth, 1))
     const firstWeekday = (first.getUTCDay() + 6) % 7
     const daysInMonth = new Date(Date.UTC(viewYear, viewMonth + 1, 0)).getUTCDate()
-    const cells: Array<string | null> = Array.from({ length: firstWeekday }, () => null)
-    for (let day = 1; day <= daysInMonth; day += 1) {
-      cells.push(dateKey(new Date(Date.UTC(viewYear, viewMonth, day))))
+    const cells: CalendarCell[] = []
+    for (let offset = firstWeekday; offset > 0; offset -= 1) {
+      const date = new Date(Date.UTC(viewYear, viewMonth, 1 - offset))
+      cells.push({ key: dateKey(date), isCurrentMonth: false })
     }
-    while (cells.length % 7 !== 0) cells.push(null)
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      cells.push({
+        key: dateKey(new Date(Date.UTC(viewYear, viewMonth, day))),
+        isCurrentMonth: true,
+      })
+    }
+    const cellCount = cells.length <= 35 ? 35 : 42
+    for (let offset = 1; cells.length < cellCount; offset += 1) {
+      const date = new Date(Date.UTC(viewYear, viewMonth + 1, offset))
+      cells.push({ key: dateKey(date), isCurrentMonth: false })
+    }
     return cells
   }, [viewMonth, viewYear])
 
@@ -487,20 +503,18 @@ export default function Calendar({ session }: { session: Session }) {
 
           <div className="grid grid-cols-7 border-l border-t border-canvas-border">
             {WEEKDAYS.map((weekday) => <div key={weekday} className="border-b border-r border-canvas-border px-1 py-2 text-center text-xs font-semibold text-ink-soft sm:px-2">{weekday}</div>)}
-            {calendarCells.map((key, index) => {
-              const items = key ? itemsByDate.get(key) ?? [] : []
-              const isSelected = key === selectedDate
+            {calendarCells.map((cell) => {
+              const items = itemsByDate.get(cell.key) ?? []
+              const isSelected = cell.key === selectedDate
               return (
-                <button key={key ?? `empty-${index}`} type="button" disabled={!key} onClick={() => key && setSelectedDate(key)} className={`min-h-20 border-b border-r border-canvas-border p-1 text-left align-top sm:min-h-24 sm:p-2 ${isSelected ? 'bg-canvas' : 'bg-canvas-surface'} ${key ? 'hover:bg-canvas' : 'cursor-default'}`}>
-                  {key && <>
-                    <span className="text-xs font-semibold text-ink-soft">{Number(key.slice(-2))}</span>
-                    {items.slice(0, 2).map((item) => (
-                      <span key={item.id} title={item.label} className="mt-1 block truncate rounded border border-canvas-border bg-canvas px-1 py-0.5 text-[10px] font-medium leading-4 text-ink sm:text-xs">
-                        {item.label}
-                      </span>
-                    ))}
-                    {items.length > 2 && <span className="mt-1 block text-[10px] font-medium leading-4 text-ink-soft sm:text-xs">+{items.length - 2} kayıt</span>}
-                  </>}
+                <button key={cell.key} type="button" onClick={() => setSelectedDate(cell.key)} className={`min-h-20 border-b border-r border-canvas-border p-1 text-left align-top sm:min-h-24 sm:p-2 ${isSelected ? 'bg-canvas' : cell.isCurrentMonth ? 'bg-canvas-surface' : 'bg-canvas/50'} hover:bg-canvas`}>
+                  <span className={`text-xs font-semibold ${cell.isCurrentMonth ? 'text-ink-soft' : 'text-ink-soft/60'}`}>{Number(cell.key.slice(-2))}</span>
+                  {items.slice(0, 2).map((item) => (
+                    <span key={item.id} title={item.label} className="mt-1 block truncate rounded border border-canvas-border bg-canvas px-1 py-0.5 text-[10px] font-medium leading-4 text-ink sm:text-xs">
+                      {item.label}
+                    </span>
+                  ))}
+                  {items.length > 2 && <span className="mt-1 block text-[10px] font-medium leading-4 text-ink-soft sm:text-xs">+{items.length - 2} kayıt</span>}
                 </button>
               )
             })}
