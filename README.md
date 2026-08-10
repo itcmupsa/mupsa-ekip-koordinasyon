@@ -15,6 +15,7 @@ Uygulama Cloudflare Pages üzerinde yayınlanır ve Supabase ile çalışır. Me
 - Görevleri pasifleştirme ve yeniden aktifleştirme
 - Dashboard özetleri ve uygulama içi bildirimler
 - Mobil Web Push bildirimi, cihaz aboneliği ve bildirim ayarları
+- Süper Yönetici duyuruları: herkese, seçili koordinatörlüklere veya belirli kişilere; isteğe bağlı ileri tarihli gönderim
 - Hesabım ve Ayarlar sayfası: hesap bilgileri, şifre, bildirimler ve yetkili yönetim bağlantıları
 - Rapor, bağlantı, dosya metadata/Storage, SKS, bütçe ve sponsor yönetimi
 - Farkındalık paylaşımları ve takvim

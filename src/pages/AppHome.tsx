@@ -257,6 +257,7 @@ export default function AppHome({ session }: { session: Session }) {
         .select('id, event_id, task_id, title, body, read_at, created_at')
         .eq('recipient_id', profileId)
         .eq('channel', 'in_app')
+        .or(`scheduled_for.is.null,scheduled_for.lte.${new Date().toISOString()}`)
         .order('created_at', { ascending: false })
         .limit(20)
 
@@ -327,6 +328,7 @@ export default function AppHome({ session }: { session: Session }) {
       .update({ read_at: new Date().toISOString() })
       .eq('recipient_id', profileId)
       .eq('channel', 'in_app')
+      .or(`scheduled_for.is.null,scheduled_for.lte.${new Date().toISOString()}`)
       .is('read_at', null)
       .in('id', unreadIds)
 

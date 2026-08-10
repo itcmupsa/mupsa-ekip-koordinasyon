@@ -2,7 +2,7 @@
 
 Bu dosya, proje bağlamının güncel durum kaydıdır. Bir görev tamamlandığında yalnızca bu dosyadaki ilgili bölümleri güncelle; `AI_BAGLAM.md` dosyasını yalnızca kalıcı karar değiştiğinde değiştir.
 
-**Son güncelleme:** 9 Ağustos 2026
+**Son güncelleme:** 10 Ağustos 2026
 
 ## Canlı sistem
 
@@ -31,7 +31,7 @@ Uygulanan migration konuları:
 
 Tüm migration'lar yerel Supabase CLI kayıtları ile uzak veritabanı kayıtlarında eşitlenmiş ve doğrulanmıştır. `pg_cron` etkinleştirilmiştir.
 
-Bildirim altyapısı şu anda veritabanında `notifications` kuyruğuna kayıt üretir. Gerçek e-posta gönderimi ve gerçek web push gönderimi henüz yapılmadı.
+Bildirim altyapısı `notifications` kuyruğuna kayıt üretir. Web Push teslimi Supabase Edge Function ve her dakikalık cron ile çalışır; gerçek e-posta teslimat katmanı henüz eklenmedi.
 
 ### Web temeli
 
@@ -85,17 +85,15 @@ Henüz yapılmayan ana özellikler:
 - İkinci test kullanıcısının davet edilmesi ve üyelik ekleme akışının canlı testi
 - Etkinlik düzenleme ekranı
 - Görev oluşturma, atama, destekleyen kişi ve bağımlılık ekranları
-- Uygulama içi bildirim merkezi
 - Gerçek e-posta teslimat katmanı (Magic Link artık kullanılmıyor; şifreli girişte gerekli değil)
 - İlk şifre belirleme ekranının canlı testi
 - Kullanıcı oluşturma akışının daha pratik bir yönetim ekranına dönüştürülmesi
-- Gerçek web push teslimat katmanı
 - Dışa aktarım ve dönem arşivi ekranları
-- Tam PWA kurulumu: manifest, service worker, kurulum/offline davranışı
+- PWA kurulumunun ve offline davranışının kapsamlı kullanıcı testi
 
 ## Şu anki sıradaki küçük görev
 
-**Takvim kodu ve migration hazırlığı tamamlandı; sıradaki işlem migration'ı uzak Supabase'e uygulamak ve takvimi canlıda test etmektir. Renkler başkan revizyonundan sonra değerlendirilecektir.**
+**Takvim ve yönetici duyuruları hazırlandı; sıradaki işlem yönetici duyurusunu canlıda, ardından takvimi kullanıcı hesaplarıyla test etmektir. Renkler başkan revizyonundan sonra değerlendirilecektir.**
 
 Hedef:
 
@@ -180,6 +178,7 @@ Bu görev şunları **kapsamaz**:
 - Takvim görev görünürlüğü düzeltildi: `20260810070000_allow_supporting_task_calendar.sql` ile supporting atanan kişilerin de görev son tarihlerini görmesi sağlandı; informed, atanmamış kullanıcı, yalnızca etkinlik sahibi ve başka bir Süper Yönetici görmeye devam etmez.
 - Mobil Web Push teslim altyapısı eklendi: ana sayfadan cihaz aboneliği açma/kapatma, `public/sw.js` içinde bildirim gösterme ve bildirime tıklayınca etkinlik detayına yönlendirme hazırlandı. `20260810110000_queue_push_notifications.sql` mevcut `in_app` kuyruğundan `push` kaydı üretir; `supabase/functions/deliver-push-notifications/index.ts` güvenli teslim için Supabase'e deploy edildi. VAPID secret'ları Supabase'te tanımlandı, push teslimi için `pg_net` ve her dakikalık `pg_cron` zamanlaması kuruldu. Frontend public VAPID key'i ortam değişkeni veya güvenli public fallback ile kullanıyor. Gerçek telefon bildirimi için kullanıcının ana sayfadan bildirimleri açması ve cihaz izin testi bekliyor.
 - Hesap ayarları ekranı eklendi: `/app/ayarlar` altında hesap bilgileri, dönem görünen adı, rol, mobil bildirim açma/kapatma, şifre değiştirme ve süper yönetici için ekip/yetki yönetimine geçiş bulunuyor. Ana sayfadaki mobil bildirim ve yönetim kartları bu sayfaya taşındı; ana sayfa özet ve çalışma akışlarına odaklandı. Görünen ad değişikliği dönem geçmişini korumak için mevcut süper yönetici yönetim modeliyle sınırlı tutuldu. Lint, build ve `git diff --check` başarılı.
+- Süper Yönetici duyuruları eklendi: `/app/ayarlar` içindeki Yönetim bölümünden ayrı bir sayfa açmadan herkese, seçili koordinatörlüklere veya belirli kişilere duyuru gönderilebilir. Aktif Süper Yöneticiler her duyuruyu otomatik alır; isteğe bağlı ileri tarihli gönderim desteklenir. `admin_announcements` tablosu, `send_admin_announcement` güvenli RPC'si, RLS, audit ve bildirim/push kuyruğu bağlantısı `20260810130000_add_admin_announcements.sql` migration'ı ile uzak Supabase'e uygulandı. Gelecek zamanlı duyurular zamanı gelmeden uygulama içi listede görünmez ve push kuyruğuna teslim edilmez. Lint, build ve `git diff --check` başarılı.
 
 ### Dönem bazlı görünen kullanıcı adı — tamamlandı
 
