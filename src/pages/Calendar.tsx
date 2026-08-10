@@ -494,7 +494,12 @@ export default function Calendar({ session }: { session: Session }) {
                 <button key={key ?? `empty-${index}`} type="button" disabled={!key} onClick={() => key && setSelectedDate(key)} className={`min-h-20 border-b border-r border-canvas-border p-1 text-left align-top sm:min-h-24 sm:p-2 ${isSelected ? 'bg-canvas' : 'bg-canvas-surface'} ${key ? 'hover:bg-canvas' : 'cursor-default'}`}>
                   {key && <>
                     <span className="text-xs font-semibold text-ink-soft">{Number(key.slice(-2))}</span>
-                    {items.length > 0 && <span className="mt-2 block text-xs text-ink">{items.length} kayıt</span>}
+                    {items.slice(0, 2).map((item) => (
+                      <span key={item.id} title={item.label} className="mt-1 block truncate rounded border border-canvas-border bg-canvas px-1 py-0.5 text-[10px] font-medium leading-4 text-ink sm:text-xs">
+                        {item.label}
+                      </span>
+                    ))}
+                    {items.length > 2 && <span className="mt-1 block text-[10px] font-medium leading-4 text-ink-soft sm:text-xs">+{items.length - 2} kayıt</span>}
                   </>}
                 </button>
               )
