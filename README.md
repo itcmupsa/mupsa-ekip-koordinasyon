@@ -38,7 +38,10 @@ npm run dev
 ```text
 VITE_SUPABASE_URL=https://xxxxx.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=...
+VITE_WEB_PUSH_PUBLIC_KEY=...
 ```
+
+`VITE_WEB_PUSH_PUBLIC_KEY` yalnızca Web Push için public VAPID anahtarıdır. VAPID private key ve `service_role` anahtarı frontend ortamına veya repoya eklenmemelidir.
 
 `service_role` anahtarı tarayıcı uygulamasına veya repoya eklenmez. Güvenli kullanıcı oluşturma işlemi Supabase Edge Function üzerinden yürütülür.
 

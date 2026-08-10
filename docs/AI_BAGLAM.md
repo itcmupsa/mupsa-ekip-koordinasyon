@@ -114,6 +114,7 @@ RLS önemlidir:
 - Eski dönem kayıtlarında eski dönem üyeliğinin görünen adı kullanılmalı; `profiles.display_name` tarihsel kayıtların tek kaynağı olarak kullanılmamalıdır.
 - Dönem görünen adını yalnızca Süper Yönetici değiştirir. Kilitli dönem üyelikleri değiştirilemez. Auth e-posta adresi bu işlem sırasında değiştirilmez.
 - Takvimde etkinlik ve farkındalık tarihleri mevcut kayıtlardan üretilir; manuel takvim kayıtlarını yalnızca Süper Yönetici yönetir. Görev son tarihleri `auth.uid()` kullanan veritabanı RPC'si ile yalnızca primary ve supporting atanan kişilere gösterilir.
+- Bildirimlerde uygulama içi kuyruk veritabanında üretilir. Web Push için cihaz abonelikleri `push_subscriptions` tablosunda tutulur; teslimat service worker ve VAPID secret'ları olan güvenli Edge Function üzerinden yapılır. VAPID private key frontend'e veya repoya yazılamaz.
 
 ## 7. Çalışma ve teslim kuralları
 
