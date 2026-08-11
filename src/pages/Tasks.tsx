@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
+import AppShell from '../components/AppShell'
+import TaskFilterSheet from '../components/tasks/TaskFilterSheet'
+import NewTaskPanel from '../components/tasks/NewTaskPanel'
 
 type LoadState = 'loading' | 'ready' | 'error'
 type ContextKind = 'event' | 'awareness' | 'standalone'
@@ -76,8 +79,70 @@ function CenteredMessage({ text }: { text: string }) {
   return <div className="flex min-h-screen items-center justify-center bg-canvas px-4"><p className="text-center text-sm text-ink-soft">{text}</p></div>
 }
 
+const ASSIGNMENT_LABELS: Record<Assignment['assignmentType'], string> = {
+  primary: 'Ana sorumlu',
+  supporting: 'Destekleyen',
+  informed: 'Bilgilendirilen',
+}
+
+const PRIORITY_DOT_CLASSES: Record<string, string> = {
+  low: 'bg-emerald-600',
+  normal: 'bg-amber-600',
+  high: 'bg-red-600',
+  urgent: 'bg-red-800',
+}
+
+function statusControlClass(slug: string): string {
+  if (slug === 'completed') return 'border-emerald-200 bg-emerald-50 text-emerald-800'
+  if (slug === 'in_progress' || slug === 'waiting') return 'border-amber-200 bg-amber-50 text-amber-800'
+  if (slug === 'cancelled' || slug === 'blocked' || slug === 'overdue') return 'border-red-200 bg-red-50 text-red-700'
+  return 'border-canvas-border bg-canvas text-ink-soft'
+}
+
+function SearchIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
+}
+
+function FilterIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><path d="M4 5h16l-6 7v5l-4 2v-7z" /></svg>
+}
+
+function PlusIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+}
+
+function CalendarIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="2" /><path d="M3.5 9.5h17M8 3v3M16 3v3" /></svg>
+}
+
+function PersonIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><circle cx="12" cy="8" r="3.25" /><path d="M5.5 20a6.5 6.5 0 0 1 13 0" /></svg>
+}
+
+function ChevronIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
+}
+
+function TaskKindIcon({ kind }: { kind: ContextKind }) {
+  const className = kind === 'standalone'
+    ? 'bg-brand-soft text-brand-dark'
+    : 'bg-accent-soft text-amber-800'
+
+  return (
+    <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${className}`}>
+      {kind === 'awareness' ? (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><path d="M4 10v3a1 1 0 0 0 1 1h2l4.5 3.5v-11L7 10H5a1 1 0 0 0-1 1zM16.5 9a4 4 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11" /></svg>
+      ) : kind === 'event' ? (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="2" /><path d="M3.5 9.5h17M8 3v3M16 3v3" /><circle cx="9" cy="14" r="1" /><circle cx="12.5" cy="14" r="1" /><circle cx="16" cy="14" r="1" /></svg>
+      ) : (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2" /><path d="M9 3.5V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v.5M8.5 11.5l2 2L15 9" /></svg>
+      )}
+    </span>
+  )
+}
+
 export default function Tasks({ session }: { session: Session }) {
-  const { hasActiveMembership, periodId, periodLabel, profileId, appRole, loading: statusLoading } = useMembershipStatus(session)
+  const { displayName, hasActiveMembership, periodId, periodLabel, profileId, appRole, coordinatorRoleName, loading: statusLoading } = useMembershipStatus(session)
   const isSuperAdmin = appRole === 'super_admin'
   const [loadState, setLoadState] = useState<LoadState>('loading')
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -91,6 +156,7 @@ export default function Tasks({ session }: { session: Session }) {
   const [search, setSearch] = useState('')
   const [contextFilter, setContextFilter] = useState<'all' | ContextKind>('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [contextSelection, setContextSelection] = useState('')
   const [title, setTitle] = useState('')
@@ -104,6 +170,8 @@ export default function Tasks({ session }: { session: Session }) {
   const [formMessage, setFormMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null)
+  const closeFilterSheet = useCallback(() => setFilterSheetOpen(false), [])
+  const closeFormPanel = useCallback(() => setFormOpen(false), [])
 
   useEffect(() => {
     if (statusLoading || !hasActiveMembership || !periodId || !profileId) return
@@ -309,68 +377,249 @@ export default function Tasks({ session }: { session: Session }) {
     setReloadKey((value) => value + 1)
   }
 
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+  }
+
   if (statusLoading || loadState === 'loading') return <CenteredMessage text="Görevler yükleniyor…" />
   if (!hasActiveMembership || !periodId) return <CenteredMessage text="Aktif dönem üyeliğiniz bulunmuyor." />
   if (loadState === 'error') return <CenteredMessage text={loadError ?? 'Görevler yüklenemedi.'} />
 
+  const roleLabel = coordinatorRoleName ?? (isSuperAdmin ? 'Süper Yönetici' : 'Koordinatör')
+
   return (
-    <div className="min-h-screen bg-canvas text-ink">
-      <header className="border-b border-canvas-border bg-canvas-surface">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <Link to="/app" className="text-sm font-semibold">MUPSA Ekip Koordinasyon</Link>
-          <Link to="/app" className="text-sm text-ink-soft hover:text-ink">Ana sayfaya dön</Link>
-        </div>
-      </header>
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-          <div><p className="text-sm text-ink-soft">Aktif dönem: {periodLabel ?? 'Belirtilmedi'}</p><h1 className="mt-1 text-2xl font-semibold">Görevler</h1><p className="mt-1 text-sm text-ink-soft">Etkinlik, farkındalık ve bağımsız görevleri tek yerden yönet.</p></div>
-          {canCreateAny && <button type="button" onClick={openForm} className="rounded-md bg-ink px-3 py-2 text-sm font-medium text-white">Yeni görev</button>}
-        </div>
-
-        {formMessage && <p className="mb-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">{formMessage}</p>}
-        {formOpen && <section className="mb-5 rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
-          <div className="flex items-center justify-between gap-3"><h2 className="font-semibold">Yeni görev oluştur</h2><button type="button" onClick={() => setFormOpen(false)} className="text-sm text-ink-soft">Kapat</button></div>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <label className="grid gap-1 text-sm font-medium">Bağlı kayıt
-              <select value={contextSelection} onChange={(event) => setContextSelection(event.target.value)} className="rounded-md border border-canvas-border bg-canvas px-3 py-2 font-normal">
-                {isSuperAdmin && <option value="standalone">Bağımsız görev</option>}
-                {creatableEvents.length > 0 && <optgroup label="Etkinlikler">{creatableEvents.map((event) => <option key={event.id} value={contextKey('event', event.id)}>{event.title}</option>)}</optgroup>}
-                {creatableAwareness.length > 0 && <optgroup label="Farkındalıklar">{creatableAwareness.map((post) => <option key={post.id} value={contextKey('awareness', post.id)}>{post.title}</option>)}</optgroup>}
-              </select>
-            </label>
-            <label className="grid gap-1 text-sm font-medium">Görev adı<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={200} className="rounded-md border border-canvas-border bg-canvas px-3 py-2 font-normal" /></label>
-            <label className="grid gap-1 text-sm font-medium sm:col-span-2">Açıklama<textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={3} className="resize-y rounded-md border border-canvas-border bg-canvas px-3 py-2 font-normal" /></label>
-            <label className="grid gap-1 text-sm font-medium">Son tarih<input type="datetime-local" value={deadline} onChange={(event) => setDeadline(event.target.value)} className="rounded-md border border-canvas-border bg-canvas px-3 py-2 font-normal" /></label>
-            <label className="grid gap-1 text-sm font-medium">Öncelik<select value={priority} onChange={(event) => setPriority(event.target.value)} className="rounded-md border border-canvas-border bg-canvas px-3 py-2 font-normal">{PRIORITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-            <label className="grid gap-1 text-sm font-medium">Ana sorumlu<select value={primaryProfileId} onChange={(event) => setPrimaryProfileId(event.target.value)} className="rounded-md border border-canvas-border bg-canvas px-3 py-2 font-normal"><option value="">Seçiniz</option>{members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
-            <label className="grid gap-1 text-sm font-medium">Destekleyen<select value={supportingProfileId} onChange={(event) => setSupportingProfileId(event.target.value)} className="rounded-md border border-canvas-border bg-canvas px-3 py-2 font-normal"><option value="">Seçiniz</option>{members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
-            <label className="grid gap-1 text-sm font-medium">Bilgilendirilen<select value={informedProfileId} onChange={(event) => setInformedProfileId(event.target.value)} className="rounded-md border border-canvas-border bg-canvas px-3 py-2 font-normal"><option value="">Seçiniz</option>{members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
+    <AppShell
+      isSuperAdmin={isSuperAdmin}
+      displayName={displayName}
+      roleLabel={roleLabel}
+      onSignOut={() => void handleSignOut()}
+    >
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div className="mb-5 grid gap-4 lg:flex lg:items-end lg:justify-between">
+          <div>
+            <p className="text-sm text-ink-soft">
+              Aktif dönem: <span className="font-medium text-brand-dark">{periodLabel ?? 'Belirtilmedi'}</span>
+            </p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-ink">Görevler</h1>
+            <p className="mt-1 text-sm text-ink-soft">Etkinlik, farkındalık ve bağımsız görevleri tek yerden yönet.</p>
           </div>
-          {formError && <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</p>}
-          <button type="button" onClick={() => void createTask()} disabled={saving || !contextSelection} className="mt-4 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-60">{saving ? 'Oluşturuluyor…' : 'Görevi oluştur'}</button>
-        </section>}
 
-        <section className="mb-5 grid gap-3 rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card sm:grid-cols-3">
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Görev veya bağlı kayıt ara" className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm sm:col-span-1" />
-          <select value={contextFilter} onChange={(event) => setContextFilter(event.target.value as 'all' | ContextKind)} className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm"><option value="all">Tüm bağlı kayıtlar</option><option value="event">Etkinlik görevleri</option><option value="awareness">Farkındalık görevleri</option><option value="standalone">Bağımsız görevler</option></select>
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm"><option value="all">Tüm durumlar</option>{statuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}</select>
-          {isSuperAdmin && <label className="flex items-center gap-2 text-sm text-ink-soft sm:col-span-3"><input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} />Pasif görevleri göster</label>}
+          {canCreateAny ? (
+            <button
+              type="button"
+              onClick={openForm}
+              className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-semibold text-white shadow-card transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 lg:w-auto"
+            >
+              <PlusIcon />
+              Yeni görev
+            </button>
+          ) : null}
+        </div>
+
+        {formMessage ? (
+          <p role="status" className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            {formMessage}
+          </p>
+        ) : null}
+
+        <section className="mb-5 grid gap-3 lg:hidden" aria-label="Görev arama ve filtreleme">
+          <label className="relative block">
+            <span className="sr-only">Görev veya bağlı kayıt ara</span>
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-ink-soft"><SearchIcon /></span>
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Görev veya bağlı kayıt ara"
+              className="min-h-[48px] w-full rounded-xl border border-canvas-border bg-canvas-surface py-3 pl-11 pr-3 text-sm text-ink shadow-card placeholder:text-ink-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => setFilterSheetOpen(true)}
+            className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-canvas-border bg-canvas-surface px-4 text-sm font-medium text-ink shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            <FilterIcon />
+            Filtreler
+            {contextFilter !== 'all' || statusFilter !== 'all' || showInactive ? (
+              <span className="h-2 w-2 rounded-full bg-accent" aria-label="Etkin filtre var" />
+            ) : null}
+          </button>
         </section>
 
-        {visibleTasks.length === 0 ? <p className="rounded-lg border border-canvas-border bg-canvas-surface p-6 text-sm italic text-ink-soft">Bu filtrelere uygun görev bulunmuyor.</p> : <div className="grid gap-3">{visibleTasks.map((task) => {
-          const taskKind: ContextKind = task.eventId ? 'event' : task.awarenessPostId ? 'awareness' : 'standalone'
-          const taskManager = isTaskManager(task)
-          const canUpdate = taskManager || task.assignments.some((assignment) => assignment.profileId === profileId && (assignment.assignmentType === 'primary' || assignment.assignmentType === 'supporting'))
-          const linkTo = task.eventId ? `/app/etkinlikler/${task.eventId}` : task.awarenessPostId ? '/app/farkindalik' : null
-          const statusLabel = statuses.find((status) => status.slug === task.progressStatus)?.label ?? task.progressStatus
-          return <article key={task.id} className={`rounded-lg border p-4 shadow-card ${task.deletedAt ? 'border-red-200 bg-red-50/40' : 'border-canvas-border bg-canvas-surface'}`}>
-            <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs text-ink-soft">{taskKind === 'event' ? 'Etkinlik görevi' : taskKind === 'awareness' ? 'Farkındalık görevi' : 'Bağımsız görev'}</p><h2 className="mt-1 break-words font-semibold">{task.title}</h2><p className="mt-1 break-words text-sm text-ink-soft">{linkTo ? <Link to={linkTo} className="underline decoration-dotted">{contextTitle(task)}</Link> : contextTitle(task)}</p></div><div className="flex items-center gap-2"><span className="rounded border border-canvas-border bg-canvas px-2 py-1 text-xs">{statusLabel}</span><span className="rounded border border-canvas-border bg-canvas px-2 py-1 text-xs">{PRIORITY_OPTIONS.find((option) => option.value === task.priority)?.label ?? task.priority}</span></div></div>
-            {task.description && <p className="mt-3 whitespace-pre-wrap break-words text-sm text-ink-soft">{task.description}</p>}
-            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-ink-soft"><span>{canSeeDeadline(task) ? formatDeadline(task.deadlineAt) : 'Son tarih yalnızca görev sorumlularına açıktır'}</span>{task.assignments.map((assignment) => <span key={assignment.id}>{assignment.displayName} · {assignment.assignmentType === 'primary' ? 'Ana sorumlu' : assignment.assignmentType === 'supporting' ? 'Destekleyen' : 'Bilgilendirilen'}</span>)}</div>
-            {canUpdate && !task.deletedAt && <div className="mt-4 flex flex-wrap items-center gap-2"><label className="text-xs text-ink-soft">Durum<select value={task.progressStatus} onChange={(event) => void updateStatus(task, event.target.value)} disabled={updatingTaskId === task.id} className="ml-2 rounded border border-canvas-border bg-canvas px-2 py-1 text-xs"><option value={task.progressStatus}>{statusLabel}</option>{statuses.filter((status) => status.slug !== task.progressStatus).map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}</select></label></div>}
-          </article>
-        })}</div>}
+        <section className="mb-5 hidden gap-3 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card lg:grid lg:grid-cols-3" aria-label="Görev arama ve filtreleme">
+          <label className="relative block">
+            <span className="sr-only">Görev veya bağlı kayıt ara</span>
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-ink-soft"><SearchIcon /></span>
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Görev veya bağlı kayıt ara"
+              className="min-h-[44px] w-full rounded-md border border-canvas-border bg-canvas-surface py-2 pl-10 pr-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            />
+          </label>
+          <label>
+            <span className="sr-only">Bağlı kayıt türü</span>
+            <select
+              value={contextFilter}
+              onChange={(event) => setContextFilter(event.target.value as 'all' | ContextKind)}
+              className="min-h-[44px] w-full rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <option value="all">Tüm bağlı kayıtlar</option>
+              <option value="event">Etkinlik görevleri</option>
+              <option value="awareness">Farkındalık görevleri</option>
+              <option value="standalone">Bağımsız görevler</option>
+            </select>
+          </label>
+          <label>
+            <span className="sr-only">Görev durumu</span>
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              className="min-h-[44px] w-full rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <option value="all">Tüm durumlar</option>
+              {statuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}
+            </select>
+          </label>
+          {isSuperAdmin ? (
+            <label className="flex min-h-[44px] items-center gap-2 text-sm text-ink-soft lg:col-span-3">
+              <input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} className="h-4 w-4 accent-brand" />
+              Pasif görevleri göster
+            </label>
+          ) : null}
+        </section>
+
+        {visibleTasks.length === 0 ? (
+          <div className="rounded-xl border border-canvas-border bg-canvas-surface px-4 py-8 text-center shadow-card">
+            <p className="text-sm font-medium text-ink">Bu filtrelere uygun görev bulunmuyor.</p>
+            <p className="mt-1 text-xs text-ink-soft">Arama metnini veya filtreleri değiştirebilirsin.</p>
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {visibleTasks.map((task) => {
+              const taskKind: ContextKind = task.eventId ? 'event' : task.awarenessPostId ? 'awareness' : 'standalone'
+              const taskManager = isTaskManager(task)
+              const canUpdate = taskManager || task.assignments.some((assignment) => assignment.profileId === profileId && (assignment.assignmentType === 'primary' || assignment.assignmentType === 'supporting'))
+              const linkTo = task.eventId ? `/app/etkinlikler/${task.eventId}` : task.awarenessPostId ? '/app/farkindalik' : null
+              const statusLabel = statuses.find((status) => status.slug === task.progressStatus)?.label ?? task.progressStatus
+              const priorityLabel = PRIORITY_OPTIONS.find((option) => option.value === task.priority)?.label ?? task.priority
+              const taskTypeLabel = taskKind === 'event' ? 'Etkinlik görevi' : taskKind === 'awareness' ? 'Farkındalık görevi' : 'Bağımsız görev'
+              const articleClass = [
+                'rounded-xl border p-4 shadow-card sm:p-5',
+                task.deletedAt ? 'border-red-200 bg-red-50/40' : 'border-canvas-border bg-canvas-surface',
+              ].join(' ')
+              const controlClass = [
+                'min-h-[44px] max-w-[9.5rem] rounded-md border px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                statusControlClass(task.progressStatus),
+              ].join(' ')
+
+              return (
+                <article key={task.id} className={articleClass}>
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <TaskKindIcon kind={taskKind} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs text-ink-soft">{taskTypeLabel}</p>
+                          <h2 className="mt-1 break-words text-base font-semibold text-ink">{task.title}</h2>
+                        </div>
+
+                        {canUpdate && !task.deletedAt ? (
+                          <label className="shrink-0">
+                            <span className="sr-only">{task.title} görev durumunu değiştir</span>
+                            <select value={task.progressStatus} onChange={(event) => void updateStatus(task, event.target.value)} disabled={updatingTaskId === task.id} className={controlClass}>
+                              {statuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}
+                            </select>
+                          </label>
+                        ) : (
+                          <span className={`flex min-h-[44px] shrink-0 items-center rounded-md border px-3 py-2 text-sm font-medium ${statusControlClass(task.progressStatus)}`}>
+                            {statusLabel}
+                          </span>
+                        )}
+                      </div>
+
+                      {linkTo ? (
+                        <Link to={linkTo} className="mt-2 inline-flex max-w-full items-center gap-1 text-sm text-ink-soft underline decoration-canvas-border underline-offset-4 hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                          <span className="truncate">{contextTitle(task)}</span>
+                          <ChevronIcon />
+                        </Link>
+                      ) : null}
+
+                      {task.description ? <p className="mt-2 whitespace-pre-wrap break-words text-sm text-ink-soft">{task.description}</p> : null}
+
+                      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-ink-soft">
+                        <span className="inline-flex items-center gap-1.5"><CalendarIcon />{canSeeDeadline(task) ? formatDeadline(task.deadlineAt) : 'Son tarih yalnızca görev sorumlularına açıktır'}</span>
+                        <span aria-hidden="true" className="hidden text-canvas-border sm:inline">|</span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className={`h-2 w-2 rounded-full ${PRIORITY_DOT_CLASSES[task.priority] ?? 'bg-ink-soft'}`} />
+                          {priorityLabel}
+                        </span>
+                      </div>
+
+                      {task.assignments.length > 0 ? (
+                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-ink-soft">
+                          {task.assignments.map((assignment) => {
+                            const fullLabel = `${ASSIGNMENT_LABELS[assignment.assignmentType]}: ${assignment.displayName}`
+                            return (
+                              <span key={assignment.id} title={fullLabel} className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+                                <PersonIcon />
+                                <span className="max-w-[15rem] truncate sm:max-w-[20rem]">{fullLabel}</span>
+                              </span>
+                            )
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        )}
       </main>
-    </div>
+
+      <TaskFilterSheet
+        isOpen={filterSheetOpen}
+        isSuperAdmin={isSuperAdmin}
+        contextFilter={contextFilter}
+        statusFilter={statusFilter}
+        showInactive={showInactive}
+        statuses={statuses}
+        onContextFilterChange={setContextFilter}
+        onStatusFilterChange={setStatusFilter}
+        onShowInactiveChange={setShowInactive}
+        onClose={closeFilterSheet}
+      />
+
+      <NewTaskPanel
+        isOpen={formOpen}
+        isSuperAdmin={isSuperAdmin}
+        contextSelection={contextSelection}
+        title={title}
+        description={description}
+        deadline={deadline}
+        priority={priority}
+        primaryProfileId={primaryProfileId}
+        supportingProfileId={supportingProfileId}
+        informedProfileId={informedProfileId}
+        events={creatableEvents}
+        awarenessPosts={creatableAwareness}
+        members={members}
+        priorities={PRIORITY_OPTIONS}
+        error={formError}
+        saving={saving}
+        onContextSelectionChange={setContextSelection}
+        onTitleChange={setTitle}
+        onDescriptionChange={setDescription}
+        onDeadlineChange={setDeadline}
+        onPriorityChange={setPriority}
+        onPrimaryProfileIdChange={setPrimaryProfileId}
+        onSupportingProfileIdChange={setSupportingProfileId}
+        onInformedProfileIdChange={setInformedProfileId}
+        contextKeyFor={(kind, id) => contextKey(kind, id)}
+        onSubmit={() => void createTask()}
+        onClose={closeFormPanel}
+      />
+    </AppShell>
   )
 }
