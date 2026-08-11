@@ -273,6 +273,8 @@ export default function EventsList({ session }: { session: Session }) {
           <button
             type="button"
             onClick={openCreateForm}
+            aria-expanded={createState !== 'closed'}
+            aria-controls="new-event-mobile-form"
             className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-semibold text-white shadow-card transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 lg:w-auto"
           >
             <PlusIcon />
@@ -285,6 +287,22 @@ export default function EventsList({ session }: { session: Session }) {
             {successMessage}
           </p>
         ) : null}
+
+        <NewEventPanel
+          isOpen={createState !== 'closed'}
+          title={title}
+          description={description}
+          planningDate={planningDate}
+          estimatedDate={estimatedDate}
+          error={createError}
+          submitting={createState === 'submitting'}
+          onTitleChange={setTitle}
+          onDescriptionChange={setDescription}
+          onPlanningDateChange={setPlanningDate}
+          onEstimatedDateChange={setEstimatedDate}
+          onSubmit={() => void handleCreateEvent()}
+          onClose={closeCreateForm}
+        />
 
         {events.length === 0 ? (
           <div className="mt-6 rounded-xl border border-canvas-border bg-canvas-surface px-4 py-8 text-center shadow-card">
@@ -343,21 +361,6 @@ export default function EventsList({ session }: { session: Session }) {
         )}
       </main>
 
-      <NewEventPanel
-        isOpen={createState !== 'closed'}
-        title={title}
-        description={description}
-        planningDate={planningDate}
-        estimatedDate={estimatedDate}
-        error={createError}
-        submitting={createState === 'submitting'}
-        onTitleChange={setTitle}
-        onDescriptionChange={setDescription}
-        onPlanningDateChange={setPlanningDate}
-        onEstimatedDateChange={setEstimatedDate}
-        onSubmit={() => void handleCreateEvent()}
-        onClose={closeCreateForm}
-      />
     </AppShell>
   )
 }
