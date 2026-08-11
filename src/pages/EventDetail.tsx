@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import AppShell from '../components/AppShell'
 import { useSession } from '../hooks/useSession'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
 import { supabase } from '../lib/supabaseClient'
@@ -1054,7 +1055,7 @@ function TaskCard({
 export default function EventDetail() {
   const { eventId } = useParams<{ eventId: string }>()
   const { session } = useSession()
-  const { hasActiveMembership, periodId, profileId, appRole, loading: statusLoading } =
+  const { displayName, hasActiveMembership, periodId, periodLabel, profileId, appRole, coordinatorRoleName, loading: statusLoading } =
     useMembershipStatus(session)
   const [loadState, setLoadState] = useState<LoadState>('loading')
   const [event, setEvent] = useState<EventBasicInfo | null>(null)
@@ -3439,18 +3440,9 @@ export default function EventDetail() {
     setSuccessMessage('Etkinlik başarıyla güncellendi.')
   }
 
-  const header = (
-    <header className="border-b border-canvas-border bg-canvas-surface">
-      <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
-        <Link to="/app" className="text-sm font-semibold text-ink">
-          MUPSA Ekip Koordinasyon
-        </Link>
-        <Link to="/app/etkinlikler" className="text-sm font-medium text-ink-soft">
-          Etkinliklere dön
-        </Link>
-      </div>
-    </header>
-  )
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+  }
 
   if (statusLoading || loadState === 'loading') return <CenteredMessage text="Etkinlik yükleniyor…" />
   if (!hasActiveMembership) return <CenteredMessage text="Bu sayfaya erişim yetkin yok." />
@@ -3465,23 +3457,71 @@ export default function EventDetail() {
   const assignableBudgetMembers = periodMembers.filter((member) => !budgetMembers.some((assignedMember) => assignedMember.profileId === member.profileId))
   const budgetOwnerCandidates = assignableBudgetMembers.filter(m => m.coordinatorRoleSlug === 'treasurer')
   const displayBudgetMembers = budgetSelectedResponsibility === 'owner' ? budgetOwnerCandidates : assignableBudgetMembers
+  const roleLabel = coordinatorRoleName ?? (isSuperAdmin ? 'Süper Yönetici' : 'Koordinatör')
+  const primaryDate = event.confirmedDate ?? event.estimatedDate
 
   return (
-    <div className="min-h-screen bg-canvas">
-      {header}
-      <main className="mx-auto max-w-3xl px-4 py-8">
-        <div className="flex items-start justify-between gap-4">
-          <h1 className="text-xl font-semibold text-ink">{event.title}</h1>
-          {canEdit && !isEditing && (
-            <button
-              type="button"
-              onClick={startEditing}
-              className="shrink-0 rounded-md border border-canvas-border bg-canvas-surface px-3 py-1.5 text-sm font-medium text-ink hover:bg-canvas"
-            >
-              Düzenle
-            </button>
-          )}
-        </div>
+    <AppShell
+      isSuperAdmin={isSuperAdmin}
+      displayName={displayName}
+      roleLabel={roleLabel}
+      onSignOut={() => void handleSignOut()}
+    >
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <Link
+          to="/app/etkinlikler"
+          className="inline-flex min-h-[44px] items-center gap-2 rounded-md text-sm font-medium text-brand-dark hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          <span aria-hidden="true">←</span>
+          Etkinliklere dön
+        </Link>
+
+        <section id="event-overview" className="mt-3 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm text-ink-soft">
+                Aktif dönem: <span className="font-medium text-brand-dark">{periodLabel ?? 'Belirtilmedi'}</span>
+              </p>
+              <h1 className="mt-1 break-words text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{event.title}</h1>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full bg-accent-soft px-2.5 py-1 font-medium text-amber-800">{displayedStatus}</span>
+                <span className="rounded-full bg-canvas px-2.5 py-1 font-medium text-ink-soft">Sorumlu: {displayedOwner}</span>
+                <span className="rounded-full bg-brand-soft px-2.5 py-1 font-medium text-brand-dark">
+                  {event.confirmedDate ? 'Kesin tarih' : 'Tahmini tarih'}: {formatDate(primaryDate)}
+                </span>
+              </div>
+            </div>
+            {canEdit && !isEditing && (
+              <button
+                type="button"
+                onClick={startEditing}
+                className="flex min-h-[44px] w-full shrink-0 items-center justify-center rounded-md border border-canvas-border bg-canvas-surface px-4 text-sm font-medium text-ink hover:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand sm:w-auto"
+              >
+                Etkinliği düzenle
+              </button>
+            )}
+          </div>
+        </section>
+
+        <nav className="sticky top-16 z-20 -mx-4 mt-4 overflow-x-auto border-y border-canvas-border bg-canvas/95 px-4 py-2 backdrop-blur lg:top-0 lg:mx-0 lg:rounded-lg lg:border" aria-label="Etkinlik detay bölümleri">
+          <div className="flex min-w-max gap-1">
+            {[
+              ['Özet', '#event-overview'],
+              ['Notlar', '#event-notes'],
+              ['Kararlar', '#event-decisions'],
+              ['Raporlar', '#event-reports'],
+              ['Bağlantılar', '#event-links'],
+              ['Dosyalar', '#event-files'],
+              ['Süreçler', '#event-process'],
+              ['Bütçe', '#event-budget'],
+              ['Görevler', '#event-tasks'],
+            ].map(([label, href]) => (
+              <a key={href} href={href} className="flex min-h-[40px] items-center rounded-md px-3 text-sm font-medium text-ink-soft hover:bg-canvas-surface hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                {label}
+              </a>
+            ))}
+          </div>
+        </nav>
 
         {successMessage && !isEditing && (
           <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
@@ -3490,8 +3530,8 @@ export default function EventDetail() {
         )}
 
         {isEditing ? (
-          <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
-            <h2 className="text-sm font-semibold text-ink">Etkinliği düzenle</h2>
+          <div className="mt-6 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+            <h2 className="text-base font-semibold text-ink">Etkinliği düzenle</h2>
             <div className="mt-4 flex flex-col gap-4">
               <div className="flex flex-col gap-1">
                 <label htmlFor="event-title" className="text-sm font-medium text-ink-soft">
@@ -3595,12 +3635,12 @@ export default function EventDetail() {
                   {saveError}
                 </p>
               )}
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <button
                   type="button"
                   onClick={handleSave}
                   disabled={isSaving}
-                  className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
+                  className="min-h-[44px] rounded-md bg-brand-dark px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
                 >
                   {isSaving ? 'Kaydediliyor…' : 'Kaydet'}
                 </button>
@@ -3608,7 +3648,7 @@ export default function EventDetail() {
                   type="button"
                   onClick={cancelEditing}
                   disabled={isSaving}
-                  className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
+                  className="min-h-[44px] rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
                 >
                   İptal
                 </button>
@@ -3616,13 +3656,13 @@ export default function EventDetail() {
             </div>
           </div>
         ) : (
-          <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+          <div className="mt-6 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
             <p className="text-sm text-ink-soft">{event.description || 'Açıklama eklenmemiş'}</p>
           </div>
         )}
 
-        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
-          <h2 className="text-sm font-semibold text-ink">Genel etkinlik notu</h2>
+        <div id="event-notes" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+          <h2 className="text-base font-semibold text-ink">Genel etkinlik notu</h2>
           <div className="mt-4">
             {canEdit && isEditingGeneralNote ? (
               <div className="flex flex-col gap-3">
@@ -3686,10 +3726,10 @@ export default function EventDetail() {
         </div>
 
         {/* Kararlar Bölümü */}
-        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+        <div id="event-decisions" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-4">
-              <h2 className="text-sm font-semibold text-ink">Kararlar</h2>
+              <h2 className="text-base font-semibold text-ink">Kararlar</h2>
               {canEdit && (
                 <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
                   <input
@@ -3866,10 +3906,10 @@ export default function EventDetail() {
         </div>
 
         {/* Raporlar Bölümü */}
-        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+        <div id="event-reports" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-4">
-              <h2 className="text-sm font-semibold text-ink">Raporlar</h2>
+              <h2 className="text-base font-semibold text-ink">Raporlar</h2>
               {canEdit && (
                 <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
                   <input
@@ -4046,10 +4086,10 @@ export default function EventDetail() {
         </div>
 
         {/* Bağlantılar Bölümü */}
-        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+        <div id="event-links" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-4">
-              <h2 className="text-sm font-semibold text-ink">Etkinlik Bağlantıları</h2>
+              <h2 className="text-base font-semibold text-ink">Etkinlik Bağlantıları</h2>
               {canEdit && (
                 <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
                   <input
@@ -4232,10 +4272,10 @@ export default function EventDetail() {
         </div>
 
         {/* Dosyalar Bölümü */}
-        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+        <div id="event-files" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-4">
-              <h2 className="text-sm font-semibold text-ink">Dosyalar</h2>
+              <h2 className="text-base font-semibold text-ink">Dosyalar</h2>
               {canEdit && (
                 <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
                   <input
@@ -4398,8 +4438,8 @@ export default function EventDetail() {
           )}
         </div>
 
-        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
-          <h2 className="text-sm font-semibold text-ink">Durum ve tarihler</h2>
+        <div id="event-process" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+          <h2 className="text-base font-semibold text-ink">Durum ve tarihler</h2>
           <div className="mt-3 divide-y divide-canvas-border">
             <DetailRow label="Durum" value={displayedStatus} />
             {canChangeDesignAnnouncementStatus ? (
@@ -4437,8 +4477,8 @@ export default function EventDetail() {
           {designAnnouncementStatusError && <p className="mt-3 text-xs text-red-600">{designAnnouncementStatusError}</p>}
           {designAnnouncementStatusSuccess && <p className="mt-3 text-xs text-green-600">{designAnnouncementStatusSuccess}</p>}
         </div>
-        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
-          <h2 className="text-sm font-semibold text-ink">Süreç bilgileri</h2>
+        <div className="mt-6 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+          <h2 className="text-base font-semibold text-ink">Süreç bilgileri</h2>
           <div className="mt-3 divide-y divide-canvas-border">
             <DetailRow label="Sorumlu" value={displayedOwner} />
             <DetailRow label="Mekân" value={displayedVenue} />
@@ -4447,8 +4487,8 @@ export default function EventDetail() {
         </div>
 
         {/* SKS Süreci */}
-        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
-          <h2 className="text-sm font-semibold text-ink">SKS Süreci</h2>
+        <div className="mt-6 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+          <h2 className="text-base font-semibold text-ink">SKS Süreci</h2>
           <div className="mt-4 flex flex-col gap-4">
             <div>
               <span className="text-sm font-medium text-ink-soft">SKS durumu</span>
@@ -4536,9 +4576,9 @@ export default function EventDetail() {
         </div>
 
         {/* Bütçe Süreci */}
-        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+        <div id="event-budget" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
           <div className="flex items-start justify-between gap-4">
-            <h2 className="text-sm font-semibold text-ink">Bütçe Süreci</h2>
+            <h2 className="text-base font-semibold text-ink">Bütçe Süreci</h2>
             {canChangeBudgetFields && !isEditingBudget && (
               <button
                 type="button"
@@ -4899,10 +4939,10 @@ export default function EventDetail() {
           </div>
         </div>
 
-        <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
+        <div id="event-tasks" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
-              <h2 className="text-sm font-semibold text-ink">Görevler</h2>
+              <h2 className="text-base font-semibold text-ink">Görevler</h2>
               {isSuperAdmin && (
                 <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
                   <input
@@ -5094,6 +5134,6 @@ export default function EventDetail() {
           )}
         </div>
       </main>
-    </div>
+    </AppShell>
   )
 }
