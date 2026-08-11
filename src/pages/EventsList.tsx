@@ -1,13 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Link } from 'react-router-dom'
-import { supabase } from '../lib/supabaseClient'
+import AppShell from '../components/AppShell'
+import NewEventPanel from '../components/events/NewEventPanel'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
+import { supabase } from '../lib/supabaseClient'
 
 interface EventRow {
   id: string
   title: string
   eventStatus: string
+  eventStatusSlug: string
   planningDate: string
   estimatedDate: string | null
   confirmedDate: string | null
@@ -36,6 +39,17 @@ function formatDate(value: string | null) {
   }).format(new Date(`${value}T00:00:00`))
 }
 
+function statusClass(slug: string) {
+  if (slug === 'confirmed' || slug === 'completed' || slug === 'reported') {
+    return 'bg-brand-soft text-brand-dark'
+  }
+  if (slug === 'postponed' || slug === 'cancelled') {
+    return 'bg-red-50 text-red-700'
+  }
+  if (slug === 'archived') return 'bg-canvas-border/60 text-ink-soft'
+  return 'bg-accent-soft text-amber-800'
+}
+
 function CenteredMessage({ text }: { text: string }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
@@ -44,9 +58,53 @@ function CenteredMessage({ text }: { text: string }) {
   )
 }
 
+function PlusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8v8M8 12h8" />
+    </svg>
+  )
+}
+
+function CalendarIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+      <rect x="3.5" y="4.5" width="17" height="16" rx="2" />
+      <path d="M3.5 9.5h17M8 3v3M16 3v3" />
+    </svg>
+  )
+}
+
+function ClockIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5v5l3 2" />
+    </svg>
+  )
+}
+
+function ChevronIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+      <path d="m9 5 7 7-7 7" />
+    </svg>
+  )
+}
+
 export default function EventsList({ session }: { session: Session }) {
-  const { hasActiveMembership, profileId, periodId, periodLabel, loading: statusLoading } =
-    useMembershipStatus(session)
+  const {
+    displayName,
+    hasActiveMembership,
+    profileId,
+    periodId,
+    periodLabel,
+    appRole,
+    coordinatorRoleName,
+    loading: statusLoading,
+  } = useMembershipStatus(session)
+  const isSuperAdmin = appRole === 'super_admin'
   const [events, setEvents] = useState<EventRow[]>([])
   const [loadState, setLoadState] = useState<LoadState>('loading')
   const [reloadKey, setReloadKey] = useState(0)
@@ -115,6 +173,7 @@ export default function EventsList({ session }: { session: Session }) {
           id: event.id as string,
           title: event.title as string,
           eventStatus: statuses.get(event.event_status as string) ?? (event.event_status as string),
+          eventStatusSlug: event.event_status as string,
           planningDate: event.planning_date as string,
           estimatedDate: (event.estimated_date as string | null) ?? null,
           confirmedDate: (event.confirmed_date as string | null) ?? null,
@@ -136,10 +195,10 @@ export default function EventsList({ session }: { session: Session }) {
     setCreateState('open')
   }
 
-  function closeCreateForm() {
+  const closeCreateForm = useCallback(() => {
     setCreateState('closed')
     setCreateError(null)
-  }
+  }, [])
 
   async function handleCreateEvent() {
     setCreateError(null)
@@ -182,142 +241,123 @@ export default function EventsList({ session }: { session: Session }) {
     setReloadKey((current) => current + 1)
   }
 
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+  }
+
   if (statusLoading || loadState === 'loading') return <CenteredMessage text="Etkinlikler yükleniyor…" />
   if (!hasActiveMembership) return <CenteredMessage text="Bu sayfaya erişim yetkin yok." />
   if (loadState === 'error') {
     return <CenteredMessage text="Etkinlikler yüklenirken bir hata oluştu. Lütfen daha sonra tekrar dene." />
   }
 
+  const roleLabel = coordinatorRoleName ?? (isSuperAdmin ? 'Süper Yönetici' : 'Koordinatör')
+
   return (
-    <div className="min-h-screen bg-canvas">
-      <header className="border-b border-canvas-border bg-canvas-surface">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
-          <Link to="/app" className="text-sm font-semibold text-ink">
-            MUPSA Ekip Koordinasyon
-          </Link>
-          <Link to="/app" className="text-sm font-medium text-ink-soft">
-            Ana sayfa
-          </Link>
-        </div>
-      </header>
-      <main className="mx-auto max-w-3xl px-4 py-8">
-        <p className="text-sm text-ink-soft">{periodLabel ? `Aktif dönem: ${periodLabel}` : 'Aktif dönem'}</p>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="mt-1 text-xl font-semibold text-ink">Etkinlikler</h1>
-          {createState === 'closed' && (
-            <button
-              type="button"
-              onClick={openCreateForm}
-              className="rounded-lg bg-accent-soft px-3 py-2 text-sm font-medium text-ink"
-            >
-              Etkinlik oluştur
-            </button>
-          )}
+    <AppShell
+      isSuperAdmin={isSuperAdmin}
+      displayName={displayName}
+      roleLabel={roleLabel}
+      onSignOut={() => void handleSignOut()}
+    >
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div className="grid gap-4 lg:flex lg:items-end lg:justify-between">
+          <div>
+            <p className="text-sm text-ink-soft">
+              Aktif dönem: <span className="font-medium text-brand-dark">{periodLabel ?? 'Belirtilmedi'}</span>
+            </p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-ink">Etkinlikler</h1>
+            <p className="mt-1 text-sm text-ink-soft">Aktif dönemdeki etkinlikleri buradan görüntüleyebilir ve yönetebilirsiniz.</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={openCreateForm}
+            className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-semibold text-white shadow-card transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 lg:w-auto"
+          >
+            <PlusIcon />
+            Etkinlik oluştur
+          </button>
         </div>
 
-        {successMessage && (
-          <p className="mt-4 rounded-lg border border-canvas-border bg-accent-soft px-3 py-2 text-sm text-ink">
+        {successMessage ? (
+          <p role="status" className="mt-5 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
             {successMessage}
           </p>
-        )}
-
-        {createState !== 'closed' && (
-          <section className="mt-4 rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-ink">Yeni etkinlik</h2>
-              <button type="button" onClick={closeCreateForm} className="text-xs font-medium text-ink-soft">
-                Kapat
-              </button>
-            </div>
-            <div className="mt-4 space-y-3">
-              <label className="block text-sm">
-                <span className="mb-1 block font-medium text-ink">Etkinlik adı</span>
-                <input
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
-                  placeholder="Örn. Dünya Sağlık Günü etkinliği"
-                  disabled={createState === 'submitting'}
-                />
-              </label>
-              <label className="block text-sm">
-                <span className="mb-1 block font-medium text-ink">Açıklama (isteğe bağlı)</span>
-                <textarea
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  className="min-h-24 w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
-                  disabled={createState === 'submitting'}
-                />
-              </label>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block text-sm">
-                  <span className="mb-1 block font-medium text-ink">Planlama tarihi</span>
-                  <input
-                    type="date"
-                    value={planningDate}
-                    onChange={(event) => setPlanningDate(event.target.value)}
-                    className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
-                    disabled={createState === 'submitting'}
-                  />
-                </label>
-                <label className="block text-sm">
-                  <span className="mb-1 block font-medium text-ink">Tahmini etkinlik tarihi</span>
-                  <input
-                    type="date"
-                    value={estimatedDate}
-                    onChange={(event) => setEstimatedDate(event.target.value)}
-                    className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
-                    disabled={createState === 'submitting'}
-                  />
-                </label>
-              </div>
-              {createError && <p className="text-sm text-red-600">{createError}</p>}
-              <button
-                type="button"
-                onClick={handleCreateEvent}
-                disabled={createState === 'submitting'}
-                className="w-full rounded-lg bg-accent-soft px-3 py-2 text-sm font-medium text-ink disabled:opacity-60"
-              >
-                {createState === 'submitting' ? 'Oluşturuluyor…' : 'Etkinliği oluştur'}
-              </button>
-            </div>
-          </section>
-        )}
+        ) : null}
 
         {events.length === 0 ? (
-          <div className="mt-6 rounded-lg border border-canvas-border bg-canvas-surface p-6 shadow-card">
-            <p className="text-sm text-ink-soft">Bu dönemde henüz etkinlik oluşturulmamış.</p>
+          <div className="mt-6 rounded-xl border border-canvas-border bg-canvas-surface px-4 py-8 text-center shadow-card">
+            <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-brand-soft text-brand-dark"><CalendarIcon /></span>
+            <p className="mt-3 text-sm font-medium text-ink">Bu dönemde henüz etkinlik oluşturulmamış.</p>
+            <p className="mt-1 text-xs text-ink-soft">İlk etkinliği oluşturmak için yukarıdaki düğmeyi kullanabilirsin.</p>
           </div>
         ) : (
-          <ul className="mt-6 space-y-3">
-            {events.map((event) => (
-              <li key={event.id} className="rounded-lg border border-canvas-border bg-canvas-surface shadow-card">
-                <Link to={`/app/etkinlikler/${event.id}`} className="block p-4">
-                  <p className="text-base font-semibold text-ink">{event.title}</p>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                    <span className="rounded-full bg-accent-soft px-2 py-1 font-medium text-ink">
-                      {event.eventStatus}
-                    </span>
-                    <span className="rounded-full bg-canvas px-2 py-1 font-medium text-ink-soft">
-                      Sorumlu: {event.ownerName}
-                    </span>
-                  </div>
-                  <dl className="mt-4 space-y-1 text-sm text-ink-soft">
-                    <div>
-                      <dt className="inline font-medium text-ink">Planlama: </dt>
-                      <dd className="inline">{formatDate(event.planningDate)}</dd>
+          <ul className="mt-6 grid gap-3">
+            {events.map((event) => {
+              const finalDate = event.confirmedDate ?? event.estimatedDate
+              const finalDateLabel = event.confirmedDate ? 'Kesin tarih' : 'Tahmini tarih'
+
+              return (
+                <li key={event.id}>
+                  <Link
+                    to={`/app/etkinlikler/${event.id}`}
+                    className="group block min-h-[44px] rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card transition-colors hover:border-brand-dark/25 hover:bg-brand-soft/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 sm:p-5"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          <span className={`rounded-full px-2.5 py-1 font-medium ${statusClass(event.eventStatusSlug)}`}>{event.eventStatus}</span>
+                          <span className="max-w-full truncate rounded-full bg-canvas px-2.5 py-1 font-medium text-ink-soft" title={`Sorumlu: ${event.ownerName}`}>
+                            Sorumlu: {event.ownerName}
+                          </span>
+                        </div>
+
+                        <h2 className="mt-3 break-words text-base font-semibold text-ink sm:text-lg">{event.title}</h2>
+
+                        <dl className="mt-4 grid gap-2 border-t border-canvas-border pt-3 text-sm text-ink-soft sm:grid-cols-2 sm:gap-4">
+                          <div className="flex items-start gap-2">
+                            <span className="mt-0.5 shrink-0 text-brand-dark"><CalendarIcon /></span>
+                            <div>
+                              <dt className="font-medium text-ink">Planlama</dt>
+                              <dd>{formatDate(event.planningDate)}</dd>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="mt-0.5 shrink-0 text-brand-dark"><ClockIcon /></span>
+                            <div>
+                              <dt className="font-medium text-ink">{finalDateLabel}</dt>
+                              <dd>{formatDate(finalDate)}</dd>
+                            </div>
+                          </div>
+                        </dl>
+                      </div>
+
+                      <span className="shrink-0 text-ink-soft transition-transform group-hover:translate-x-0.5 group-hover:text-brand-dark"><ChevronIcon /></span>
                     </div>
-                    <div>
-                      <dt className="inline font-medium text-ink">Tahmini tarih: </dt>
-                      <dd className="inline">{formatDate(event.estimatedDate ?? event.confirmedDate)}</dd>
-                    </div>
-                  </dl>
-                </Link>
-              </li>
-            ))}
+                  </Link>
+                </li>
+              )
+            })}
           </ul>
         )}
       </main>
-    </div>
+
+      <NewEventPanel
+        isOpen={createState !== 'closed'}
+        title={title}
+        description={description}
+        planningDate={planningDate}
+        estimatedDate={estimatedDate}
+        error={createError}
+        submitting={createState === 'submitting'}
+        onTitleChange={setTitle}
+        onDescriptionChange={setDescription}
+        onPlanningDateChange={setPlanningDate}
+        onEstimatedDateChange={setEstimatedDate}
+        onSubmit={() => void handleCreateEvent()}
+        onClose={closeCreateForm}
+      />
+    </AppShell>
   )
 }
