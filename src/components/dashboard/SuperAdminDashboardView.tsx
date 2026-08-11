@@ -130,27 +130,27 @@ export default function SuperAdminDashboardView({
   )
 
   const summarySection = (
-    <div className="grid grid-cols-2 gap-3 min-[380px]:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
       <DashboardMetricCard
         label="Aktif ekip üyesi"
         value={activeMemberCount}
         icon="members"
         tone="brand"
-        className="order-2 col-span-1 min-[380px]:order-1"
+        className="order-2 col-span-1 sm:order-1"
       />
       <DashboardMetricCard
         label="Açık görev"
         value={openTaskCount}
         icon="tasks"
         tone="accent"
-        className="order-3 col-span-1 min-[380px]:order-2"
+        className="order-3 col-span-1 sm:order-2"
       />
       <DashboardMetricCard
         label="Atanmamış açık görev"
         value={unassignedOpenTaskCount}
         icon="unassigned"
         tone={unassignedOpenTaskCount > 0 ? 'danger' : 'neutral'}
-        className="order-1 col-span-2 min-[380px]:order-3 min-[380px]:col-span-1"
+        className="order-1 col-span-2 sm:order-3 sm:col-span-1"
       />
     </div>
   )
@@ -259,20 +259,17 @@ export default function SuperAdminDashboardView({
     <DashboardSection
       title="Bildirimler"
       countLabel={unreadCount > 0 ? String(unreadCount) : undefined}
+      headerAction={unreadCount > 0 ? (
+        <button
+          type="button"
+          onClick={onMarkAllNotificationsRead}
+          disabled={markingAllRead}
+          className="shrink-0 rounded-md px-1 py-1 text-xs font-medium text-brand-dark hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 sm:px-2 sm:text-sm"
+        >
+          {markingAllRead ? 'İşaretleniyor…' : 'Tümünü okundu işaretle'}
+        </button>
+      ) : undefined}
     >
-      {unreadCount > 0 ? (
-        <div className="mb-3 flex justify-end">
-          <button
-            type="button"
-            onClick={onMarkAllNotificationsRead}
-            disabled={markingAllRead}
-            className="rounded-md px-2 py-1 text-sm font-medium text-brand-dark hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {markingAllRead ? 'İşaretleniyor…' : 'Tümünü okundu işaretle'}
-          </button>
-        </div>
-      ) : null}
-
       {notificationsLoading ? (
         <p className="px-3 py-4 text-sm text-ink-soft">Yükleniyor…</p>
       ) : notificationsError ? (
@@ -380,7 +377,7 @@ export default function SuperAdminDashboardView({
       {headerSection}
 
       {/* Mobil sıralama */}
-      <div className="flex flex-col gap-6 lg:hidden">
+      <div className="flex flex-col gap-4 lg:hidden">
         {summarySection}
         {overdueSection}
         {unassignedSection}

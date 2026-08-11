@@ -33,10 +33,10 @@ export default function DashboardMetricCard({ label, value, icon, tone = 'neutra
   const Icon = icons[icon]
   const colors = toneClasses[tone]
   return (
-    <div className={['flex min-h-24 items-center gap-3 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card', className].filter(Boolean).join(' ')}>
-      <span className={['flex h-11 w-11 shrink-0 items-center justify-center rounded-full', colors.bg, colors.text].join(' ')}><Icon /></span>
+    <div className={['flex min-h-[88px] items-center gap-2.5 rounded-xl border border-canvas-border bg-canvas-surface p-3 shadow-card sm:min-h-24 sm:gap-3 sm:p-4', className].filter(Boolean).join(' ')}>
+      <span className={['flex h-10 w-10 shrink-0 items-center justify-center rounded-full sm:h-11 sm:w-11', colors.bg, colors.text].join(' ')}><Icon /></span>
       <div className="min-w-0">
-        <p className="break-words text-sm text-ink-soft">{label}</p>
+        <p className="break-words text-xs leading-snug text-ink-soft sm:text-sm">{label}</p>
         <p className="mt-0.5 text-xl font-semibold leading-tight text-ink">{value}</p>
       </div>
     </div>
