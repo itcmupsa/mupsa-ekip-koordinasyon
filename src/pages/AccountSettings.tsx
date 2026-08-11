@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Link } from 'react-router-dom'
+import AppShell from '../components/AppShell'
 import { supabase } from '../lib/supabaseClient'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
 import {
@@ -33,6 +34,28 @@ interface AnnouncementCoordinatorRoleRelation {
 }
 
 type AnnouncementAudience = 'everyone' | 'coordinator_roles' | 'profiles'
+
+const fieldClass = 'min-h-[44px] rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2.5 font-normal text-ink placeholder:text-ink-soft/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60'
+
+function ChevronIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
+}
+
+function BellIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><path d="M6 10.5a6 6 0 0 1 12 0v4l1.5 2.5h-15L6 14.5zM10 19.5a2 2 0 0 0 4 0" /></svg>
+}
+
+function ShieldIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><path d="M12 3 5 6v5c0 4.8 2.8 8.1 7 10 4.2-1.9 7-5.2 7-10V6zM9 12l2 2 4-4" /></svg>
+}
+
+function TeamIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><circle cx="9" cy="8" r="3" /><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0M15.5 12.5a4.5 4.5 0 0 1 5 4.5M17 5.5a2.5 2.5 0 0 1 0 5" /></svg>
+}
+
+function MegaphoneIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><path d="M4 10v3a1 1 0 0 0 1 1h2l4.5 3.5v-11L7 10H5a1 1 0 0 0-1 1zM16.5 9a4 4 0 0 1 0 6" /></svg>
+}
 
 function pickOne<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null
@@ -253,144 +276,86 @@ export default function AccountSettings({ session }: { session: Session }) {
     setAnnouncementScheduledFor('')
   }
 
+  const currentRoleLabel = roleLabel(appRole)
+
   return (
-    <div className="min-h-screen bg-canvas pb-12">
-      <header className="border-b border-canvas-border bg-canvas-surface">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:py-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <img src="/mupsa-logo.svg" alt="MUPSA Logo" className="h-6 w-auto shrink-0 object-contain" />
-            <span className="truncate text-sm font-semibold text-ink">Hesabım ve Ayarlar</span>
-          </div>
-          <Link to="/app" className="shrink-0 text-sm font-medium text-ink-soft hover:text-ink">Ana sayfa</Link>
-        </div>
-      </header>
-      <main className="mx-auto max-w-3xl px-4 py-6 sm:py-8">
-        <div className="mb-6">
+    <AppShell isSuperAdmin={isSuperAdmin} displayName={displayName} roleLabel={coordinatorRoleName ?? currentRoleLabel} onSignOut={() => void handleSignOut()}>
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div>
           <p className="text-sm text-ink-soft">Hesap ayarları</p>
-          <h1 className="mt-1 text-2xl font-semibold text-ink">{displayName || 'Hesabım'}</h1>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-ink">Hesabım ve Ayarlar</h1>
           <p className="mt-1 text-sm text-ink-soft">Hesap, güvenlik ve bildirim tercihlerini buradan yönet.</p>
         </div>
 
-        {membershipLoading ? <p className="text-sm text-ink-soft">Hesap bilgileri yükleniyor…</p> : (
-          <div className="flex flex-col gap-6">
-            <section className="rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-sm sm:p-6">
-              <h2 className="text-base font-semibold text-ink">Hesap bilgileri</h2>
-              <dl className="mt-4 divide-y divide-canvas-border text-sm">
-                <div className="flex flex-wrap justify-between gap-2 py-3 first:pt-0">
-                  <dt className="text-ink-soft">E-posta adresi</dt>
-                  <dd className="break-all text-right font-medium text-ink">{session.user.email ?? 'Belirtilmemiş'}</dd>
-                </div>
-                <div className="flex flex-wrap justify-between gap-2 py-3">
-                  <dt className="text-ink-soft">Görünen ad</dt>
-                  <dd className="text-right font-medium text-ink">{displayName || 'Belirtilmemiş'}</dd>
-                </div>
-                <div className="flex flex-wrap justify-between gap-2 py-3">
-                  <dt className="text-ink-soft">Aktif dönem</dt>
-                  <dd className="text-right font-medium text-ink">{periodLabel ?? 'Aktif üyelik yok'}</dd>
-                </div>
-                <div className="flex flex-wrap justify-between gap-2 py-3 last:pb-0">
-                  <dt className="text-ink-soft">Uygulama rolü</dt>
-                  <dd className="text-right font-medium text-ink">{roleLabel(appRole)}</dd>
-                </div>
-                {coordinatorRoleName && <div className="flex flex-wrap justify-between gap-2 py-3 last:pb-0"><dt className="text-ink-soft">Koordinatörlük</dt><dd className="text-right font-medium text-ink">{coordinatorRoleName}</dd></div>}
+        {membershipLoading ? <p className="mt-6 text-sm text-ink-soft">Hesap bilgileri yükleniyor…</p> : (
+          <div className="mt-6 grid items-start gap-5 lg:grid-cols-[minmax(18rem,.75fr)_minmax(0,1.25fr)]">
+            <section className="overflow-hidden rounded-xl border border-canvas-border bg-canvas-surface shadow-card lg:sticky lg:top-8">
+              <div className="bg-brand-dark px-5 py-6 text-white">
+                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-lg font-semibold">{displayName.split(' ').map((part) => part[0]).join('').slice(0, 2).toLocaleUpperCase('tr-TR') || 'M'}</span>
+                <h2 className="mt-4 break-words text-xl font-semibold">{displayName || 'Hesabım'}</h2>
+                <p className="mt-1 text-sm text-white/75">{coordinatorRoleName ?? currentRoleLabel}</p>
+              </div>
+              <dl className="divide-y divide-canvas-border px-5 text-sm">
+                {[
+                  ['E-posta adresi', session.user.email ?? 'Belirtilmemiş'],
+                  ['Görünen ad', displayName || 'Belirtilmemiş'],
+                  ['Aktif dönem', periodLabel ?? 'Aktif üyelik yok'],
+                  ['Uygulama rolü', currentRoleLabel],
+                  ...(coordinatorRoleName ? [['Koordinatörlük', coordinatorRoleName]] : []),
+                ].map(([label, value]) => <div key={label} className="py-3"><dt className="text-xs text-ink-soft">{label}</dt><dd className="mt-1 break-words font-medium text-ink">{value}</dd></div>)}
               </dl>
-              <p className="mt-4 rounded-md border border-accent/20 bg-accent-soft/30 px-3 py-2 text-xs text-ink-soft">
-                Görünen ad, dönem kayıtlarının geçmişte doğru kalması için dönem üyeliği üzerinden yönetilir.
-              </p>
+              <p className="mx-5 mb-5 rounded-lg border border-accent/20 bg-accent-soft/40 px-3 py-2 text-xs text-ink-soft">Görünen ad, geçmiş dönem kayıtlarının doğru kalması için dönem üyeliği üzerinden yönetilir.</p>
             </section>
 
-            <section className="rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-sm sm:p-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-base font-semibold text-ink">Mobil bildirimler</h2>
-                  <p className="mt-1 text-sm text-ink-soft">Görev ataması, yaklaşan son tarih ve diğer önemli bildirimleri cihazında al.</p>
+            <div className="grid gap-5">
+              <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-dark"><BellIcon /></span><div><h2 className="font-semibold text-ink">Mobil bildirimler</h2><p className="mt-1 text-sm text-ink-soft">Görev, son tarih ve önemli güncellemeleri cihazında al.</p></div></div>
+                  {pushSupportState === 'supported' && (pushEnabled ? <button type="button" onClick={() => void handleDisablePush()} disabled={pushActionState === 'loading'} className="min-h-[44px] shrink-0 rounded-lg border border-canvas-border px-4 text-sm font-medium text-ink-soft disabled:opacity-60">{pushActionState === 'loading' ? 'Kapatılıyor…' : 'Bildirimleri kapat'}</button> : <button type="button" onClick={() => void handleEnablePush()} disabled={pushActionState === 'loading'} className="min-h-[44px] shrink-0 rounded-lg bg-accent px-4 text-sm font-semibold text-white disabled:opacity-60">{pushActionState === 'loading' ? 'Açılıyor…' : 'Bildirimleri aç'}</button>)}
                 </div>
-                {pushSupportState === 'supported' && (pushEnabled ? (
-                  <button type="button" onClick={() => void handleDisablePush()} disabled={pushActionState === 'loading'} className="rounded-md border border-canvas-border px-3 py-2 text-xs font-medium text-ink-soft disabled:opacity-60">
-                    {pushActionState === 'loading' ? 'Kapatılıyor…' : 'Bildirimleri kapat'}
-                  </button>
-                ) : (
-                  <button type="button" onClick={() => void handleEnablePush()} disabled={pushActionState === 'loading'} className="rounded-md bg-accent-soft px-3 py-2 text-xs font-medium text-ink disabled:opacity-60">
-                    {pushActionState === 'loading' ? 'Açılıyor…' : 'Bildirimleri aç'}
-                  </button>
-                ))}
-              </div>
-              {pushSupportState === 'unsupported' && <p className="mt-3 text-xs text-ink-soft">Bu tarayıcı mobil Web Push bildirimlerini desteklemiyor.</p>}
-              {pushSupportState === 'not_configured' && <p className="mt-3 text-xs text-ink-soft">Mobil bildirim yapılandırması henüz tamamlanmadı.</p>}
-              {pushSupportState === 'supported' && !pushEnabled && <p className="mt-3 text-xs text-ink-soft">iPhone’da bildirimleri kullanmak için siteyi Ana Ekrana Ekle ve izni bu düğmeden ver.</p>}
-              {pushError && <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{pushError}</p>}
-            </section>
-
-            <section className="rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-sm sm:p-6">
-              <h2 className="text-base font-semibold text-ink">Güvenlik</h2>
-              <Link to="/app/ayarlar/sifre" className="mt-4 flex items-center justify-between rounded-md border border-canvas-border bg-canvas px-3 py-3 text-sm transition-colors hover:border-ink/30">
-                <span><span className="block font-medium text-ink">Şifre değiştir</span><span className="mt-1 block text-xs text-ink-soft">Hesap şifreni güncelle.</span></span><span className="text-ink-soft" aria-hidden="true">→</span>
-              </Link>
-            </section>
-
-            {isSuperAdmin && <section className="rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-sm sm:p-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-base font-semibold text-ink">Yönetim</h2>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAnnouncementOpen((open) => !open)
-                    setAnnouncementMessage(null)
-                    setAnnouncementError(null)
-                  }}
-                  className="rounded-md bg-accent-soft px-3 py-2 text-xs font-medium text-ink"
-                >
-                  {announcementOpen ? 'Duyuruyu kapat' : 'Duyuru gönder'}
-                </button>
-              </div>
-              <Link to="/app/yonetim/uyeler" className="mt-4 flex items-center justify-between rounded-md border border-canvas-border bg-canvas px-3 py-3 text-sm transition-colors hover:border-ink/30">
-                <span><span className="block font-medium text-ink">Ekip ve yetki yönetimi</span><span className="mt-1 block text-xs text-ink-soft">Üyeleri, görünen adları ve uygulama rollerini yönet.</span></span><span className="text-ink-soft" aria-hidden="true">→</span>
-              </Link>
-              {announcementOpen && <form onSubmit={(event) => void handleSendAnnouncement(event)} className="mt-5 border-t border-canvas-border pt-5">
-                <p className="text-sm text-ink-soft">Etkinlik veya görev oluşturmadan, seçtiğin kişilere uygulama ve mobil bildirimi gönder.</p>
-                <p className="mt-2 rounded-md border border-accent/20 bg-accent-soft/30 px-3 py-2 text-xs text-ink-soft">Aktif Süper Yöneticiler, hangi alıcı seçilirse seçilsin duyuruyu otomatik alır.</p>
-                <div className="mt-4 grid gap-4">
-                  <label className="grid gap-1 text-sm font-medium text-ink">
-                    Başlık
-                    <input value={announcementTitle} onChange={(event) => setAnnouncementTitle(event.target.value)} maxLength={120} required className="rounded-md border border-canvas-border bg-canvas px-3 py-2 font-normal outline-none focus:border-ink/40" placeholder="Örn. Yarın bakım yapılacak" />
-                  </label>
-                  <label className="grid gap-1 text-sm font-medium text-ink">
-                    Duyuru metni
-                    <textarea value={announcementBody} onChange={(event) => setAnnouncementBody(event.target.value)} maxLength={2000} required rows={4} className="resize-y rounded-md border border-canvas-border bg-canvas px-3 py-2 font-normal outline-none focus:border-ink/40" placeholder="Göndermek istediğin açıklama" />
-                  </label>
-                  <label className="grid gap-1 text-sm font-medium text-ink">
-                    Alıcılar
-                    <select value={announcementAudience} onChange={(event) => setAnnouncementAudience(event.target.value as AnnouncementAudience)} className="rounded-md border border-canvas-border bg-canvas px-3 py-2 font-normal outline-none focus:border-ink/40">
-                      <option value="everyone">Herkes</option>
-                      <option value="coordinator_roles">Koordinatörlükler</option>
-                      <option value="profiles">Belirli kişiler</option>
-                    </select>
-                  </label>
-                  {announcementAudience === 'coordinator_roles' && <div className="max-h-52 overflow-y-auto rounded-md border border-canvas-border p-2">
-                    {announcementLoading ? <p className="p-2 text-xs text-ink-soft">Koordinatörlükler yükleniyor…</p> : announcementRoleOptions.length === 0 ? <p className="p-2 text-xs text-ink-soft">Aktif koordinatörlük bulunamadı.</p> : announcementRoleOptions.map((role) => <label key={role.id} className="flex items-center gap-2 rounded px-2 py-2 text-sm hover:bg-canvas"><input type="checkbox" checked={selectedAnnouncementRoleIds.includes(role.id)} onChange={() => toggleAnnouncementSelection(role.id, selectedAnnouncementRoleIds, setSelectedAnnouncementRoleIds)} />{role.name}</label>)}
-                  </div>}
-                  {announcementAudience === 'profiles' && <div className="max-h-52 overflow-y-auto rounded-md border border-canvas-border p-2">
-                    {announcementLoading ? <p className="p-2 text-xs text-ink-soft">Kişiler yükleniyor…</p> : announcementMemberOptions.length === 0 ? <p className="p-2 text-xs text-ink-soft">Aktif kişi bulunamadı.</p> : announcementMemberOptions.map((member) => <label key={member.profileId} className="flex items-start gap-2 rounded px-2 py-2 text-sm hover:bg-canvas"><input type="checkbox" checked={selectedAnnouncementProfileIds.includes(member.profileId)} onChange={() => toggleAnnouncementSelection(member.profileId, selectedAnnouncementProfileIds, setSelectedAnnouncementProfileIds)} className="mt-0.5" /><span>{member.displayName}{member.coordinatorRoleName && <span className="block text-xs text-ink-soft">{member.coordinatorRoleName}</span>}</span></label>)}
-                  </div>}
-                  <label className="grid gap-1 text-sm font-medium text-ink">
-                    Gönderim zamanı <span className="font-normal text-ink-soft">(boş bırakırsan hemen gönderilir)</span>
-                    <input type="datetime-local" value={announcementScheduledFor} onChange={(event) => setAnnouncementScheduledFor(event.target.value)} className="rounded-md border border-canvas-border bg-canvas px-3 py-2 font-normal outline-none focus:border-ink/40" />
-                  </label>
-                  {announcementError && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{announcementError}</p>}
-                  {announcementMessage && <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">{announcementMessage}</p>}
-                  <button type="submit" disabled={announcementSubmitting || announcementLoading} className="rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
-                    {announcementSubmitting ? 'Gönderiliyor…' : announcementScheduledFor ? 'Duyuruyu planla' : 'Duyuruyu gönder'}
-                  </button>
+                <div className={`mt-4 rounded-lg px-3 py-2 text-sm ${pushEnabled ? 'bg-brand-soft text-brand-dark' : 'bg-canvas text-ink-soft'}`}>
+                  {pushSupportState === 'unsupported' ? 'Bu tarayıcı mobil Web Push bildirimlerini desteklemiyor.' : pushSupportState === 'not_configured' ? 'Mobil bildirim yapılandırması henüz tamamlanmadı.' : pushEnabled ? 'Mobil bildirimler bu cihazda açık.' : 'iPhone’da kullanmak için siteyi Ana Ekrana Ekle ve izni bu düğmeden ver.'}
                 </div>
-              </form>}
-            </section>}
+                {pushError ? <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{pushError}</p> : null}
+              </section>
 
-            <section className="border-t border-canvas-border pt-6">
-              <button type="button" onClick={() => void handleSignOut()} className="text-sm font-medium text-red-700 hover:text-red-800">Çıkış yap</button>
-            </section>
+              <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
+                <div className="flex gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-dark"><ShieldIcon /></span><div><h2 className="font-semibold text-ink">Güvenlik</h2><p className="mt-1 text-sm text-ink-soft">Hesabının oturum ve şifre ayarlarını yönet.</p></div></div>
+                <Link to="/app/ayarlar/sifre" className="mt-4 flex min-h-[56px] items-center justify-between gap-3 rounded-lg border border-canvas-border bg-canvas px-4 text-sm transition hover:border-brand"><span><span className="block font-medium text-ink">Şifre değiştir</span><span className="mt-0.5 block text-xs text-ink-soft">Hesap şifreni güvenli biçimde güncelle.</span></span><span className="text-ink-soft"><ChevronIcon /></span></Link>
+              </section>
+
+              {isSuperAdmin ? <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
+                <div className="flex gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-amber-800"><TeamIcon /></span><div><h2 className="font-semibold text-ink">Yönetim</h2><p className="mt-1 text-sm text-ink-soft">Ekip yetkilerini düzenle veya genel duyuru gönder.</p></div></div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <Link to="/app/yonetim/uyeler" className="flex min-h-[72px] items-center justify-between gap-3 rounded-lg border border-canvas-border bg-canvas px-4 text-sm transition hover:border-brand"><span><span className="block font-medium text-ink">Ekip ve yetki yönetimi</span><span className="mt-1 block text-xs text-ink-soft">Üyeleri ve rollerini yönet.</span></span><ChevronIcon /></Link>
+                  <button type="button" onClick={() => { setAnnouncementOpen(true); setAnnouncementMessage(null); setAnnouncementError(null) }} className="flex min-h-[72px] items-center justify-between gap-3 rounded-lg border border-canvas-border bg-canvas px-4 text-left text-sm transition hover:border-accent"><span><span className="block font-medium text-ink">Duyuru gönder</span><span className="mt-1 block text-xs text-ink-soft">Kişilere veya ekiplere bildir.</span></span><MegaphoneIcon /></button>
+                </div>
+              </section> : null}
+
+              <section className="rounded-xl border border-danger/20 bg-canvas-surface p-4 shadow-card sm:p-5"><h2 className="font-semibold text-ink">Oturum</h2><p className="mt-1 text-sm text-ink-soft">Bu cihazdaki uygulama oturumunu sonlandır.</p><button type="button" onClick={() => void handleSignOut()} className="mt-4 min-h-[44px] rounded-lg border border-danger/25 px-4 text-sm font-medium text-danger hover:bg-danger-soft">Çıkış yap</button></section>
+            </div>
           </div>
         )}
       </main>
-    </div>
+
+      {isSuperAdmin && announcementOpen ? <>
+        <button type="button" aria-label="Duyuru panelini kapat" onClick={() => !announcementSubmitting && setAnnouncementOpen(false)} className="fixed inset-0 z-40 hidden bg-ink/45 backdrop-blur-[1px] lg:block" />
+        <section role="dialog" aria-modal="true" aria-labelledby="announcement-title" className="fixed inset-0 z-50 flex flex-col bg-canvas-surface shadow-2xl lg:left-auto lg:w-[min(36rem,calc(100vw-15rem))]" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <header className="flex items-center justify-between gap-3 border-b border-canvas-border px-4 py-4 sm:px-6"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-lg bg-accent-soft text-amber-800"><MegaphoneIcon /></span><div><h2 id="announcement-title" className="font-semibold text-ink">Yeni duyuru</h2><p className="text-xs text-ink-soft">Uygulama ve mobil bildirim gönder.</p></div></div><button type="button" onClick={() => setAnnouncementOpen(false)} disabled={announcementSubmitting} className="min-h-[44px] rounded-md px-2 text-sm font-medium text-ink-soft disabled:opacity-60">Kapat</button></header>
+          <form onSubmit={(event) => void handleSendAnnouncement(event)} className="flex min-h-0 flex-1 flex-col">
+            <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6"><p className="rounded-lg border border-accent/20 bg-accent-soft/40 px-3 py-2 text-xs text-ink-soft">Aktif Süper Yöneticiler, seçilen alıcı grubundan bağımsız olarak duyuruyu alır.</p><div className="mt-5 grid gap-4">
+              <label className="grid gap-1.5 text-sm font-medium text-ink">Başlık<input value={announcementTitle} onChange={(event) => setAnnouncementTitle(event.target.value)} maxLength={120} required className={fieldClass} placeholder="Örn. Yarın bakım yapılacak" /></label>
+              <label className="grid gap-1.5 text-sm font-medium text-ink">Duyuru metni<textarea value={announcementBody} onChange={(event) => setAnnouncementBody(event.target.value)} maxLength={2000} required rows={5} className={`${fieldClass} resize-y`} placeholder="Göndermek istediğin açıklama" /></label>
+              <label className="grid gap-1.5 text-sm font-medium text-ink">Alıcılar<select value={announcementAudience} onChange={(event) => setAnnouncementAudience(event.target.value as AnnouncementAudience)} className={fieldClass}><option value="everyone">Herkes</option><option value="coordinator_roles">Koordinatörlükler</option><option value="profiles">Belirli kişiler</option></select></label>
+              {announcementAudience === 'coordinator_roles' ? <div className="max-h-52 overflow-y-auto rounded-lg border border-canvas-border p-2">{announcementLoading ? <p className="p-2 text-sm text-ink-soft">Koordinatörlükler yükleniyor…</p> : announcementRoleOptions.map((role) => <label key={role.id} className="flex min-h-[44px] items-center gap-2 rounded px-2 text-sm hover:bg-canvas"><input type="checkbox" checked={selectedAnnouncementRoleIds.includes(role.id)} onChange={() => toggleAnnouncementSelection(role.id, selectedAnnouncementRoleIds, setSelectedAnnouncementRoleIds)} className="h-4 w-4 accent-brand" />{role.name}</label>)}</div> : null}
+              {announcementAudience === 'profiles' ? <div className="max-h-64 overflow-y-auto rounded-lg border border-canvas-border p-2">{announcementLoading ? <p className="p-2 text-sm text-ink-soft">Kişiler yükleniyor…</p> : announcementMemberOptions.map((member) => <label key={member.profileId} className="flex min-h-[52px] items-start gap-2 rounded px-2 py-2 text-sm hover:bg-canvas"><input type="checkbox" checked={selectedAnnouncementProfileIds.includes(member.profileId)} onChange={() => toggleAnnouncementSelection(member.profileId, selectedAnnouncementProfileIds, setSelectedAnnouncementProfileIds)} className="mt-1 h-4 w-4 accent-brand" /><span>{member.displayName}{member.coordinatorRoleName ? <span className="block text-xs text-ink-soft">{member.coordinatorRoleName}</span> : null}</span></label>)}</div> : null}
+              <label className="grid gap-1.5 text-sm font-medium text-ink">Gönderim zamanı <span className="font-normal text-ink-soft">Boş bırakırsan hemen gönderilir.</span><input type="datetime-local" value={announcementScheduledFor} onChange={(event) => setAnnouncementScheduledFor(event.target.value)} className={fieldClass} /></label>
+              {announcementError ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{announcementError}</p> : null}{announcementMessage ? <p role="status" className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">{announcementMessage}</p> : null}
+            </div></div>
+            <footer className="border-t border-canvas-border px-4 py-4 sm:px-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}><button type="submit" disabled={announcementSubmitting || announcementLoading} className="min-h-[44px] w-full rounded-lg bg-accent px-5 text-sm font-semibold text-white disabled:opacity-60">{announcementSubmitting ? 'Gönderiliyor…' : announcementScheduledFor ? 'Duyuruyu planla' : 'Duyuruyu gönder'}</button></footer>
+          </form>
+        </section>
+      </> : null}
+    </AppShell>
   )
 }

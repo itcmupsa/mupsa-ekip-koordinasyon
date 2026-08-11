@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import AppShell from '../components/AppShell'
 import { supabase } from '../lib/supabaseClient'
 import { useMembershipStatus, type AppRole } from '../hooks/useMembershipStatus'
 
@@ -36,6 +37,20 @@ type AddPanelState = 'idle' | 'loading' | 'ready' | 'error'
 type EditPanelState = 'idle' | 'loading' | 'ready' | 'error'
 type CreateUserPanelState = 'idle' | 'loading' | 'ready' | 'error'
 
+const fieldClass = 'min-h-[44px] w-full rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2.5 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60'
+
+function PlusIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+}
+
+function SearchIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16 16 4 4" /></svg>
+}
+
+function TeamIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><circle cx="9" cy="8" r="3" /><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0M15.5 12.5a4.5 4.5 0 0 1 5 4.5M17 5.5a2.5 2.5 0 0 1 0 5" /></svg>
+}
+
 function pickOne<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null
   return Array.isArray(value) ? (value[0] ?? null) : value
@@ -50,7 +65,7 @@ function CenteredMessage({ text }: { text: string }) {
 }
 
 export default function AdminMembers({ session }: { session: Session }) {
-  const { hasActiveMembership, appRole, periodId, periodLabel, loading: statusLoading } =
+  const { displayName, hasActiveMembership, appRole, periodId, periodLabel, coordinatorRoleName, loading: statusLoading } =
     useMembershipStatus(session)
   const [members, setMembers] = useState<MemberRow[]>([])
   const [loadState, setLoadState] = useState<LoadState>('loading')
@@ -67,6 +82,7 @@ export default function AdminMembers({ session }: { session: Session }) {
   const [formError, setFormError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // New-user panel state. Account creation is intentionally not connected yet.
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false)
@@ -419,6 +435,17 @@ export default function AdminMembers({ session }: { session: Session }) {
     await loadMembers()
   }
 
+  const filteredMembers = useMemo(() => {
+    const query = searchQuery.trim().toLocaleLowerCase('tr-TR')
+    if (!query) return members
+    return members.filter((member) => [member.displayName, member.coordinatorRoleName, member.appRole === 'super_admin' ? 'Süper Yönetici' : 'Koordinatör']
+      .some((value) => value?.toLocaleLowerCase('tr-TR').includes(query)))
+  }, [members, searchQuery])
+
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+  }
+
   if (statusLoading || loadState === 'loading') {
     return <CenteredMessage text="Yükleniyor…" />
   }
@@ -432,53 +459,42 @@ export default function AdminMembers({ session }: { session: Session }) {
   }
 
   return (
-    <div className="min-h-screen bg-canvas">
-      <header className="border-b border-canvas-border bg-canvas-surface">
-        <div className="mx-auto max-w-3xl px-4 py-4">
-          <span className="text-sm font-semibold text-ink">Ekip ve yetki yönetimi</span>
-        </div>
-      </header>
-      <main className="mx-auto max-w-3xl px-4 py-8">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-ink-soft">
-            {periodLabel ? `Aktif dönem: ${periodLabel}` : 'Aktif dönem'}
-          </p>
-          <div className="flex items-center gap-2">
-            {!isCreateUserOpen && (
-              <button
-                type="button"
-                onClick={handleOpenCreateUserPanel}
-                className="rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2 text-sm font-medium text-ink hover:bg-canvas transition-colors"
-              >
-                Yeni kullanıcı oluştur
-              </button>
-            )}
-            {!isAddOpen && (
-              <button
-                type="button"
-                onClick={handleOpenAddPanel}
-                className="rounded-lg bg-accent-soft px-3 py-2 text-sm font-medium text-ink"
-              >
-                Üye ekle
-              </button>
-            )}
+    <AppShell isSuperAdmin displayName={displayName} roleLabel={coordinatorRoleName ?? 'Süper Yönetici'} onSignOut={() => void handleSignOut()}>
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div className="grid gap-4 lg:flex lg:items-end lg:justify-between">
+          <div>
+            <p className="text-sm text-ink-soft">Aktif dönem: <span className="font-medium text-brand-dark">{periodLabel ?? 'Belirtilmedi'}</span></p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-ink">Ekip Yönetimi</h1>
+            <p className="mt-1 text-sm text-ink-soft">Dönem üyelerini, koordinatörlükleri ve uygulama yetkilerini yönet.</p>
+          </div>
+          <div className="grid gap-2 sm:flex">
+            {!isCreateUserOpen ? <button type="button" onClick={handleOpenCreateUserPanel} className="flex min-h-[44px] items-center justify-center gap-2 rounded-lg border border-canvas-border bg-canvas-surface px-4 text-sm font-medium text-ink shadow-card hover:border-brand"><PlusIcon /> Yeni kullanıcı oluştur</button> : null}
+            {!isAddOpen ? <button type="button" onClick={handleOpenAddPanel} className="flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-white shadow-card hover:brightness-95"><PlusIcon /> Döneme üye ekle</button> : null}
           </div>
         </div>
 
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="flex items-center gap-3 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card"><span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-soft text-brand-dark"><TeamIcon /></span><div><p className="text-xs text-ink-soft">Toplam üye</p><p className="text-xl font-semibold text-ink">{members.length}</p></div></div>
+          <div className="flex items-center gap-3 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card"><span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-soft text-brand-dark"><TeamIcon /></span><div><p className="text-xs text-ink-soft">Aktif üye</p><p className="text-xl font-semibold text-ink">{members.filter((member) => member.isActive).length}</p></div></div>
+          <div className="flex items-center gap-3 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card"><span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-soft text-amber-800"><TeamIcon /></span><div><p className="text-xs text-ink-soft">Süper Yönetici</p><p className="text-xl font-semibold text-ink">{activeSuperAdminCount}</p></div></div>
+        </div>
+
         {successMessage && (
-          <p className="mt-4 rounded-lg border border-canvas-border bg-accent-soft px-3 py-2 text-sm text-ink">
+          <p role="status" className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
             {successMessage}
           </p>
         )}
 
+        {(isAddOpen || isCreateUserOpen || editingMemberId) ? <button type="button" aria-label="Yönetim panelini kapat" onClick={() => { if (!isSubmitting && !isCreatingUser && !isEditSubmitting) { handleCloseAddPanel(); handleCloseCreateUserPanel(); handleCloseEditPanel() } }} className="fixed inset-0 z-40 hidden bg-ink/45 backdrop-blur-[1px] lg:block" /> : null}
+
         {isAddOpen && (
-          <div className="mt-4 rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-ink">Döneme üye ekle</p>
+          <section role="dialog" aria-modal="true" aria-labelledby="add-member-title" className="fixed inset-0 z-50 overflow-y-auto bg-canvas-surface p-4 shadow-2xl sm:p-6 lg:left-auto lg:w-[min(32rem,calc(100vw-15rem))]" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+            <div className="flex items-center justify-between border-b border-canvas-border pb-4">
+              <div><h2 id="add-member-title" className="text-lg font-semibold text-ink">Döneme üye ekle</h2><p className="mt-1 text-xs text-ink-soft">Mevcut bir kullanıcıyı aktif döneme dahil et.</p></div>
               <button
                 type="button"
                 onClick={handleCloseAddPanel}
-                className="text-xs font-medium text-ink-soft"
+                className="min-h-[44px] rounded-md px-2 text-sm font-medium text-ink-soft"
               >
                 Kapat
               </button>
@@ -516,7 +532,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                           const selectedProfile = invitableProfiles.find((profile) => profile.id === nextProfileId)
                           setSelectedPeriodDisplayName(selectedProfile?.displayName ?? '')
                         }}
-                        className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                        className={fieldClass}
                       >
                         <option value="">Seç…</option>
                         {invitableProfiles.map((profile) => (
@@ -534,7 +550,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                         value={selectedPeriodDisplayName}
                         onChange={(event) => setSelectedPeriodDisplayName(event.target.value)}
                         placeholder="Örn: Numan Öndeş"
-                        className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                        className={fieldClass}
                       />
                     </label>
 
@@ -543,7 +559,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                       <select
                         value={selectedCoordinatorRoleId}
                         onChange={(event) => setSelectedCoordinatorRoleId(event.target.value)}
-                        className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                        className={fieldClass}
                       >
                         <option value="">Seç…</option>
                         {coordinatorRoleOptions.map((role) => (
@@ -559,7 +575,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                       <select
                         value={selectedAppRole}
                         onChange={(event) => setSelectedAppRole(event.target.value as AppRole | '')}
-                        className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                        className={fieldClass}
                       >
                         <option value="">Seç…</option>
                         <option value="coordinator">Koordinatör</option>
@@ -573,7 +589,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                       type="button"
                       onClick={handleAddMember}
                       disabled={isSubmitting}
-                      className="w-full rounded-lg bg-accent-soft px-3 py-2 text-sm font-medium text-ink disabled:opacity-60"
+                      className="min-h-[44px] w-full rounded-lg bg-accent px-3 text-sm font-semibold text-white disabled:opacity-60"
                     >
                       {isSubmitting ? 'Ekleniyor…' : 'Döneme ekle'}
                     </button>
@@ -581,17 +597,17 @@ export default function AdminMembers({ session }: { session: Session }) {
                 )}
               </div>
             )}
-          </div>
+          </section>
         )}
 
         {isCreateUserOpen && (
-          <div className="mt-4 rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-ink">Yeni kullanıcı oluştur</p>
+          <section role="dialog" aria-modal="true" aria-labelledby="create-user-title" className="fixed inset-0 z-50 overflow-y-auto bg-canvas-surface p-4 shadow-2xl sm:p-6 lg:left-auto lg:w-[min(36rem,calc(100vw-15rem))]" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+            <div className="flex items-center justify-between border-b border-canvas-border pb-4">
+              <div><h2 id="create-user-title" className="text-lg font-semibold text-ink">Yeni kullanıcı oluştur</h2><p className="mt-1 text-xs text-ink-soft">Hesabı oluştur ve aktif döneme yetkileriyle ekle.</p></div>
               <button
                 type="button"
                 onClick={handleCloseCreateUserPanel}
-                className="text-xs font-medium text-ink-soft"
+                className="min-h-[44px] rounded-md px-2 text-sm font-medium text-ink-soft"
               >
                 Kapat
               </button>
@@ -625,7 +641,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                         onChange={(event) => setNewUserName(event.target.value)}
                         placeholder="Örn: Ahmet Yılmaz"
                         autoComplete="name"
-                        className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                        className={fieldClass}
                       />
                     </label>
 
@@ -637,7 +653,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                         onChange={(event) => setNewUserEmail(event.target.value)}
                         placeholder="ahmet@ornek.com"
                         autoComplete="email"
-                        className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                        className={fieldClass}
                       />
                     </label>
 
@@ -650,7 +666,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                           onChange={(event) => setNewUserPassword(event.target.value)}
                           placeholder="En az 8 karakter"
                           autoComplete="new-password"
-                          className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                          className={fieldClass}
                         />
                       </label>
                       <label className="block text-sm">
@@ -661,7 +677,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                           onChange={(event) => setNewUserPasswordConfirm(event.target.value)}
                           placeholder="Şifreyi onayla"
                           autoComplete="new-password"
-                          className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                          className={fieldClass}
                         />
                       </label>
                     </div>
@@ -672,7 +688,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                         <select
                           value={newUserCoordinatorRoleId}
                           onChange={(event) => setNewUserCoordinatorRoleId(event.target.value)}
-                          className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                          className={fieldClass}
                         >
                           <option value="">Seç…</option>
                           {coordinatorRoleOptions.map((role) => (
@@ -687,7 +703,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                         <select
                           value={newUserAppRole}
                           onChange={(event) => setNewUserAppRole(event.target.value as AppRole | '')}
-                          className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
+                          className={fieldClass}
                         >
                           <option value="">Seç…</option>
                           <option value="coordinator">Koordinatör</option>
@@ -703,7 +719,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                         type="button"
                         onClick={handleCreateUser}
                         disabled={isCreatingUser}
-                        className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
+                        className="min-h-[44px] rounded-lg bg-accent px-4 text-sm font-semibold text-white disabled:opacity-60"
                       >
                         {isCreatingUser ? 'Oluşturuluyor…' : 'Oluştur'}
                       </button>
@@ -711,7 +727,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                         type="button"
                         onClick={handleCloseCreateUserPanel}
                         disabled={isCreatingUser}
-                        className="rounded-lg border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
+                        className="min-h-[44px] rounded-lg border border-canvas-border px-4 text-sm font-medium text-ink-soft disabled:opacity-60"
                       >
                         İptal
                       </button>
@@ -720,32 +736,43 @@ export default function AdminMembers({ session }: { session: Session }) {
                 )}
               </div>
             )}
-          </div>
+          </section>
         )}
 
-        {members.length === 0 ? (
-          <p className="mt-6 text-sm text-ink-soft">Bu dönemde henüz kayıtlı üye yok.</p>
+        <section className="mt-5 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card">
+          <label className="relative block">
+            <span className="sr-only">Ekip üyesi ara</span>
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-ink-soft"><SearchIcon /></span>
+            <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="İsim, koordinatörlük veya rol ara" className={`${fieldClass} pl-10`} />
+          </label>
+        </section>
+
+        {filteredMembers.length === 0 ? (
+          <section className="mt-5 rounded-xl border border-canvas-border bg-canvas-surface px-5 py-10 text-center shadow-card"><span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft text-brand-dark"><TeamIcon /></span><h2 className="mt-3 font-semibold text-ink">{members.length === 0 ? 'Bu dönemde kayıtlı üye yok' : 'Aramana uygun üye bulunamadı'}</h2><p className="mt-1 text-sm text-ink-soft">{members.length === 0 ? 'Yeni kullanıcı oluşturabilir veya mevcut bir kullanıcıyı döneme ekleyebilirsin.' : 'Arama metnini değiştirerek tekrar deneyebilirsin.'}</p></section>
         ) : (
-          <ul className="mt-6 space-y-3">
-            {members.map((member) => {
+          <ul className="mt-5 grid gap-4 xl:grid-cols-2">
+            {filteredMembers.map((member) => {
               const isEditingThisMember = editingMemberId === member.id
               return (
                 <li
                   key={member.id}
-                  className="rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card"
+                  className={`rounded-xl border bg-canvas-surface p-4 shadow-card sm:p-5 ${member.isActive ? 'border-canvas-border' : 'border-danger/20 opacity-75'}`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-ink">{member.displayName}</p>
+                    <div className="flex min-w-0 gap-3">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-semibold text-brand-dark">{member.displayName.split(' ').map((part) => part[0]).join('').slice(0, 2).toLocaleUpperCase('tr-TR')}</span>
+                      <div className="min-w-0">
+                      <p className="break-words text-base font-semibold text-ink">{member.displayName}</p>
                       <p className="mt-1 text-sm text-ink-soft">
                         {member.coordinatorRoleName ?? 'Koordinatörlük atanmamış'}
                       </p>
+                      </div>
                     </div>
                     {!isEditingThisMember && (
                       <button
                         type="button"
                         onClick={() => handleOpenEditPanel(member)}
-                        className="shrink-0 text-xs font-medium text-ink-soft underline decoration-dotted"
+                        className="min-h-[44px] shrink-0 rounded-md border border-canvas-border px-3 text-sm font-medium text-ink-soft hover:border-brand"
                       >
                         Düzenle
                       </button>
@@ -753,14 +780,14 @@ export default function AdminMembers({ session }: { session: Session }) {
                   </div>
 
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                    <span className="rounded-full bg-accent-soft px-2 py-1 font-medium text-ink">
+                    <span className={`rounded-full border px-2.5 py-1 font-medium ${member.appRole === 'super_admin' ? 'border-accent/20 bg-accent-soft text-amber-800' : 'border-brand-dark/15 bg-brand-soft text-brand-dark'}`}>
                       {member.appRole === 'super_admin' ? 'Süper Yönetici' : 'Koordinatör'}
                     </span>
                     <span
                       className={
                         member.isActive
-                          ? 'rounded-full bg-accent-soft px-2 py-1 font-medium text-ink'
-                          : 'rounded-full bg-canvas px-2 py-1 font-medium text-ink-soft'
+                          ? 'rounded-full border border-brand-dark/15 bg-brand-soft px-2.5 py-1 font-medium text-brand-dark'
+                          : 'rounded-full border border-danger/20 bg-danger-soft px-2.5 py-1 font-medium text-danger'
                       }
                     >
                       {member.isActive ? 'Aktif' : 'Pasif'}
@@ -768,13 +795,13 @@ export default function AdminMembers({ session }: { session: Session }) {
                   </div>
 
                   {isEditingThisMember && (
-                    <div className="mt-4 rounded-lg border border-canvas-border bg-canvas p-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-ink">Üyeyi düzenle</p>
+                    <section role="dialog" aria-modal="true" aria-labelledby={`edit-member-${member.id}`} className="fixed inset-0 z-50 overflow-y-auto bg-canvas-surface p-4 shadow-2xl sm:p-6 lg:left-auto lg:w-[min(32rem,calc(100vw-15rem))]" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+                      <div className="flex items-center justify-between border-b border-canvas-border pb-4">
+                        <div><h2 id={`edit-member-${member.id}`} className="text-lg font-semibold text-ink">Üyeyi düzenle</h2><p className="mt-1 text-xs text-ink-soft">{member.displayName} için dönem ve yetki bilgileri.</p></div>
                         <button
                           type="button"
                           onClick={handleCloseEditPanel}
-                          className="text-xs font-medium text-ink-soft"
+                          className="min-h-[44px] rounded-md px-2 text-sm font-medium text-ink-soft"
                         >
                           Kapat
                         </button>
@@ -805,7 +832,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                                   value={editPeriodDisplayName}
                                   onChange={(event) => setEditPeriodDisplayName(event.target.value)}
                                   placeholder="Örn: Numan Öndeş"
-                                  className="w-full rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                                  className={fieldClass}
                                 />
                               </label>
 
@@ -814,7 +841,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                                 <select
                                   value={editCoordinatorRoleId}
                                   onChange={(event) => setEditCoordinatorRoleId(event.target.value)}
-                                  className="w-full rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                                  className={fieldClass}
                                 >
                                   <option value="">Seç…</option>
                                   {coordinatorRoleOptions.map((role) => (
@@ -830,7 +857,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                                 <select
                                   value={editAppRole}
                                   onChange={(event) => setEditAppRole(event.target.value as AppRole | '')}
-                                  className="w-full rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                                  className={fieldClass}
                                 >
                                   <option value="">Seç…</option>
                                   <option value="coordinator">Koordinatör</option>
@@ -843,7 +870,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                                 <select
                                   value={editIsActive ? 'active' : 'inactive'}
                                   onChange={(event) => setEditIsActive(event.target.value === 'active')}
-                                  className="w-full rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                                  className={fieldClass}
                                 >
                                   <option value="active">Aktif</option>
                                   <option value="inactive">Pasif</option>
@@ -856,7 +883,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                                 type="button"
                                 onClick={() => handleSaveEdit(member)}
                                 disabled={isEditSubmitting}
-                                className="w-full rounded-lg bg-accent-soft px-3 py-2 text-sm font-medium text-ink disabled:opacity-60"
+                                className="min-h-[44px] w-full rounded-lg bg-accent px-3 text-sm font-semibold text-white disabled:opacity-60"
                               >
                                 {isEditSubmitting ? 'Kaydediliyor…' : 'Kaydet'}
                               </button>
@@ -864,7 +891,7 @@ export default function AdminMembers({ session }: { session: Session }) {
                           )}
                         </div>
                       )}
-                    </div>
+                    </section>
                   )}
                 </li>
               )
@@ -872,6 +899,6 @@ export default function AdminMembers({ session }: { session: Session }) {
           </ul>
         )}
       </main>
-    </div>
+    </AppShell>
   )
 }
