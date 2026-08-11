@@ -15,11 +15,17 @@ interface EventRow {
   estimatedDate: string | null
   confirmedDate: string | null
   ownerName: string
+  ownerRoleName: string | null
+}
+
+interface CoordinatorRoleRelation {
+  name: string
 }
 
 interface ProfileRow {
   profile_id: string
   period_display_name: string
+  coordinator_roles: CoordinatorRoleRelation | CoordinatorRoleRelation[] | null
 }
 
 interface StatusRow {
@@ -37,6 +43,11 @@ function formatDate(value: string | null) {
     month: 'long',
     year: 'numeric',
   }).format(new Date(`${value}T00:00:00`))
+}
+
+function pickOne<T>(value: T | T[] | null | undefined): T | null {
+  if (!value) return null
+  return Array.isArray(value) ? (value[0] ?? null) : value
 }
 
 function statusClass(slug: string) {
@@ -146,7 +157,7 @@ export default function EventsList({ session }: { session: Session }) {
         ownerIds.length > 0
           ? supabase
               .from('period_memberships')
-              .select('profile_id, period_display_name')
+              .select('profile_id, period_display_name, coordinator_roles(name)')
               .eq('period_id', periodId)
               .in('profile_id', ownerIds)
           : Promise.resolve({ data: [], error: null }),
@@ -162,7 +173,13 @@ export default function EventsList({ session }: { session: Session }) {
       }
 
       const profiles = new Map(
-        ((profilesResult.data ?? []) as ProfileRow[]).map((profile) => [profile.profile_id, profile.period_display_name]),
+        ((profilesResult.data ?? []) as ProfileRow[]).map((profile) => [
+          profile.profile_id,
+          {
+            name: profile.period_display_name,
+            roleName: pickOne(profile.coordinator_roles)?.name ?? null,
+          },
+        ]),
       )
       const statuses = new Map(
         ((statusesResult.data ?? []) as StatusRow[]).map((status) => [status.slug, status.label]),
@@ -177,7 +194,8 @@ export default function EventsList({ session }: { session: Session }) {
           planningDate: event.planning_date as string,
           estimatedDate: (event.estimated_date as string | null) ?? null,
           confirmedDate: (event.confirmed_date as string | null) ?? null,
-          ownerName: profiles.get(event.owner_id as string) ?? 'Sorumlu belirtilmemiş',
+          ownerName: profiles.get(event.owner_id as string)?.name ?? 'Sorumlu belirtilmemiş',
+          ownerRoleName: profiles.get(event.owner_id as string)?.roleName ?? null,
         })),
       )
       setLoadState('ready')
@@ -329,6 +347,11 @@ export default function EventsList({ session }: { session: Session }) {
                           <span className="max-w-full truncate rounded-full bg-canvas px-2.5 py-1 font-medium text-ink-soft" title={`Sorumlu: ${event.ownerName}`}>
                             Sorumlu: {event.ownerName}
                           </span>
+                          {event.ownerRoleName ? (
+                            <span className="max-w-full truncate rounded-full bg-canvas px-2.5 py-1 font-medium text-ink-soft" title={event.ownerRoleName}>
+                              {event.ownerRoleName}
+                            </span>
+                          ) : null}
                         </div>
 
                         <h2 className="mt-3 break-words text-base font-semibold text-ink sm:text-lg">{event.title}</h2>
