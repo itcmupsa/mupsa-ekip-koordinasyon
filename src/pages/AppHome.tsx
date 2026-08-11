@@ -1,8 +1,19 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
+import AppShell from '../components/AppShell'
+import NormalDashboardView from '../components/dashboard/NormalDashboardView'
+import SuperAdminDashboardView from '../components/dashboard/SuperAdminDashboardView'
+import type {
+  DashboardActivityViewItem,
+  DashboardNotificationViewItem,
+  DashboardResponsibilityViewItem,
+  DashboardTaskViewItem,
+} from '../components/dashboard/NormalDashboardView'
+import type { WeeklyAgendaItem } from '../components/dashboard/WeeklyAgendaCard'
+import type { TaskStatusTone } from '../components/TaskStatusBadge'
 
 interface DashboardEvent {
   id: string
@@ -32,6 +43,7 @@ interface DashboardTask {
   deadlineAt: string | null
   progressStatusSlug: string | null
   progressStatusLabel: string | null
+  assignmentLabel?: string
 }
 
 interface DashboardAssignment {
@@ -65,10 +77,12 @@ interface DashboardData {
   activeMemberCount: number | null
   unassignedOpenTaskCount: number | null
   myTasks: MyTask[]
+  unassignedTasks: DashboardTask[]
   upcomingTasks: DashboardTask[]
   overdueTasks: DashboardTask[]
   recentEvents: DashboardEvent[]
   responsibilities: DashboardResponsibility[]
+  weeklyResponsibilities: DashboardResponsibility[]
 }
 
 interface NotificationItem {
@@ -115,6 +129,68 @@ function formatNotificationTime(value: string): string {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+function getTaskStatusTone(slug: string | null): TaskStatusTone {
+  if (slug === 'completed') return 'success'
+  if (slug === 'in_progress') return 'warning'
+  if (slug === 'blocked' || slug === 'overdue') return 'danger'
+  if (slug === 'cancelled') return 'neutral'
+  return 'neutral'
+}
+
+function getTaskHref(task: DashboardTask): string {
+  return task.eventId ? `/app/etkinlikler/${task.eventId}` : '/app/gorevler'
+}
+
+function isInCurrentWeek(value: string | null, now: Date): boolean {
+  if (!value) return false
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return false
+
+  const weekStart = new Date(now)
+  const dayFromMonday = (weekStart.getDay() + 6) % 7
+  weekStart.setDate(weekStart.getDate() - dayFromMonday)
+  weekStart.setHours(0, 0, 0, 0)
+
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekEnd.getDate() + 7)
+  return date >= weekStart && date < weekEnd
+}
+
+function toTaskViewItem(task: DashboardTask, overdue = false): DashboardTaskViewItem {
+  return {
+    id: task.id,
+    title: task.title,
+    to: getTaskHref(task),
+    context: task.eventTitle,
+    deadlineLabel: formatDateTimeShort(task.deadlineAt),
+    statusLabel: overdue ? 'Gecikti' : (task.progressStatusLabel ?? 'Durum yok'),
+    statusTone: overdue ? 'danger' : getTaskStatusTone(task.progressStatusSlug),
+    responsibilityLabel: task.assignmentLabel,
+  }
+}
+
+function toWeeklyAgendaItem(item: DashboardResponsibility): WeeklyAgendaItem {
+  const date = item.date ? new Date(item.date) : null
+  const validDate = date && !Number.isNaN(date.getTime()) ? date : null
+  const hasTime = Boolean(item.date?.includes('T')) && validDate
+    ? validDate.getHours() !== 0 || validDate.getMinutes() !== 0
+    : false
+
+  return {
+    id: `${item.kind}-${item.id}`,
+    dateLabel: validDate
+      ? validDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })
+      : 'Tarih yok',
+    dayLabel: validDate ? validDate.toLocaleDateString('tr-TR', { weekday: 'short' }) : undefined,
+    title: item.title,
+    timeLabel: validDate && hasTime
+      ? validDate.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+      : undefined,
+    kind: item.kind,
+    to: item.href,
+  }
 }
 
 export default function AppHome({ session }: { session: Session }) {
@@ -286,36 +362,68 @@ export default function AppHome({ session }: { session: Session }) {
 
       const managedEvents = events.filter(event => event.ownerId === profileId)
       const managedAwareness = awareness.filter(post => post.createdBy === profileId || post.designResponsibleId === profileId || post.pressResponsibleId === profileId)
-      const responsibilities: DashboardResponsibility[] = [
-        ...managedEvents.map(event => ({
+      const allResponsibilities: DashboardResponsibility[] = [
+        ...events.map(event => ({
           id: event.id,
           title: event.title,
           kind: 'event' as const,
-          kindLabel: 'Sorumlu olduğun etkinlik',
+          kindLabel: 'Etkinlik',
           date: event.planningDate,
           href: `/app/etkinlikler/${event.id}`,
         })),
-        ...managedAwareness.map(post => ({
+        ...awareness.map(post => ({
           id: post.id,
           title: post.title,
           kind: 'awareness' as const,
-          kindLabel: 'Sorumlu olduğun farkındalık',
+          kindLabel: 'Farkındalık',
           date: post.shareDate ?? post.estimatedDate ?? post.startDate,
           href: '/app/farkindalik',
         })),
       ]
-      responsibilities.sort((a, b) => {
+
+      const managedEventIds = new Set(managedEvents.map(event => event.id))
+      const managedAwarenessIds = new Set(managedAwareness.map(post => post.id))
+      const relevantResponsibilities = appRole === 'super_admin'
+        ? allResponsibilities
+        : allResponsibilities
+            .filter(item => item.kind === 'event' ? managedEventIds.has(item.id) : managedAwarenessIds.has(item.id))
+            .map(item => ({
+              ...item,
+              kindLabel: item.kind === 'event' ? 'Sorumlu olduğun etkinlik' : 'Sorumlu olduğun farkındalık',
+            }))
+
+      relevantResponsibilities.sort((a, b) => {
         if (!a.date && !b.date) return 0
         if (!a.date) return 1
         if (!b.date) return -1
         return new Date(a.date).getTime() - new Date(b.date).getTime()
       })
 
+      const todayStart = new Date(now)
+      todayStart.setHours(0, 0, 0, 0)
+      const futureResponsibilities = relevantResponsibilities.filter(item => {
+        if (!item.date) return false
+        const date = new Date(item.date)
+        return !Number.isNaN(date.getTime()) && date >= todayStart
+      })
+      const weeklyResponsibilities = futureResponsibilities.filter(item => isInCurrentWeek(item.date, now))
+      const upcomingResponsibilities = futureResponsibilities.filter(item => !isInCurrentWeek(item.date, now))
+
       const myOverdueTasks = myTasks.filter(task => isOpen(task) && task.deadlineAt && new Date(task.deadlineAt) < now)
       const myUpcomingTasks = myTasks.filter(task => isOpen(task) && task.deadlineAt && new Date(task.deadlineAt) >= now)
       myUpcomingTasks.sort((a, b) => new Date(a.deadlineAt!).getTime() - new Date(b.deadlineAt!).getTime())
       const assignedTaskIds = new Set(allAssignments.map(row => row.task_id))
+      const overdueTaskIds = new Set(overdueTasksRaw.map(task => task.id))
+      const unassignedOpenTasks = openTasks
+        .filter(task => !assignedTaskIds.has(task.id) && !overdueTaskIds.has(task.id))
+        .sort((a, b) => {
+          if (!a.deadlineAt && !b.deadlineAt) return 0
+          if (!a.deadlineAt) return 1
+          if (!b.deadlineAt) return -1
+          return new Date(a.deadlineAt).getTime() - new Date(b.deadlineAt).getTime()
+        })
       const unassignedOpenTaskCount = openTasks.filter(task => !assignedTaskIds.has(task.id)).length
+      const assignedUpcomingTasks = upcomingTasksRaw.filter(task => assignedTaskIds.has(task.id))
       let activeMemberCount: number | null = null
       if (appRole === 'super_admin') {
         const { count, error: membersError } = await supabase
@@ -343,11 +451,13 @@ export default function AppHome({ session }: { session: Session }) {
         managedAwarenessCount: managedAwareness.length,
         activeMemberCount,
         unassignedOpenTaskCount: appRole === 'super_admin' ? unassignedOpenTaskCount : null,
-        myTasks,
-        upcomingTasks: (appRole === 'super_admin' ? upcomingTasksRaw : myUpcomingTasks).slice(0, 5),
+        myTasks: myTasks.filter(task => isOpen(task) && !overdueTaskIds.has(task.id)).slice(0, 5),
+        unassignedTasks: appRole === 'super_admin' ? unassignedOpenTasks.slice(0, 5) : [],
+        upcomingTasks: (appRole === 'super_admin' ? assignedUpcomingTasks : myUpcomingTasks).slice(0, 5),
         overdueTasks: (appRole === 'super_admin' ? overdueTasksRaw : myOverdueTasks).slice(0, 5),
         recentEvents: events.slice(0, 5),
-        responsibilities: responsibilities.slice(0, 6),
+        responsibilities: upcomingResponsibilities.slice(0, 6),
+        weeklyResponsibilities: weeklyResponsibilities.slice(0, 6),
       })
       setDataLoading(false)
     }
@@ -458,146 +568,126 @@ export default function AppHome({ session }: { session: Session }) {
 
   async function handleSignOut() { await supabase.auth.signOut() }
 
-  const unreadCount = notifications.filter(notification => !notification.readAt).length
+  const roleLabel = coordinatorRoleName ?? (appRole === 'super_admin' ? 'Süper Yönetici' : 'Koordinatör')
+  const notificationItems: DashboardNotificationViewItem[] = notifications.map(notification => ({
+    id: notification.id,
+    title: notification.title,
+    body: notification.body,
+    timeLabel: formatNotificationTime(notification.createdAt),
+    isUnread: !notification.readAt,
+    isBusy: markingReadId === notification.id,
+  }))
+  const activityItems: DashboardActivityViewItem[] = (dashboardData?.recentEvents ?? []).map(event => ({
+    id: event.id,
+    title: event.title,
+    detail: event.eventStatus ?? 'Durum belirtilmedi',
+    timeLabel: formatNotificationTime(event.createdAt),
+    kind: 'event',
+    to: `/app/etkinlikler/${event.id}`,
+  }))
+  const weeklyAgendaItems = (dashboardData?.weeklyResponsibilities ?? []).map(toWeeklyAgendaItem)
 
-  return (
-    <div className="min-h-screen bg-canvas pb-12">
-      <header className="border-b border-canvas-border bg-canvas-surface">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:py-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <img src="/mupsa-logo.svg" alt="MUPSA Logo" className="h-6 w-auto shrink-0 object-contain" />
-            <span className="truncate text-sm font-semibold text-ink">MUPSA Ekip Koordinasyon</span>
-          </div>
-          <div className="flex shrink-0 items-center gap-3">
-            <Link to="/app/ayarlar" className="text-sm font-medium text-ink-soft hover:text-ink">Hesabım</Link>
-            <button type="button" onClick={handleSignOut} className="text-sm font-medium text-ink-soft hover:text-ink">Çıkış yap</button>
+  function handleNotificationById(notificationId: string) {
+    const notification = notifications.find(item => item.id === notificationId)
+    if (notification) void handleNotificationClick(notification)
+  }
+
+  function renderDashboard() {
+    if (membershipLoading) {
+      return <p className="mx-auto max-w-7xl px-4 py-8 text-sm text-ink-soft sm:px-6 lg:px-8">Yükleniyor…</p>
+    }
+
+    if (!hasActiveMembership) {
+      return (
+        <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+          <div className="rounded-xl border border-accent/30 bg-accent-soft p-4 shadow-card sm:p-6">
+            <p className="text-sm font-medium text-ink">Hesabın açık, ancak aktif dönem yetkin henüz tanımlanmamış.</p>
+            <p className="mt-2 text-sm text-ink-soft">
+              Yönetim kurulu tarafından bu dönem için bir role atanman gerekiyor. Soruların için Bilişim
+              Teknolojileri Koordinatörlüğü ile iletişime geç.
+            </p>
           </div>
         </div>
-      </header>
-      <main className="mx-auto max-w-3xl px-4 py-6 sm:py-8">
-        {membershipLoading ? <p className="text-sm text-ink-soft">Yükleniyor…</p> : !hasActiveMembership ? (
-          <div className="mt-6 rounded-lg border border-accent/30 bg-accent-soft p-4 sm:p-6">
-            <p className="text-sm font-medium text-ink">Hesabın açık, ancak aktif dönem yetkin henüz tanımlanmamış.</p>
-            <p className="mt-2 text-sm text-ink-soft">Yönetim kurulu tarafından bu dönem için bir role atanman gerekiyor. Soruların için Bilişim Teknolojileri Koordinatörlüğü ile iletişime geç.</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-6 sm:gap-8">
-            <div>
-              <p className="text-sm text-ink-soft">Hoş geldin,</p>
-              <h1 className="mt-1 break-words text-2xl font-semibold text-ink">{displayName}</h1>
-              <p className="mt-1 break-words text-sm text-ink-soft">{periodLabel ? `Aktif dönem: ${periodLabel}` : 'Aktif Dönem'}</p>
-            </div>
-            <section className="rounded-lg border border-accent/30 bg-accent-soft/20 p-4 shadow-sm sm:p-6">
-              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-accent/20 pb-3">
-                <div>
-                  <h2 className="text-base font-semibold text-ink">{appRole === 'super_admin' ? 'Yönetim özeti' : 'Kişisel çalışma özeti'}</h2>
-                  <p className="mt-1 text-xs text-ink-soft">{appRole === 'super_admin' ? 'Aktif dönemdeki ekip ve iş akışının genel görünümü.' : `${coordinatorRoleName ?? 'Koordinatör'} olarak sorumlu olduğun çalışmalar ve görevler.`}</p>
-                </div>
-                <Link to={appRole === 'super_admin' ? '/app/yonetim/uyeler' : '/app/gorevler'} className="text-xs font-medium text-ink-soft hover:text-ink">{appRole === 'super_admin' ? 'Ekibi yönet' : 'Görevlerime git'}</Link>
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {appRole === 'super_admin' ? (
-                  <>
-                    <div className="rounded-md border border-canvas-border bg-canvas-surface p-3"><p className="text-xs text-ink-soft">Aktif ekip üyesi</p><p className="mt-1 text-xl font-semibold text-ink">{dashboardData?.activeMemberCount ?? '—'}</p></div>
-                    <div className="rounded-md border border-canvas-border bg-canvas-surface p-3"><p className="text-xs text-ink-soft">Açık görev</p><p className="mt-1 text-xl font-semibold text-ink">{dashboardData?.openTaskCount ?? '—'}</p></div>
-                    <div className="rounded-md border border-canvas-border bg-canvas-surface p-3"><p className="text-xs text-ink-soft">Atanmamış açık görev</p><p className="mt-1 text-xl font-semibold text-ink">{dashboardData?.unassignedOpenTaskCount ?? '—'}</p></div>
-                  </>
-                ) : (
-                  <>
-                    <div className="rounded-md border border-canvas-border bg-canvas-surface p-3"><p className="text-xs text-ink-soft">Sorumlu etkinlik</p><p className="mt-1 text-xl font-semibold text-ink">{dashboardData?.managedEventCount ?? '—'}</p></div>
-                    <div className="rounded-md border border-canvas-border bg-canvas-surface p-3"><p className="text-xs text-ink-soft">Sorumlu farkındalık</p><p className="mt-1 text-xl font-semibold text-ink">{dashboardData?.managedAwarenessCount ?? '—'}</p></div>
-                    <div className="rounded-md border border-canvas-border bg-canvas-surface p-3"><p className="text-xs text-ink-soft">Bana ait geciken</p><p className={`mt-1 text-xl font-semibold ${dashboardData?.myOverdueTaskCount ? 'text-red-700' : 'text-ink'}`}>{dashboardData?.myOverdueTaskCount ?? '—'}</p></div>
-                  </>
-                )}
-              </div>
-              {dashboardData && <div className="mt-4 border-t border-accent/20 pt-4"><h3 className="text-xs font-semibold text-ink">{appRole === 'super_admin' ? 'Yaklaşan ekip sorumlulukları' : 'Yaklaşan sorumluluklarım'}</h3>{dashboardData.responsibilities.length === 0 ? <p className="mt-2 text-xs italic text-ink-soft">Gösterilecek sorumluluk bulunmuyor.</p> : <ul className="mt-2 grid gap-2 sm:grid-cols-2">{dashboardData.responsibilities.map(item => <li key={`${item.kind}-${item.id}`}><Link to={item.href} className="block rounded-md border border-canvas-border bg-canvas-surface p-3 transition-colors hover:border-ink/20"><p className="break-words text-sm font-medium text-ink">{item.title}</p><div className="mt-1 flex flex-wrap justify-between gap-2 text-[11px] text-ink-soft"><span>{item.kindLabel}</span><span>{formatShortDate(item.date)}</span></div></Link></li>)}</ul>}</div>}
-            </section>
-            <section className="rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-sm sm:p-6">
-              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-canvas-border pb-3">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base font-semibold text-ink">Bildirimler</h2>
-                  {unreadCount > 0 && <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-white">{unreadCount} yeni</span>}
-                </div>
-                {unreadCount > 0 && <button type="button" onClick={() => void handleMarkAllAsRead()} disabled={markingAllRead} className="shrink-0 text-xs font-medium text-ink-soft hover:text-ink disabled:opacity-60">{markingAllRead ? 'İşaretleniyor…' : 'Tümünü okundu işaretle'}</button>}
-              </div>
-              <div className="mt-4">
-                {notificationsLoading ? <p className="text-sm text-ink-soft">Bildirimler yükleniyor…</p> : notificationsError ? <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{notificationsError}</p> : notifications.length === 0 ? <p className="text-sm italic text-ink-soft">Yeni bildirimin bulunmuyor.</p> : (
-                  <ul className="flex flex-col gap-2">
-                    {notifications.map(notification => {
-                      const isUnread = !notification.readAt
-                      const isClickable = Boolean(notification.eventId || notification.taskId)
-                      const isBusy = markingReadId === notification.id
-                      return <li key={notification.id} className={`rounded-md border p-3 transition-colors ${isUnread ? 'border-accent/30 bg-accent-soft/30' : 'border-canvas-border bg-canvas'} ${isClickable ? 'cursor-pointer hover:border-ink/20' : ''}`} onClick={() => { if (!isBusy && (isClickable || isUnread)) void handleNotificationClick(notification) }} role={isClickable || isUnread ? 'button' : 'listitem'} tabIndex={isClickable || isUnread ? 0 : undefined} onKeyDown={event => { if (!isBusy && (event.key === 'Enter' || event.key === ' ') && (isClickable || isUnread)) { event.preventDefault(); void handleNotificationClick(notification) } }}>
-                        <div className="flex items-start justify-between gap-2"><p className="min-w-0 break-words text-sm font-medium text-ink">{notification.title}</p><span className="shrink-0 text-[10px] text-ink-soft">{formatNotificationTime(notification.createdAt)}</span></div>
-                        <p className="mt-1 break-words text-xs text-ink-soft">{notification.body}</p>
-                      </li>
-                    })}
-                  </ul>
-                )}
-              </div>
-            </section>
-            {dataLoading ? <p className="text-sm text-ink-soft">Özet bilgileri yükleniyor…</p> : dataError ? (
-              <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{dataError}</p>
-            ) : dashboardData ? (
-              <>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-                  <div className="rounded-lg border border-canvas-border bg-canvas-surface p-3 shadow-sm sm:p-4"><p className="break-words text-xs font-medium text-ink-soft">Aktif Etkinlik</p><p className="mt-1 text-2xl font-semibold text-ink">{dashboardData.activeEventCount}</p></div>
-                  <div className="rounded-lg border border-canvas-border bg-canvas-surface p-3 shadow-sm sm:p-4"><p className="break-words text-xs font-medium text-ink-soft">Açık Görev</p><p className="mt-1 text-2xl font-semibold text-ink">{dashboardData.openTaskCount}</p></div>
-                  <div className="rounded-lg border border-canvas-border bg-canvas-surface p-3 shadow-sm sm:p-4"><p className="break-words text-xs font-medium text-ink-soft">Bana Atanan Açık</p><p className="mt-1 text-2xl font-semibold text-ink">{dashboardData.myOpenTaskCount}</p></div>
-                  <div className={`rounded-lg border p-3 shadow-sm sm:p-4 ${dashboardData.overdueTaskCount > 0 ? 'border-red-200 bg-red-50' : 'border-canvas-border bg-canvas-surface'}`}><p className={`break-words text-xs font-medium ${dashboardData.overdueTaskCount > 0 ? 'text-red-700' : 'text-ink-soft'}`}>{appRole === 'super_admin' ? 'Geciken Görev' : 'Bana Ait Geciken'}</p><p className={`mt-1 text-2xl font-semibold ${dashboardData.overdueTaskCount > 0 ? 'text-red-700' : 'text-ink'}`}>{dashboardData.overdueTaskCount}</p></div>
-                </div>
-                <div className="grid grid-cols-1 gap-6 sm:gap-8 md:grid-cols-2">
-                  <div className="flex flex-col gap-6 sm:gap-8">
-                    <section>
-                      <h2 className="mb-3 border-b border-canvas-border pb-2 text-sm font-semibold text-ink">Bana Atanmış Görevler</h2>
-                      {dashboardData.myTasks.length === 0 ? <p className="text-sm italic text-ink-soft">Size atanmış bir görev bulunmuyor.</p> : <ul className="flex flex-col gap-3">{dashboardData.myTasks.map(task => <li key={task.id} className="rounded-md border border-canvas-border bg-canvas-surface p-3 transition-colors hover:border-ink/20"><Link to={task.eventId ? `/app/etkinlikler/${task.eventId}` : '/app/gorevler'} className="block rounded-sm focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2"><div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1"><p className="min-w-0 break-words text-sm font-medium text-ink">{task.title}</p><span className="shrink-0 rounded border border-canvas-border bg-canvas px-2 py-0.5 text-[10px] font-medium text-ink-soft">{task.progressStatusLabel}</span></div><p className="mt-1 break-words text-xs text-ink-soft">{task.eventTitle}</p><div className="mt-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs text-ink-soft"><span>{formatDateTimeShort(task.deadlineAt)}</span><span className="font-medium">{task.assignmentLabel}</span></div></Link></li>)}</ul>}
-                    </section>
-                    <section>
-                      <h2 className="mb-3 border-b border-canvas-border pb-2 text-sm font-semibold text-ink">Son Etkinlikler</h2>
-                      {dashboardData.recentEvents.length === 0 ? <p className="text-sm italic text-ink-soft">Kayıtlı etkinlik bulunmuyor.</p> : <ul className="flex flex-col gap-3">{dashboardData.recentEvents.map(event => <li key={event.id} className="rounded-md border border-canvas-border bg-canvas-surface p-3 transition-colors hover:border-ink/20"><Link to={`/app/etkinlikler/${event.id}`} className="block rounded-sm focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2"><p className="break-words text-sm font-medium text-ink">{event.title}</p><div className="mt-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs text-ink-soft"><span>{event.eventStatus ?? 'Durum belirtilmedi'}</span><span>{formatShortDate(event.planningDate)}</span></div></Link></li>)}</ul>}
-                    </section>
-                  </div>
-                  <div className="flex flex-col gap-6 sm:gap-8">
-                    <section>
-                      <h2 className="mb-3 border-b border-red-200 pb-2 text-sm font-semibold text-red-700">Geciken Görevler</h2>
-                      {dashboardData.overdueTasks.length === 0 ? <p className="text-sm italic text-ink-soft">Geciken görev bulunmuyor.</p> : <ul className="flex flex-col gap-3">{dashboardData.overdueTasks.map(task => <li key={task.id} className="rounded-md border border-red-200 bg-red-50 p-3 transition-colors hover:border-red-300"><Link to={task.eventId ? `/app/etkinlikler/${task.eventId}` : '/app/gorevler'} className="block rounded-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"><p className="break-words text-sm font-medium text-red-900">{task.title}</p><p className="mt-1 break-words text-xs text-red-700/80">{task.eventTitle}</p><div className="mt-2 text-xs font-semibold text-red-700">{formatDateTimeShort(task.deadlineAt)}</div></Link></li>)}</ul>}
-                    </section>
-                    <section>
-                      <h2 className="mb-3 border-b border-canvas-border pb-2 text-sm font-semibold text-ink">Yaklaşan Görevler</h2>
-                      {dashboardData.upcomingTasks.length === 0 ? <p className="text-sm italic text-ink-soft">Yaklaşan açık görev bulunmuyor.</p> : <ul className="flex flex-col gap-3">{dashboardData.upcomingTasks.map(task => <li key={task.id} className="rounded-md border border-canvas-border bg-canvas-surface p-3 transition-colors hover:border-ink/20"><Link to={task.eventId ? `/app/etkinlikler/${task.eventId}` : '/app/gorevler'} className="block rounded-sm focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2"><p className="break-words text-sm font-medium text-ink">{task.title}</p><p className="mt-1 break-words text-xs text-ink-soft">{task.eventTitle}</p><div className="mt-2 text-xs text-ink-soft">{formatDateTimeShort(task.deadlineAt)}</div></Link></li>)}</ul>}
-                    </section>
-                  </div>
-                </div>
-                <section className="mt-2 border-t border-canvas-border pt-5 sm:mt-4 sm:pt-6">
-                  <h2 className="mb-4 text-sm font-semibold text-ink">Hızlı Erişim</h2>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-                    <Link to="/app/gorevler" className="block rounded-lg border border-accent/30 bg-accent-soft/20 p-4 shadow-card transition-colors hover:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2">
-                      <p className="text-sm font-semibold text-ink">Görevler</p>
-                      <p className="mt-1 text-xs text-ink-soft">Tüm görevleri, atamaları ve bağlı kayıtları tek yerden yönet.</p>
-                    </Link>
-                    <Link to="/app/etkinlikler" className="block rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card transition-colors hover:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2">
-                      <p className="text-sm font-semibold text-ink">Tüm Etkinlikler</p>
-                      <p className="mt-1 text-xs text-ink-soft">Aktif dönemdeki tüm etkinlikleri ve detaylarını görüntüle.</p>
-                    </Link>
-                    <Link to="/app/farkindalik" className="block rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card transition-colors hover:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2">
-                      <p className="text-sm font-semibold text-ink">Farkındalık Paylaşımları</p>
-                      <p className="mt-1 text-xs text-ink-soft">Farkındalık içeriklerini ve hazırlık süreçlerini görüntüle.</p>
-                    </Link>
-                    <Link to="/app/takvim" className="block rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card transition-colors hover:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2">
-                      <p className="text-sm font-semibold text-ink">Takvim</p>
-                      <p className="mt-1 text-xs text-ink-soft">Etkinlik, farkındalık ve size atanmış görev tarihlerini görüntüle.</p>
-                    </Link>
-                    <Link to="/app/ayarlar" className="block rounded-lg border border-canvas-border bg-canvas-surface p-4 shadow-card transition-colors hover:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2">
-                      <p className="text-sm font-semibold text-ink">Hesabım ve Ayarlar</p>
-                      <p className="mt-1 text-xs text-ink-soft">Hesap, şifre, mobil bildirim ve yönetim ayarlarına git.</p>
-                    </Link>
-                  </div>
-                </section>
-              </>
-            ) : null}
-          </div>
-        )}
-      </main>
-    </div>
+      )
+    }
+
+    if (dataError) {
+      return (
+        <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+          <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {dataError}
+          </p>
+        </div>
+      )
+    }
+
+    if (dataLoading || !dashboardData) {
+      return <p className="mx-auto max-w-7xl px-4 py-8 text-sm text-ink-soft sm:px-6 lg:px-8">Özet bilgileri yükleniyor…</p>
+    }
+
+    if (appRole === 'super_admin') {
+      return (
+        <SuperAdminDashboardView
+          displayName={displayName}
+          periodLabel={periodLabel}
+          activeMemberCount={dashboardData.activeMemberCount ?? 0}
+          openTaskCount={dashboardData.openTaskCount}
+          unassignedOpenTaskCount={dashboardData.unassignedOpenTaskCount ?? 0}
+          overdueTaskCount={dashboardData.overdueTaskCount}
+          overdueTasks={dashboardData.overdueTasks.map(task => toTaskViewItem(task, true))}
+          unassignedOpenTasks={dashboardData.unassignedTasks.map(task => toTaskViewItem(task))}
+          upcomingTeamResponsibilities={dashboardData.upcomingTasks.map(task => toTaskViewItem(task))}
+          weeklyAgendaItems={weeklyAgendaItems}
+          notifications={notificationItems}
+          activities={activityItems}
+          notificationsLoading={notificationsLoading}
+          notificationsError={notificationsError}
+          markingAllRead={markingAllRead}
+          onNotificationClick={handleNotificationById}
+          onMarkAllNotificationsRead={() => { void handleMarkAllAsRead() }}
+        />
+      )
+    }
+
+    const responsibilityItems: DashboardResponsibilityViewItem[] = dashboardData.responsibilities.map(item => ({
+      id: `${item.kind}-${item.id}`,
+      title: item.title,
+      to: item.href,
+      kindLabel: item.kindLabel,
+      dateLabel: formatShortDate(item.date),
+    }))
+
+    return (
+      <NormalDashboardView
+        displayName={displayName}
+        roleLabel={roleLabel}
+        periodLabel={periodLabel}
+        managedEventCount={dashboardData.managedEventCount}
+        managedAwarenessCount={dashboardData.managedAwarenessCount}
+        overdueTaskCount={dashboardData.myOverdueTaskCount}
+        overdueTasks={dashboardData.overdueTasks.map(task => toTaskViewItem(task, true))}
+        weeklyAgendaItems={weeklyAgendaItems}
+        responsibilities={responsibilityItems}
+        assignedTasks={dashboardData.myTasks.map(task => toTaskViewItem(task))}
+        notifications={notificationItems}
+        activities={activityItems}
+        notificationsLoading={notificationsLoading}
+        notificationsError={notificationsError}
+        markingAllRead={markingAllRead}
+        onNotificationClick={handleNotificationById}
+        onMarkAllNotificationsRead={() => { void handleMarkAllAsRead() }}
+      />
+    )
+  }
+
+  return (
+    <AppShell
+      isSuperAdmin={appRole === 'super_admin'}
+      displayName={displayName}
+      roleLabel={roleLabel}
+      onSignOut={handleSignOut}
+    >
+      <main>{renderDashboard()}</main>
+    </AppShell>
   )
 }
