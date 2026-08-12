@@ -127,6 +127,10 @@ function ChevronIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
 }
 
+function SelectChevronIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><path d="m7 9 5 5 5-5" /></svg>
+}
+
 function TaskKindIcon({ kind }: { kind: ContextKind }) {
   const className = kind === 'standalone'
     ? 'bg-brand-soft text-brand-dark'
@@ -452,39 +456,47 @@ export default function Tasks({ session }: { session: Session }) {
         </section>
 
         <section className="mb-5 hidden gap-4 rounded-2xl border border-canvas-border bg-canvas-surface p-5 shadow-card lg:grid lg:grid-cols-3" aria-label="Görev arama ve filtreleme">
-          <label className="relative block">
-            <span className="sr-only">Görev veya bağlı kayıt ara</span>
-            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-ink-soft"><SearchIcon /></span>
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Görev veya bağlı kayıt ara"
-              className="min-h-[52px] w-full rounded-xl border border-canvas-border bg-canvas-surface py-3 pl-11 pr-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            />
+          <label className="grid gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Arama</span>
+            <span className="relative block">
+              <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-brand-dark"><SearchIcon /></span>
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Görev veya bağlı kayıt ara"
+                className="min-h-[58px] w-full rounded-xl border border-canvas-border bg-canvas py-3 pl-12 pr-4 text-sm text-ink transition hover:border-brand/40 focus:bg-canvas-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              />
+            </span>
           </label>
-          <label>
-            <span className="sr-only">Bağlı kayıt türü</span>
-            <select
-              value={contextFilter}
-              onChange={(event) => setContextFilter(event.target.value as 'all' | ContextKind)}
-              className="min-h-[52px] w-full rounded-xl border border-canvas-border bg-canvas-surface px-4 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              <option value="all">Tüm bağlı kayıtlar</option>
-              <option value="event">Etkinlik görevleri</option>
-              <option value="awareness">Farkındalık görevleri</option>
-              <option value="standalone">Bağımsız görevler</option>
-            </select>
+          <label className="grid gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Bağlı kayıt</span>
+            <span className="relative block">
+              <select
+                value={contextFilter}
+                onChange={(event) => setContextFilter(event.target.value as 'all' | ContextKind)}
+                className="min-h-[58px] w-full appearance-none rounded-xl border border-canvas-border bg-canvas px-4 py-3 pr-12 text-sm font-medium text-ink transition hover:border-brand/40 focus:bg-canvas-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                <option value="all">Tüm bağlı kayıtlar</option>
+                <option value="event">Etkinlik görevleri</option>
+                <option value="awareness">Farkındalık görevleri</option>
+                <option value="standalone">Bağımsız görevler</option>
+              </select>
+              <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-brand-dark"><SelectChevronIcon /></span>
+            </span>
           </label>
-          <label>
-            <span className="sr-only">Görev durumu</span>
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-              className="min-h-[52px] w-full rounded-xl border border-canvas-border bg-canvas-surface px-4 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              <option value="all">Tüm durumlar</option>
-              {statuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}
-            </select>
+          <label className="grid gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Durum</span>
+            <span className="relative block">
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+                className="min-h-[58px] w-full appearance-none rounded-xl border border-canvas-border bg-canvas px-4 py-3 pr-12 text-sm font-medium text-ink transition hover:border-brand/40 focus:bg-canvas-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                <option value="all">Tüm durumlar</option>
+                {statuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}
+              </select>
+              <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-brand-dark"><SelectChevronIcon /></span>
+            </span>
           </label>
           {isSuperAdmin ? (
             <label className="flex min-h-[44px] items-center gap-2 text-sm text-ink-soft lg:col-span-3">

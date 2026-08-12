@@ -91,6 +91,14 @@ function SearchIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16 16 4 4" /></svg>
 }
 
+function FilterIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><path d="M4 5h16l-6 7v5l-4 2v-7z" /></svg>
+}
+
+function SelectChevronIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><path d="m7 9 5 5 5-5" /></svg>
+}
+
 function CalendarIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="2" /><path d="M3.5 9.5h17M8 3v3M16 3v3" /></svg>
 }
@@ -510,24 +518,33 @@ export default function AwarenessPosts({ session }: { session: Session }) {
 
         {successMessage ? <p role="status" className="mt-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{successMessage}</p> : null}
 
-        <section className="mt-5 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card">
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_14rem_auto] md:items-center">
-            <label className="relative block">
-              <span className="sr-only">Farkındalık ara</span>
-              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-ink-soft"><SearchIcon /></span>
-              <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Farkındalık veya kapsam ara" className={`${fieldClass} w-full pl-10`} />
+        <section className="mt-5 rounded-2xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
+          <div className="mb-4 flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-dark"><FilterIcon /></span>
+            <div><h2 className="font-semibold text-ink">Farkındalıkları filtrele</h2><p className="mt-0.5 text-xs text-ink-soft">Arama ve paylaşım durumuyla sonuçları daralt.</p></div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_18rem_auto] md:items-end">
+            <label className="grid gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Arama</span>
+              <span className="relative block">
+                <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-brand-dark"><SearchIcon /></span>
+                <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Farkındalık veya kapsam ara" className="min-h-[58px] w-full rounded-xl border border-canvas-border bg-canvas py-3 pl-12 pr-4 text-sm text-ink transition hover:border-brand/40 focus:bg-canvas-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand" />
+              </span>
             </label>
-            <label>
-              <span className="sr-only">Paylaşım durumuna göre filtrele</span>
-              <select value={listFilter} onChange={(event) => setListFilter(event.target.value as ListFilter)} className={`${fieldClass} w-full`}>
-                <option value="all">Tüm paylaşımlar</option>
-                <option value="waiting">Paylaşım bekleyenler</option>
-                <option value="shared">Paylaşılanlar</option>
-                <option value="delayed">Gecikenler</option>
-              </select>
+            <label className="grid gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Paylaşım durumu</span>
+              <span className="relative block">
+                <select value={listFilter} onChange={(event) => setListFilter(event.target.value as ListFilter)} className="min-h-[58px] w-full appearance-none rounded-xl border border-canvas-border bg-canvas px-4 py-3 pr-12 text-sm font-medium text-ink transition hover:border-brand/40 focus:bg-canvas-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                  <option value="all">Tüm paylaşımlar</option>
+                  <option value="waiting">Paylaşım bekleyenler</option>
+                  <option value="shared">Paylaşılanlar</option>
+                  <option value="delayed">Gecikenler</option>
+                </select>
+                <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-brand-dark"><SelectChevronIcon /></span>
+              </span>
             </label>
-            <label className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded-lg border border-canvas-border px-3 text-sm text-ink-soft">
-              <input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} className="h-4 w-4 accent-brand" />
+            <label className="flex min-h-[58px] cursor-pointer items-center gap-3 rounded-xl border border-canvas-border bg-canvas px-4 text-sm font-medium text-ink-soft transition hover:border-brand/40">
+              <input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} className="h-5 w-5 rounded accent-brand" />
               Pasifleri göster
             </label>
           </div>
