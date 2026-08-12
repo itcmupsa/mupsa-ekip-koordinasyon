@@ -34,6 +34,7 @@ interface AnnouncementCoordinatorRoleRelation {
 }
 
 type AnnouncementAudience = 'everyone' | 'coordinator_roles' | 'profiles'
+type AnnouncementScheduleMode = 'now' | 'scheduled'
 
 const fieldClass = 'min-h-[44px] rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2.5 font-normal text-ink placeholder:text-ink-soft/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60'
 
@@ -55,6 +56,24 @@ function TeamIcon() {
 
 function MegaphoneIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><path d="M4 10v3a1 1 0 0 0 1 1h2l4.5 3.5v-11L7 10H5a1 1 0 0 0-1 1zM16.5 9a4 4 0 0 1 0 6" /></svg>
+}
+
+function CalendarIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="2" /><path d="M3.5 9.5h17M8 3v3M16 3v3" /></svg>
+}
+
+function ClockIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5v5l3 2" /></svg>
+}
+
+const announcementHours = Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, '0'))
+const announcementMinutes = ['00', '15', '30', '45']
+
+function localDateValue(date = new Date()): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function pickOne<T>(value: T | T[] | null | undefined): T | null {
@@ -86,7 +105,10 @@ export default function AccountSettings({ session }: { session: Session }) {
   const [announcementMemberOptions, setAnnouncementMemberOptions] = useState<AnnouncementMemberOption[]>([])
   const [selectedAnnouncementRoleIds, setSelectedAnnouncementRoleIds] = useState<string[]>([])
   const [selectedAnnouncementProfileIds, setSelectedAnnouncementProfileIds] = useState<string[]>([])
-  const [announcementScheduledFor, setAnnouncementScheduledFor] = useState('')
+  const [announcementScheduleMode, setAnnouncementScheduleMode] = useState<AnnouncementScheduleMode>('now')
+  const [announcementScheduleDate, setAnnouncementScheduleDate] = useState('')
+  const [announcementScheduleHour, setAnnouncementScheduleHour] = useState('09')
+  const [announcementScheduleMinute, setAnnouncementScheduleMinute] = useState('00')
   const [announcementLoading, setAnnouncementLoading] = useState(false)
   const [announcementSubmitting, setAnnouncementSubmitting] = useState(false)
   const [announcementMessage, setAnnouncementMessage] = useState<string | null>(null)
@@ -211,6 +233,19 @@ export default function AccountSettings({ session }: { session: Session }) {
     )
   }
 
+  function resetAnnouncementSchedule() {
+    setAnnouncementScheduleMode('now')
+    setAnnouncementScheduleDate('')
+    setAnnouncementScheduleHour('09')
+    setAnnouncementScheduleMinute('00')
+    setAnnouncementError(null)
+  }
+
+  function selectScheduledAnnouncement() {
+    setAnnouncementScheduleMode('scheduled')
+    setAnnouncementError(null)
+  }
+
   async function handleSendAnnouncement(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setAnnouncementMessage(null)
@@ -236,8 +271,14 @@ export default function AccountSettings({ session }: { session: Session }) {
     }
 
     let scheduledValue: string | null = null
-    if (announcementScheduledFor) {
-      const scheduledDate = new Date(announcementScheduledFor)
+    if (announcementScheduleMode === 'scheduled') {
+      if (!announcementScheduleDate) {
+        setAnnouncementError('Planlı gönderim için bir tarih seçmelisin.')
+        return
+      }
+      const scheduledDate = new Date(
+        `${announcementScheduleDate}T${announcementScheduleHour}:${announcementScheduleMinute}:00`,
+      )
       if (Number.isNaN(scheduledDate.getTime()) || scheduledDate.getTime() <= Date.now()) {
         setAnnouncementError('Gönderim zamanı gelecekte bir tarih ve saat olmalıdır.')
         return
@@ -273,7 +314,7 @@ export default function AccountSettings({ session }: { session: Session }) {
     setAnnouncementAudience('everyone')
     setSelectedAnnouncementRoleIds([])
     setSelectedAnnouncementProfileIds([])
-    setAnnouncementScheduledFor('')
+    resetAnnouncementSchedule()
   }
 
   const currentRoleLabel = roleLabel(appRole)
@@ -349,10 +390,70 @@ export default function AccountSettings({ session }: { session: Session }) {
               <label className="grid gap-1.5 text-sm font-medium text-ink">Alıcılar<select value={announcementAudience} onChange={(event) => setAnnouncementAudience(event.target.value as AnnouncementAudience)} className={fieldClass}><option value="everyone">Herkes</option><option value="coordinator_roles">Koordinatörlükler</option><option value="profiles">Belirli kişiler</option></select></label>
               {announcementAudience === 'coordinator_roles' ? <div className="max-h-52 overflow-y-auto rounded-lg border border-canvas-border p-2">{announcementLoading ? <p className="p-2 text-sm text-ink-soft">Koordinatörlükler yükleniyor…</p> : announcementRoleOptions.map((role) => <label key={role.id} className="flex min-h-[44px] items-center gap-2 rounded px-2 text-sm hover:bg-canvas"><input type="checkbox" checked={selectedAnnouncementRoleIds.includes(role.id)} onChange={() => toggleAnnouncementSelection(role.id, selectedAnnouncementRoleIds, setSelectedAnnouncementRoleIds)} className="h-4 w-4 accent-brand" />{role.name}</label>)}</div> : null}
               {announcementAudience === 'profiles' ? <div className="max-h-64 overflow-y-auto rounded-lg border border-canvas-border p-2">{announcementLoading ? <p className="p-2 text-sm text-ink-soft">Kişiler yükleniyor…</p> : announcementMemberOptions.map((member) => <label key={member.profileId} className="flex min-h-[52px] items-start gap-2 rounded px-2 py-2 text-sm hover:bg-canvas"><input type="checkbox" checked={selectedAnnouncementProfileIds.includes(member.profileId)} onChange={() => toggleAnnouncementSelection(member.profileId, selectedAnnouncementProfileIds, setSelectedAnnouncementProfileIds)} className="mt-1 h-4 w-4 accent-brand" /><span>{member.displayName}{member.coordinatorRoleName ? <span className="block text-xs text-ink-soft">{member.coordinatorRoleName}</span> : null}</span></label>)}</div> : null}
-              <label className="grid gap-1.5 text-sm font-medium text-ink">Gönderim zamanı <span className="font-normal text-ink-soft">Boş bırakırsan hemen gönderilir.</span><input type="datetime-local" value={announcementScheduledFor} onChange={(event) => setAnnouncementScheduledFor(event.target.value)} className={fieldClass} /></label>
+              <fieldset className="grid gap-3">
+                <legend className="text-sm font-medium text-ink">Gönderim zamanı</legend>
+                <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Gönderim zamanı">
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={announcementScheduleMode === 'now'}
+                    onClick={resetAnnouncementSchedule}
+                    className={`flex min-h-[64px] items-center gap-3 rounded-xl border px-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${announcementScheduleMode === 'now' ? 'border-brand bg-brand-soft text-brand-dark' : 'border-canvas-border bg-canvas-surface text-ink hover:border-brand/40'}`}
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/80"><MegaphoneIcon /></span>
+                    <span><span className="block text-sm font-semibold">Hemen gönder</span><span className="mt-0.5 block text-xs font-normal text-ink-soft">Formu gönderdiğinde yayınlanır.</span></span>
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={announcementScheduleMode === 'scheduled'}
+                    onClick={selectScheduledAnnouncement}
+                    className={`flex min-h-[64px] items-center gap-3 rounded-xl border px-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${announcementScheduleMode === 'scheduled' ? 'border-accent bg-accent-soft/60 text-amber-900' : 'border-canvas-border bg-canvas-surface text-ink hover:border-accent/50'}`}
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/80"><ClockIcon /></span>
+                    <span><span className="block text-sm font-semibold">Tarih ve saat seç</span><span className="mt-0.5 block text-xs font-normal text-ink-soft">Duyuruyu ileri bir zamana planla.</span></span>
+                  </button>
+                </div>
+
+                {announcementScheduleMode === 'scheduled' ? (
+                  <div className="rounded-xl border border-accent/25 bg-accent-soft/20 p-3 sm:p-4">
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+                      <label className="grid gap-1.5 text-sm font-medium text-ink">
+                        <span className="inline-flex items-center gap-2"><CalendarIcon /> Tarih</span>
+                        <input
+                          type="date"
+                          min={localDateValue()}
+                          value={announcementScheduleDate}
+                          onChange={(event) => setAnnouncementScheduleDate(event.target.value)}
+                          className={`${fieldClass} w-full text-base`}
+                        />
+                      </label>
+                      <div className="grid gap-1.5">
+                        <span className="inline-flex items-center gap-2 text-sm font-medium text-ink"><ClockIcon /> Saat</span>
+                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                          <label className="sr-only" htmlFor="announcement-hour">Saat</label>
+                          <select id="announcement-hour" value={announcementScheduleHour} onChange={(event) => setAnnouncementScheduleHour(event.target.value)} className={`${fieldClass} w-full text-center text-base font-semibold`}>
+                            {announcementHours.map((hour) => <option key={hour} value={hour}>{hour}</option>)}
+                          </select>
+                          <span className="text-lg font-semibold text-ink-soft" aria-hidden="true">:</span>
+                          <label className="sr-only" htmlFor="announcement-minute">Dakika</label>
+                          <select id="announcement-minute" value={announcementScheduleMinute} onChange={(event) => setAnnouncementScheduleMinute(event.target.value)} className={`${fieldClass} w-full text-center text-base font-semibold`}>
+                            {announcementMinutes.map((minute) => <option key={minute} value={minute}>{minute}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                    <button type="button" onClick={resetAnnouncementSchedule} className="mt-3 min-h-[44px] rounded-lg px-2 text-sm font-medium text-brand-dark hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                      Planı sıfırla ve hemen gönder
+                    </button>
+                  </div>
+                ) : (
+                  <p className="rounded-lg bg-brand-soft px-3 py-2 text-sm text-brand-dark">Bu duyuru formu gönderdiğin anda alıcılara iletilecek.</p>
+                )}
+              </fieldset>
               {announcementError ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{announcementError}</p> : null}{announcementMessage ? <p role="status" className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">{announcementMessage}</p> : null}
             </div></div>
-            <footer className="border-t border-canvas-border px-4 py-4 sm:px-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}><button type="submit" disabled={announcementSubmitting || announcementLoading} className="min-h-[44px] w-full rounded-lg bg-accent px-5 text-sm font-semibold text-white disabled:opacity-60">{announcementSubmitting ? 'Gönderiliyor…' : announcementScheduledFor ? 'Duyuruyu planla' : 'Duyuruyu gönder'}</button></footer>
+            <footer className="border-t border-canvas-border px-4 py-4 sm:px-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}><button type="submit" disabled={announcementSubmitting || announcementLoading} className="min-h-[48px] w-full rounded-lg bg-accent px-5 text-sm font-semibold text-white disabled:opacity-60">{announcementSubmitting ? 'Gönderiliyor…' : announcementScheduleMode === 'scheduled' ? 'Duyuruyu planla' : 'Duyuruyu şimdi gönder'}</button></footer>
           </form>
         </section>
       </> : null}
