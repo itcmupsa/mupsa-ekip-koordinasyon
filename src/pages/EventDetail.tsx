@@ -132,7 +132,10 @@ interface PeriodMemberOption {
   profileId: string
   displayName: string
   coordinatorRoleSlug: string | null
+  coordinatorRoleName: string | null
 }
+
+type EventDetailTab = 'overview' | 'content' | 'operations'
 
 interface TaskProgressStatusOption {
   slug: string
@@ -1067,6 +1070,9 @@ export default function EventDetail() {
   const [event, setEvent] = useState<EventBasicInfo | null>(null)
   const [statusLabel, setStatusLabel] = useState<string | null>(null)
   const [ownerName, setOwnerName] = useState<string | null>(null)
+  const [ownerCoordinatorRoleName, setOwnerCoordinatorRoleName] = useState<string | null>(null)
+  const [activeDetailTab, setActiveDetailTab] = useState<EventDetailTab>('overview')
+  const [openContentSection, setOpenContentSection] = useState<'decisions' | 'reports' | 'links' | 'files' | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
@@ -1325,15 +1331,19 @@ export default function EventDetail() {
       if (ownerId) {
         const { data: ownerData } = await supabase
           .from('period_memberships')
-          .select('period_display_name')
+          .select('period_display_name, coordinator_roles(name)')
           .eq('period_id', periodId)
           .eq('profile_id', ownerId)
           .maybeSingle()
 
         if (!isMounted) return
         setOwnerName((ownerData?.period_display_name as string | null) ?? null)
+        const ownerRoleRelation = ownerData?.coordinator_roles as { name?: string } | { name?: string }[] | null | undefined
+        const ownerRole = Array.isArray(ownerRoleRelation) ? ownerRoleRelation[0] : ownerRoleRelation
+        setOwnerCoordinatorRoleName(ownerRole?.name ?? null)
       } else {
         setOwnerName(null)
+        setOwnerCoordinatorRoleName(null)
       }
     }
 
@@ -3252,7 +3262,7 @@ export default function EventDetail() {
       setPeriodMembersLoadState('loading')
       const { data: membershipRows, error: membershipError } = await supabase
         .from('period_memberships')
-        .select('profile_id, period_display_name, coordinator_roles(slug)')
+        .select('profile_id, period_display_name, coordinator_roles(name, slug)')
         .eq('period_id', periodId)
         .eq('is_active', true)
 
@@ -3272,7 +3282,7 @@ export default function EventDetail() {
 
       const membershipRoleByProfileId = new Map<string, string | null>()
       for (const membership of membershipRows ?? []) {
-        const relation = membership.coordinator_roles as { slug?: string } | { slug?: string }[] | null | undefined
+        const relation = membership.coordinator_roles as { name?: string; slug?: string } | { name?: string; slug?: string }[] | null | undefined
         const role = Array.isArray(relation) ? relation[0] : relation
         membershipRoleByProfileId.set(membership.profile_id as string, role?.slug ?? null)
       }
@@ -3282,6 +3292,10 @@ export default function EventDetail() {
           profileId: row.profile_id as string,
           displayName: (row.period_display_name as string | null) ?? 'İsimsiz üye',
           coordinatorRoleSlug: membershipRoleByProfileId.get(row.profile_id as string) ?? null,
+          coordinatorRoleName: (() => {
+            const relation = row.coordinator_roles as { name?: string } | { name?: string }[] | null | undefined
+            return (Array.isArray(relation) ? relation[0] : relation)?.name ?? null
+          })(),
         })),
       )
       setPeriodMembersLoadState('ready')
@@ -3496,7 +3510,9 @@ export default function EventDetail() {
         : current,
     )
     const savedOwnerId = (data.owner_id as string | null) ?? event.ownerId
-    setOwnerName(periodMembers.find((member) => member.profileId === savedOwnerId)?.displayName ?? ownerName)
+    const savedOwner = periodMembers.find((member) => member.profileId === savedOwnerId)
+    setOwnerName(savedOwner?.displayName ?? ownerName)
+    setOwnerCoordinatorRoleName(savedOwner?.coordinatorRoleName ?? ownerCoordinatorRoleName)
     setStatusLabel(availableEventStatuses.find((status) => status.slug === ((data.event_status as string | null) ?? editEventStatus))?.label ?? null)
     setIsEditing(false)
     setSuccessMessage('Etkinlik başarıyla güncellendi.')
@@ -3515,6 +3531,13 @@ export default function EventDetail() {
   const displayedOwner = event.ownerId ? ownerName ?? NOT_SPECIFIED : NOT_SPECIFIED
   const displayedVenue = event.venue || NOT_SPECIFIED
   const displayedNextAction = event.nextAction || NOT_SPECIFIED
+  const openTaskCount = tasks.filter(
+    (task) => !task.deletedAt && task.progressStatusSlug !== 'completed' && task.progressStatusSlug !== 'cancelled',
+  ).length
+  const contentRecordCount = decisions.filter((item) => !item.deletedAt).length
+    + reports.filter((item) => !item.deletedAt).length
+    + links.filter((item) => !item.deletedAt).length
+    + files.filter((item) => !item.deletedAt).length
 
   const assignableBudgetMembers = periodMembers.filter((member) => !budgetMembers.some((assignedMember) => assignedMember.profileId === member.profileId))
   const budgetOwnerCandidates = assignableBudgetMembers.filter(m => m.coordinatorRoleSlug === 'treasurer')
@@ -3538,20 +3561,18 @@ export default function EventDetail() {
           Etkinliklere dön
         </Link>
 
-        <section id="event-overview" className="mt-3 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+        <section id="event-overview" className="mt-3 overflow-hidden rounded-2xl border border-canvas-border bg-canvas-surface shadow-card">
+          <div className="h-1 bg-gradient-to-r from-brand-dark via-brand to-accent" />
+          <div className="p-4 sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <p className="text-sm text-ink-soft">
                 Aktif dönem: <span className="font-medium text-brand-dark">{periodLabel ?? 'Belirtilmedi'}</span>
               </p>
               <h1 className="mt-1 break-words text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{event.title}</h1>
-              <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                <span className="rounded-full bg-accent-soft px-2.5 py-1 font-medium text-amber-800">{displayedStatus}</span>
-                <span className="rounded-full bg-canvas px-2.5 py-1 font-medium text-ink-soft">Sorumlu: {displayedOwner}</span>
-                <span className="rounded-full bg-brand-soft px-2.5 py-1 font-medium text-brand-dark">
-                  {event.confirmedDate ? 'Kesin tarih' : 'Tahmini tarih'}: {formatDate(primaryDate)}
-                </span>
-              </div>
+              <p className="mt-3 max-w-3xl whitespace-pre-wrap text-sm leading-6 text-ink-soft">
+                {event.description || 'Etkinlik açıklaması eklenmemiş.'}
+              </p>
             </div>
             {canEdit && !isEditing && (
               <button
@@ -3563,25 +3584,48 @@ export default function EventDetail() {
               </button>
             )}
           </div>
+          <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-canvas-border pt-5 sm:grid-cols-3 lg:grid-cols-5">
+            {[
+              ['Etkinlik durumu', displayedStatus],
+              ['Sorumlu', displayedOwner],
+              ['Koordinatörlük', ownerCoordinatorRoleName ?? NOT_SPECIFIED],
+              [event.confirmedDate ? 'Kesin tarih' : 'Tahmini tarih', formatDate(primaryDate)],
+              ['Açık görev', String(openTaskCount)],
+            ].map(([label, value]) => (
+              <div key={label} className="min-w-0">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{label}</dt>
+                <dd className="mt-1 break-words text-sm font-semibold text-ink">{value}</dd>
+              </div>
+            ))}
+          </dl>
+          </div>
         </section>
 
-        <nav className="sticky top-16 z-20 -mx-4 mt-4 overflow-x-auto border-y border-canvas-border bg-canvas/95 px-4 py-2 backdrop-blur lg:top-0 lg:mx-0 lg:rounded-lg lg:border" aria-label="Etkinlik detay bölümleri">
-          <div className="flex min-w-max gap-1">
-            {[
-              ['Özet', '#event-overview'],
-              ['Notlar', '#event-notes'],
-              ['Kararlar', '#event-decisions'],
-              ['Raporlar', '#event-reports'],
-              ['Bağlantılar', '#event-links'],
-              ['Dosyalar', '#event-files'],
-              ['Süreçler', '#event-process'],
-              ...(hasBudgetAccess ? [['Bütçe', '#event-budget']] : []),
-              ['Görevler', '#event-tasks'],
-            ].map(([label, href]) => (
-              <a key={href} href={href} className="flex min-h-[40px] items-center rounded-md px-3 text-sm font-medium text-ink-soft hover:bg-canvas-surface hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-                {label}
-              </a>
-            ))}
+        <nav className="sticky top-16 z-20 -mx-4 mt-4 overflow-x-auto border-y border-canvas-border bg-canvas/95 px-4 py-2 backdrop-blur lg:top-0 lg:mx-0 lg:rounded-xl lg:border" aria-label="Etkinlik detay bölümleri">
+          <div className="grid min-w-[540px] grid-cols-3 gap-2" role="tablist">
+            {([
+              ['overview', 'Genel Bakış', null],
+              ['content', 'İçerikler', contentRecordCount],
+              ['operations', 'Operasyon', openTaskCount],
+            ] as const).map(([tab, label, count]) => {
+              const isActive = activeDetailTab === tab
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => {
+                    setActiveDetailTab(tab)
+                    if (tab !== 'content') setOpenContentSection(null)
+                  }}
+                  className={`flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${isActive ? 'bg-brand-dark text-white shadow-sm' : 'text-ink-soft hover:bg-canvas-surface hover:text-brand-dark'}`}
+                >
+                  {label}
+                  {count !== null ? <span className={`rounded-full px-2 py-0.5 text-xs ${isActive ? 'bg-white/15 text-white' : 'bg-canvas-border/60 text-ink-soft'}`}>{count}</span> : null}
+                </button>
+              )
+            })}
           </div>
         </nav>
 
@@ -3794,14 +3838,10 @@ export default function EventDetail() {
               </div>
             </div>
           </div>
-        ) : (
-          <div className="mt-6 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
-            <p className="text-sm text-ink-soft">{event.description || 'Açıklama eklenmemiş'}</p>
-          </div>
-        )}
+        ) : null}
 
-        <div id="event-notes" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
-          <h2 className="text-base font-semibold text-ink">Genel etkinlik notu</h2>
+        <div id="event-notes" className={activeDetailTab === 'overview' ? 'mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6' : 'hidden'}>
+          <h2 className="text-base font-semibold text-ink">Etkinlik özeti</h2>
           <div className="mt-4">
             {canEdit && isEditingGeneralNote ? (
               <div className="flex flex-col gap-3">
@@ -3811,7 +3851,7 @@ export default function EventDetail() {
                   disabled={isSavingGeneralNote}
                   rows={4}
                   className="w-full rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink disabled:opacity-60"
-                  placeholder="Bu etkinlikle ilgili genel notlarınızı buraya yazabilirsiniz..."
+                  placeholder="Etkinliğin güncel özetini buraya yazabilirsiniz..."
                 />
                 <div className="flex items-center gap-2">
                   <button
@@ -3845,7 +3885,7 @@ export default function EventDetail() {
                     onClick={() => setIsEditingGeneralNote(true)}
                     className="rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-xs font-medium text-ink hover:bg-canvas-surface"
                   >
-                    {event.generalNote ? 'Notu Düzenle' : 'Not Ekle'}
+                    {event.generalNote ? 'Özeti düzenle' : 'Özet ekle'}
                   </button>
                 )}
               </div>
@@ -3864,8 +3904,36 @@ export default function EventDetail() {
           </div>
         </div>
 
+        {activeDetailTab === 'content' ? (
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            {([
+              ['decisions', 'Kararlar', decisions.filter((item) => !item.deletedAt).length],
+              ['reports', 'Raporlar', reports.filter((item) => !item.deletedAt).length],
+              ['links', 'Bağlantılar', links.filter((item) => !item.deletedAt).length],
+              ['files', 'Dosyalar', files.filter((item) => !item.deletedAt).length],
+            ] as const).map(([section, label, count]) => {
+              const isOpen = openContentSection === section
+              return (
+                <button
+                  key={section}
+                  type="button"
+                  onClick={() => setOpenContentSection(isOpen ? null : section)}
+                  aria-expanded={isOpen}
+                  className={`flex min-h-[60px] items-center justify-between rounded-xl border px-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${isOpen ? 'border-brand bg-brand-soft text-brand-dark' : 'border-canvas-border bg-canvas-surface text-ink hover:border-brand/40'}`}
+                >
+                  <span className="font-semibold">{label}</span>
+                  <span className="flex items-center gap-3">
+                    <span className="rounded-full bg-canvas px-2.5 py-1 text-xs font-semibold text-ink-soft">{count}</span>
+                    <span aria-hidden="true" className={`text-lg transition-transform ${isOpen ? 'rotate-180' : ''}`}>⌄</span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
+
         {/* Kararlar Bölümü */}
-        <div id="event-decisions" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+        <div id="event-decisions" className={activeDetailTab === 'content' && openContentSection === 'decisions' ? 'mt-4 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6' : 'hidden'}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-4">
               <h2 className="text-base font-semibold text-ink">Kararlar</h2>
@@ -4045,7 +4113,7 @@ export default function EventDetail() {
         </div>
 
         {/* Raporlar Bölümü */}
-        <div id="event-reports" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+        <div id="event-reports" className={activeDetailTab === 'content' && openContentSection === 'reports' ? 'mt-4 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6' : 'hidden'}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-4">
               <h2 className="text-base font-semibold text-ink">Raporlar</h2>
@@ -4225,7 +4293,7 @@ export default function EventDetail() {
         </div>
 
         {/* Bağlantılar Bölümü */}
-        <div id="event-links" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+        <div id="event-links" className={activeDetailTab === 'content' && openContentSection === 'links' ? 'mt-4 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6' : 'hidden'}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-4">
               <h2 className="text-base font-semibold text-ink">Etkinlik Bağlantıları</h2>
@@ -4411,7 +4479,7 @@ export default function EventDetail() {
         </div>
 
         {/* Dosyalar Bölümü */}
-        <div id="event-files" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+        <div id="event-files" className={activeDetailTab === 'content' && openContentSection === 'files' ? 'mt-4 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6' : 'hidden'}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-4">
               <h2 className="text-base font-semibold text-ink">Dosyalar</h2>
@@ -4577,7 +4645,7 @@ export default function EventDetail() {
           )}
         </div>
 
-        <div id="event-process" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+        <div id="event-process" className={activeDetailTab === 'overview' ? 'mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6' : 'hidden'}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div><h2 className="text-base font-semibold text-ink">Durum ve tarihler</h2><p className="mt-1 text-xs text-ink-soft">Etkinliğin genel durumunu ve temel tarihlerini görüntüle.</p></div>
             {canEdit ? (
@@ -4587,7 +4655,7 @@ export default function EventDetail() {
             ) : null}
           </div>
           <div className="mt-3 divide-y divide-canvas-border">
-            <DetailRow label="Durum" value={displayedStatus} />
+            <DetailRow label="Etkinlik durumu" value={displayedStatus} />
             {canChangeDesignAnnouncementStatus ? (
               <div className="flex flex-col gap-1 py-2 sm:flex-row sm:items-center sm:justify-between">
                 <label htmlFor="event-design-announcement-inline-status" className="text-sm font-medium text-ink-soft">
@@ -4623,7 +4691,7 @@ export default function EventDetail() {
           {designAnnouncementStatusError && <p className="mt-3 text-xs text-red-600">{designAnnouncementStatusError}</p>}
           {designAnnouncementStatusSuccess && <p className="mt-3 text-xs text-green-600">{designAnnouncementStatusSuccess}</p>}
         </div>
-        <div className="mt-6 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+        <div className={activeDetailTab === 'overview' ? 'mt-6 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6' : 'hidden'}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-base font-semibold text-ink">Süreç bilgileri</h2>
@@ -4643,7 +4711,7 @@ export default function EventDetail() {
         </div>
 
         {/* SKS Süreci */}
-        <div className="mt-6 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+        <div className={activeDetailTab === 'operations' ? 'mt-6 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6' : 'hidden'}>
           <h2 className="text-base font-semibold text-ink">SKS Süreci</h2>
           <div className="mt-4 flex flex-col gap-4">
             <div>
@@ -4732,7 +4800,7 @@ export default function EventDetail() {
         </div>
 
         {/* Bütçe Süreci */}
-        {hasBudgetAccess ? <div id="event-budget" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+        {hasBudgetAccess ? <div id="event-budget" className={activeDetailTab === 'operations' ? 'mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6' : 'hidden'}>
           <div className="flex items-start justify-between gap-4">
             <h2 className="text-base font-semibold text-ink">Bütçe Süreci</h2>
             {canChangeBudgetFields && !isEditingBudget && (
@@ -5095,7 +5163,7 @@ export default function EventDetail() {
           </div>
         </div> : null}
 
-        <div id="event-tasks" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+        <div id="event-tasks" className={activeDetailTab === 'operations' ? 'mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6' : 'hidden'}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <h2 className="text-base font-semibold text-ink">Görevler</h2>
