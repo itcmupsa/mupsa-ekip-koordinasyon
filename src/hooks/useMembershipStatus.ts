@@ -12,6 +12,7 @@ interface MembershipStatus {
   periodId: string | null
   appRole: AppRole | null
   coordinatorRoleName: string | null
+  coordinatorRoleSlug: string | null
   loading: boolean
 }
 
@@ -22,6 +23,7 @@ interface PeriodRelation {
 
 interface CoordinatorRoleRelation {
   name: string
+  slug: string
 }
 
 function pickOne<T>(value: T | T[] | null | undefined): T | null {
@@ -37,6 +39,7 @@ export function useMembershipStatus(session: Session | null): MembershipStatus {
   const [periodId, setPeriodId] = useState<string | null>(null)
   const [appRole, setAppRole] = useState<AppRole | null>(null)
   const [coordinatorRoleName, setCoordinatorRoleName] = useState<string | null>(null)
+  const [coordinatorRoleSlug, setCoordinatorRoleSlug] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -48,6 +51,7 @@ export function useMembershipStatus(session: Session | null): MembershipStatus {
       setPeriodId(null)
       setAppRole(null)
       setCoordinatorRoleName(null)
+      setCoordinatorRoleSlug(null)
       return
     }
     let isMounted = true
@@ -59,7 +63,7 @@ export function useMembershipStatus(session: Session | null): MembershipStatus {
         supabase.from('profiles').select('display_name').eq('id', userId).maybeSingle(),
         supabase
           .from('period_memberships')
-          .select('id, period_id, period_display_name, app_role, is_active, coordinator_roles(name), periods!inner(label, is_active)')
+          .select('id, period_id, period_display_name, app_role, is_active, coordinator_roles(name, slug), periods!inner(label, is_active)')
           .eq('profile_id', userId)
           .eq('is_active', true)
           .eq('periods.is_active', true)
@@ -88,6 +92,7 @@ export function useMembershipStatus(session: Session | null): MembershipStatus {
         setPeriodId(membership.period_id ?? null)
         setAppRole((membership.app_role as AppRole | null) ?? null)
         setCoordinatorRoleName(coordinatorRole?.name ?? null)
+        setCoordinatorRoleSlug(coordinatorRole?.slug ?? null)
       } else {
         setHasActiveMembership(false)
         setPeriodLabel(null)
@@ -95,6 +100,7 @@ export function useMembershipStatus(session: Session | null): MembershipStatus {
         setPeriodId(null)
         setAppRole(null)
         setCoordinatorRoleName(null)
+        setCoordinatorRoleSlug(null)
       }
       setLoading(false)
     }
@@ -112,6 +118,7 @@ export function useMembershipStatus(session: Session | null): MembershipStatus {
     periodId,
     appRole,
     coordinatorRoleName,
+    coordinatorRoleSlug,
     loading,
   }
 }

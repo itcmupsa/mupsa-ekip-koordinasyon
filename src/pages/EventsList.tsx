@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Link } from 'react-router-dom'
 import AppShell from '../components/AppShell'
@@ -16,9 +16,11 @@ interface EventRow {
   confirmedDate: string | null
   ownerName: string
   ownerRoleName: string | null
+  ownerRoleId: string | null
 }
 
 interface CoordinatorRoleRelation {
+  id: string
   name: string
 }
 
@@ -126,6 +128,7 @@ export default function EventsList({ session }: { session: Session }) {
   const [estimatedDate, setEstimatedDate] = useState('')
   const [createError, setCreateError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [selectedCoordinatorRoleId, setSelectedCoordinatorRoleId] = useState('all')
 
   useEffect(() => {
     if (statusLoading) return
@@ -157,7 +160,7 @@ export default function EventsList({ session }: { session: Session }) {
         ownerIds.length > 0
           ? supabase
               .from('period_memberships')
-              .select('profile_id, period_display_name, coordinator_roles(name)')
+              .select('profile_id, period_display_name, coordinator_roles(id, name)')
               .eq('period_id', periodId)
               .in('profile_id', ownerIds)
           : Promise.resolve({ data: [], error: null }),
@@ -177,6 +180,7 @@ export default function EventsList({ session }: { session: Session }) {
           profile.profile_id,
           {
             name: profile.period_display_name,
+            roleId: pickOne(profile.coordinator_roles)?.id ?? null,
             roleName: pickOne(profile.coordinator_roles)?.name ?? null,
           },
         ]),
@@ -195,6 +199,7 @@ export default function EventsList({ session }: { session: Session }) {
           estimatedDate: (event.estimated_date as string | null) ?? null,
           confirmedDate: (event.confirmed_date as string | null) ?? null,
           ownerName: profiles.get(event.owner_id as string)?.name ?? 'Sorumlu belirtilmemiş',
+          ownerRoleId: profiles.get(event.owner_id as string)?.roleId ?? null,
           ownerRoleName: profiles.get(event.owner_id as string)?.roleName ?? null,
         })),
       )
@@ -263,6 +268,18 @@ export default function EventsList({ session }: { session: Session }) {
     await supabase.auth.signOut()
   }
 
+  const coordinatorRoleOptions = useMemo(() => {
+    const options = new Map<string, string>()
+    for (const event of events) {
+      if (event.ownerRoleId && event.ownerRoleName) options.set(event.ownerRoleId, event.ownerRoleName)
+    }
+    return Array.from(options, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'tr-TR'))
+  }, [events])
+
+  const filteredEvents = selectedCoordinatorRoleId === 'all'
+    ? events
+    : events.filter((event) => event.ownerRoleId === selectedCoordinatorRoleId)
+
   if (statusLoading || loadState === 'loading') return <CenteredMessage text="Etkinlikler yükleniyor…" />
   if (!hasActiveMembership) return <CenteredMessage text="Bu sayfaya erişim yetkin yok." />
   if (loadState === 'error') {
@@ -322,6 +339,18 @@ export default function EventsList({ session }: { session: Session }) {
           onClose={closeCreateForm}
         />
 
+        {events.length > 0 ? (
+          <section className="mt-5 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card">
+            <label className="grid gap-1.5 text-sm font-medium text-ink sm:max-w-sm">
+              Koordinatörlüğe göre filtrele
+              <select value={selectedCoordinatorRoleId} onChange={(event) => setSelectedCoordinatorRoleId(event.target.value)} className="min-h-[44px] rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2.5 font-normal text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                <option value="all">Tüm koordinatörlükler ({events.length})</option>
+                {coordinatorRoleOptions.map((role) => <option key={role.id} value={role.id}>{role.name} ({events.filter((event) => event.ownerRoleId === role.id).length})</option>)}
+              </select>
+            </label>
+          </section>
+        ) : null}
+
         {events.length === 0 ? (
           <div className="mt-6 rounded-xl border border-canvas-border bg-canvas-surface px-4 py-8 text-center shadow-card">
             <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-brand-soft text-brand-dark"><CalendarIcon /></span>
@@ -329,8 +358,10 @@ export default function EventsList({ session }: { session: Session }) {
             <p className="mt-1 text-xs text-ink-soft">İlk etkinliği oluşturmak için yukarıdaki düğmeyi kullanabilirsin.</p>
           </div>
         ) : (
-          <ul className="mt-6 grid gap-3">
-            {events.map((event) => {
+          filteredEvents.length === 0 ? (
+            <div className="mt-6 rounded-xl border border-canvas-border bg-canvas-surface px-4 py-8 text-center shadow-card"><p className="text-sm font-medium text-ink">Bu koordinatörlüğe ait etkinlik bulunmuyor.</p><button type="button" onClick={() => setSelectedCoordinatorRoleId('all')} className="mt-3 min-h-[44px] rounded-md px-3 text-sm font-medium text-brand-dark">Tüm etkinlikleri göster</button></div>
+          ) : <ul className="mt-6 grid gap-3">
+            {filteredEvents.map((event) => {
               const finalDate = event.confirmedDate ?? event.estimatedDate
               const finalDateLabel = event.confirmedDate ? 'Kesin tarih' : 'Tahmini tarih'
 

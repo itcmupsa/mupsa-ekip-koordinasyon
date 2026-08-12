@@ -1055,8 +1055,9 @@ function TaskCard({
 export default function EventDetail() {
   const { eventId } = useParams<{ eventId: string }>()
   const { session } = useSession()
-  const { displayName, hasActiveMembership, periodId, periodLabel, profileId, appRole, coordinatorRoleName, loading: statusLoading } =
+  const { displayName, hasActiveMembership, periodId, periodLabel, profileId, appRole, coordinatorRoleName, coordinatorRoleSlug, loading: statusLoading } =
     useMembershipStatus(session)
+  const hasBudgetAccess = appRole === 'super_admin' || coordinatorRoleSlug === 'treasurer'
   const [loadState, setLoadState] = useState<LoadState>('loading')
   const [event, setEvent] = useState<EventBasicInfo | null>(null)
   const [statusLabel, setStatusLabel] = useState<string | null>(null)
@@ -1245,9 +1246,7 @@ export default function EventDetail() {
 
       const { data, error } = await supabase
         .from('events')
-        .select(
-          'title, description, event_status, sks_status, budget_status, design_announcement_status, report_status, estimated_budget, approved_budget, actual_expense, budget_note, planning_date, preparation_start_date, estimated_date, confirmed_date, owner_id, venue, next_action, general_note',
-        )
+        .select('title, description, event_status, sks_status, design_announcement_status, report_status, planning_date, preparation_start_date, estimated_date, confirmed_date, owner_id, venue, next_action, general_note')
         .eq('id', eventId)
         .eq('period_id', periodId)
         .is('deleted_at', null)
@@ -1265,18 +1264,30 @@ export default function EventDetail() {
 
       const eventStatus = (data.event_status as string | null) ?? null
       const ownerId = (data.owner_id as string | null) ?? null
+      type EventBudgetData = { budget_status: string | null; estimated_budget: number | null; approved_budget: number | null; actual_expense: number | null; budget_note: string | null }
+      let budgetData: EventBudgetData | null = null
+      if (hasBudgetAccess) {
+        const { data: loadedBudget, error: budgetError } = await supabase
+          .rpc('get_event_budget', { target_event_id: eventId })
+          .maybeSingle()
+        if (budgetError) {
+          setLoadState('error')
+          return
+        }
+        budgetData = loadedBudget as EventBudgetData | null
+      }
       setEvent({
         title: data.title as string,
         description: (data.description as string | null) ?? null,
         eventStatus,
         sksStatus: (data.sks_status as string | null) ?? null,
-        budgetStatus: (data.budget_status as string | null) ?? null,
+        budgetStatus: budgetData?.budget_status ?? null,
         designAnnouncementStatus: (data.design_announcement_status as string | null) ?? 'not_required',
         reportStatus: (data.report_status as string | null) ?? 'no',
-        estimatedBudget: parseNullableNumber(data.estimated_budget),
-        approvedBudget: parseNullableNumber(data.approved_budget),
-        actualExpense: parseNullableNumber(data.actual_expense),
-        budgetNote: (data.budget_note as string | null) ?? null,
+        estimatedBudget: parseNullableNumber(budgetData?.estimated_budget),
+        approvedBudget: parseNullableNumber(budgetData?.approved_budget),
+        actualExpense: parseNullableNumber(budgetData?.actual_expense),
+        budgetNote: budgetData?.budget_note ?? null,
         planningDate: (data.planning_date as string | null) ?? null,
         preparationStartDate: (data.preparation_start_date as string | null) ?? null,
         estimatedDate: (data.estimated_date as string | null) ?? null,
@@ -1320,7 +1331,7 @@ export default function EventDetail() {
     return () => {
       isMounted = false
     }
-  }, [hasActiveMembership, periodId, eventId, statusLoading])
+  }, [hasBudgetAccess, hasActiveMembership, periodId, eventId, statusLoading])
 
   useEffect(() => {
     if (statusLoading || !hasActiveMembership || !eventId || !periodId) return
@@ -1354,7 +1365,7 @@ export default function EventDetail() {
         }
       }
 
-      setProcessMembers((memberRows ?? []).map((row) => ({
+      setProcessMembers((memberRows ?? []).filter((row) => hasBudgetAccess || row.process_type !== 'budget').map((row) => ({
         id: row.id as string,
         profileId: row.profile_id as string,
         displayName: profileNameMap[row.profile_id as string] || 'İsimsiz üye',
@@ -1368,7 +1379,7 @@ export default function EventDetail() {
     return () => {
       isMounted = false
     }
-  }, [hasActiveMembership, eventId, periodId, statusLoading, processMembersRefreshKey])
+  }, [hasBudgetAccess, hasActiveMembership, eventId, periodId, statusLoading, processMembersRefreshKey])
 
   useEffect(() => {
     if (!isEditingGeneralNote && event) {
@@ -1390,7 +1401,7 @@ export default function EventDetail() {
       ] = await Promise.all([
         supabase.from('task_progress_statuses').select('slug, label').order('sort_order', { ascending: true }),
         supabase.from('sks_statuses').select('slug, label').order('sort_order', { ascending: true }),
-        supabase.from('budget_statuses').select('slug, label').order('sort_order', { ascending: true }),
+        hasBudgetAccess ? supabase.from('budget_statuses').select('slug, label').order('sort_order', { ascending: true }) : Promise.resolve({ data: [] }),
         supabase.from('event_design_announcement_statuses').select('slug, label').order('sort_order', { ascending: true }),
         supabase.from('event_report_statuses').select('slug, label').order('sort_order', { ascending: true }),
       ])
@@ -1407,7 +1418,7 @@ export default function EventDetail() {
     return () => {
       isMounted = false
     }
-  }, [hasActiveMembership, statusLoading])
+  }, [hasBudgetAccess, hasActiveMembership, statusLoading])
 
   useEffect(() => {
     if (statusLoading) return
@@ -1791,7 +1802,11 @@ export default function EventDetail() {
   }, [hasActiveMembership, eventId, periodId, statusLoading, filesRefreshKey, showInactiveFiles])
 
   useEffect(() => {
-    if (statusLoading || !hasActiveMembership || !eventId || !periodId) return
+    if (statusLoading || !hasActiveMembership || !eventId || !periodId || !hasBudgetAccess) {
+      setSponsors([])
+      setSponsorsLoadState('idle')
+      return
+    }
     const targetEventId = eventId
     let isMounted = true
 
@@ -1849,7 +1864,7 @@ export default function EventDetail() {
     return () => {
       isMounted = false
     }
-  }, [hasActiveMembership, eventId, periodId, statusLoading, sponsorsRefreshKey, showInactiveSponsors])
+  }, [hasBudgetAccess, hasActiveMembership, eventId, periodId, statusLoading, sponsorsRefreshKey, showInactiveSponsors])
 
   function openTaskForm() {
     setNewTaskTitle('')
@@ -3209,10 +3224,8 @@ export default function EventDetail() {
   const canChangeDesignAnnouncementStatus = isSuperAdmin || isDesignOwner
 
   const budgetMembers = processMembers.filter(m => m.processType === 'budget')
-  const budgetOwner = budgetMembers.find((member) => member.responsibilityType === 'owner')
-  const isBudgetOwner = budgetOwner?.profileId === profileId
-  const canChangeBudgetFields = isSuperAdmin || isBudgetOwner
-  const canManageBudgetTeam = isSuperAdmin || isOwner || isBudgetOwner
+  const canChangeBudgetFields = hasBudgetAccess
+  const canManageBudgetTeam = hasBudgetAccess
 
   useEffect(() => {
     if (!canEdit || !periodId) {
@@ -3513,7 +3526,7 @@ export default function EventDetail() {
               ['Bağlantılar', '#event-links'],
               ['Dosyalar', '#event-files'],
               ['Süreçler', '#event-process'],
-              ['Bütçe', '#event-budget'],
+              ...(hasBudgetAccess ? [['Bütçe', '#event-budget']] : []),
               ['Görevler', '#event-tasks'],
             ].map(([label, href]) => (
               <a key={href} href={href} className="flex min-h-[40px] items-center rounded-md px-3 text-sm font-medium text-ink-soft hover:bg-canvas-surface hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
@@ -4576,7 +4589,7 @@ export default function EventDetail() {
         </div>
 
         {/* Bütçe Süreci */}
-        <div id="event-budget" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+        {hasBudgetAccess ? <div id="event-budget" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
           <div className="flex items-start justify-between gap-4">
             <h2 className="text-base font-semibold text-ink">Bütçe Süreci</h2>
             {canChangeBudgetFields && !isEditingBudget && (
@@ -4937,7 +4950,7 @@ export default function EventDetail() {
             </div>
           )}
           </div>
-        </div>
+        </div> : null}
 
         <div id="event-tasks" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
