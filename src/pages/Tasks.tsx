@@ -115,6 +115,10 @@ function CalendarIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="2" /><path d="M3.5 9.5h17M8 3v3M16 3v3" /></svg>
 }
 
+function PeriodIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="2" /><path d="M3.5 9.5h17M8 3v3M16 3v3" /></svg>
+}
+
 function PersonIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><circle cx="12" cy="8" r="3.25" /><path d="M5.5 20a6.5 6.5 0 0 1 13 0" /></svg>
 }
@@ -395,20 +399,21 @@ export default function Tasks({ session }: { session: Session }) {
       onSignOut={() => void handleSignOut()}
     >
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <div className="mb-5 grid gap-4 lg:flex lg:items-end lg:justify-between">
+        <div className="mb-5 grid gap-4 lg:flex lg:items-center lg:justify-between">
           <div>
-            <p className="text-sm text-ink-soft">
-              Aktif dönem: <span className="font-medium text-brand-dark">{periodLabel ?? 'Belirtilmedi'}</span>
+            <p className="inline-flex min-h-[36px] items-center gap-2 rounded-full bg-brand-soft/60 px-3 text-sm text-ink-soft">
+              <span className="text-brand-dark"><PeriodIcon /></span>
+              Aktif dönem: <span className="font-semibold text-brand-dark">{periodLabel ?? 'Belirtilmedi'}</span>
             </p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-ink">Görevler</h1>
-            <p className="mt-1 text-sm text-ink-soft">Etkinlik, farkındalık ve bağımsız görevleri tek yerden yönet.</p>
+            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">Görevler</h1>
+            <p className="mt-2 text-sm text-ink-soft sm:text-base">Etkinlik, farkındalık ve bağımsız görevleri tek yerden yönet.</p>
           </div>
 
           {canCreateAny ? (
             <button
               type="button"
               onClick={openForm}
-              className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-semibold text-white shadow-card transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 lg:w-auto"
+              className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-white shadow-card transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 lg:w-auto"
             >
               <PlusIcon />
               Yeni görev
@@ -446,7 +451,7 @@ export default function Tasks({ session }: { session: Session }) {
           </button>
         </section>
 
-        <section className="mb-5 hidden gap-3 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card lg:grid lg:grid-cols-3" aria-label="Görev arama ve filtreleme">
+        <section className="mb-5 hidden gap-4 rounded-2xl border border-canvas-border bg-canvas-surface p-5 shadow-card lg:grid lg:grid-cols-3" aria-label="Görev arama ve filtreleme">
           <label className="relative block">
             <span className="sr-only">Görev veya bağlı kayıt ara</span>
             <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-ink-soft"><SearchIcon /></span>
@@ -454,7 +459,7 @@ export default function Tasks({ session }: { session: Session }) {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Görev veya bağlı kayıt ara"
-              className="min-h-[44px] w-full rounded-md border border-canvas-border bg-canvas-surface py-2 pl-10 pr-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="min-h-[52px] w-full rounded-xl border border-canvas-border bg-canvas-surface py-3 pl-11 pr-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             />
           </label>
           <label>
@@ -462,7 +467,7 @@ export default function Tasks({ session }: { session: Session }) {
             <select
               value={contextFilter}
               onChange={(event) => setContextFilter(event.target.value as 'all' | ContextKind)}
-              className="min-h-[44px] w-full rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="min-h-[52px] w-full rounded-xl border border-canvas-border bg-canvas-surface px-4 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
               <option value="all">Tüm bağlı kayıtlar</option>
               <option value="event">Etkinlik görevleri</option>
@@ -475,7 +480,7 @@ export default function Tasks({ session }: { session: Session }) {
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
-              className="min-h-[44px] w-full rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="min-h-[52px] w-full rounded-xl border border-canvas-border bg-canvas-surface px-4 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
               <option value="all">Tüm durumlar</option>
               {statuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}
@@ -505,11 +510,11 @@ export default function Tasks({ session }: { session: Session }) {
               const priorityLabel = PRIORITY_OPTIONS.find((option) => option.value === task.priority)?.label ?? task.priority
               const taskTypeLabel = taskKind === 'event' ? 'Etkinlik görevi' : taskKind === 'awareness' ? 'Farkındalık görevi' : 'Bağımsız görev'
               const articleClass = [
-                'rounded-xl border p-4 shadow-card sm:p-5',
+                'rounded-2xl border p-4 shadow-card sm:p-5',
                 task.deletedAt ? 'border-red-200 bg-red-50/40' : 'border-canvas-border bg-canvas-surface',
               ].join(' ')
               const controlClass = [
-                'min-h-[44px] max-w-[9.5rem] rounded-md border px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                'min-h-[44px] max-w-[10rem] rounded-lg border px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
                 statusControlClass(task.progressStatus),
               ].join(' ')
 
