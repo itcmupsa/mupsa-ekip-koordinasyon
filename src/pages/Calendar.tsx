@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import { supabase } from '../lib/supabaseClient'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
+import { coordinatorRolePresentation } from '../lib/coordinatorRolePresentation'
 
 type LoadState = 'loading' | 'ready' | 'error'
 type FormMode = 'closed' | 'create' | 'edit'
@@ -31,6 +32,18 @@ interface EventRow {
   preparationStartDate: string | null
   estimatedDate: string | null
   confirmedDate: string | null
+  ownerRoleName: string | null
+  ownerRoleSlug: string | null
+}
+
+interface CalendarCoordinatorRoleRelation {
+  name: string
+  slug: string
+}
+
+interface CalendarMembershipRow {
+  profile_id: string
+  coordinator_roles: CalendarCoordinatorRoleRelation | CalendarCoordinatorRoleRelation[] | null
 }
 
 interface AwarenessRow {
@@ -75,6 +88,8 @@ interface CalendarItem {
   label: string
   kind: 'event' | 'awareness' | 'manual' | 'task'
   linkTo?: string
+  coordinatorRoleName?: string | null
+  coordinatorRoleSlug?: string | null
 }
 
 interface CalendarCell {
@@ -118,6 +133,17 @@ function formatDate(value: string | null): string {
     year: 'numeric',
     timeZone: 'UTC',
   }).format(date)
+}
+
+function pickOne<T>(value: T | T[] | null | undefined): T | null {
+  if (!value) return null
+  return Array.isArray(value) ? (value[0] ?? null) : value
+}
+
+function calendarItemStyle(item: CalendarItem) {
+  if (item.kind !== 'event') return ITEM_STYLES[item.kind]
+  const role = coordinatorRolePresentation(item.coordinatorRoleSlug ?? null, item.coordinatorRoleName ?? '')
+  return { dot: role.dotClass, badge: role.calendarBadgeClass, label: role.shortLabel || 'Etkinlik' }
 }
 
 function monthLabel(year: number, month: number): string {
@@ -222,10 +248,10 @@ export default function Calendar({ session }: { session: Session }) {
         .order('start_date', { ascending: true })
       if (!showInactive || !isSuperAdmin) manualQuery = manualQuery.is('deleted_at', null)
 
-      const [eventResult, awarenessResult, manualResult, taskResult] = await Promise.all([
+      const [eventResult, awarenessResult, manualResult, taskResult, membershipResult] = await Promise.all([
         supabase
           .from('events')
-          .select('id, title, planning_date, preparation_start_date, estimated_date, confirmed_date')
+          .select('id, title, planning_date, preparation_start_date, estimated_date, confirmed_date, owner_id')
           .eq('period_id', periodId)
           .is('deleted_at', null),
         supabase
@@ -235,14 +261,26 @@ export default function Calendar({ session }: { session: Session }) {
           .is('deleted_at', null),
         manualQuery,
         supabase.rpc('get_my_calendar_task_deadlines', { target_period_id: periodId }),
+        supabase
+          .from('period_memberships')
+          .select('profile_id, coordinator_roles(name, slug)')
+          .eq('period_id', periodId)
+          .eq('is_active', true),
       ])
 
       if (!mounted) return
-      if (eventResult.error || awarenessResult.error || manualResult.error || taskResult.error) {
+      if (eventResult.error || awarenessResult.error || manualResult.error || taskResult.error || membershipResult.error) {
         setLoadState('error')
         setLoadError('Takvim verileri yüklenirken bir hata oluştu.')
         return
       }
+
+      const coordinatorRolesByProfile = new Map(
+        ((membershipResult.data ?? []) as CalendarMembershipRow[]).map((membership) => {
+          const role = pickOne(membership.coordinator_roles)
+          return [membership.profile_id, { name: role?.name ?? null, slug: role?.slug ?? null }]
+        }),
+      )
 
       setEvents((eventResult.data ?? []).map((row) => ({
         id: row.id as string,
@@ -251,6 +289,8 @@ export default function Calendar({ session }: { session: Session }) {
         preparationStartDate: (row.preparation_start_date as string | null) ?? null,
         estimatedDate: (row.estimated_date as string | null) ?? null,
         confirmedDate: (row.confirmed_date as string | null) ?? null,
+        ownerRoleName: coordinatorRolesByProfile.get(row.owner_id as string)?.name ?? null,
+        ownerRoleSlug: coordinatorRolesByProfile.get(row.owner_id as string)?.slug ?? null,
       })))
       setAwarenessPosts((awarenessResult.data ?? []).map((row) => ({
         id: row.id as string,
@@ -296,10 +336,11 @@ export default function Calendar({ session }: { session: Session }) {
     }
 
     for (const event of events) {
-      add(event.planningDate, { id: `${event.id}-planning`, label: `${event.title} · Planlama`, kind: 'event', linkTo: `/app/etkinlikler/${event.id}` })
-      add(event.preparationStartDate, { id: `${event.id}-preparation`, label: `${event.title} · Hazırlık başlangıcı`, kind: 'event', linkTo: `/app/etkinlikler/${event.id}` })
-      add(event.estimatedDate, { id: `${event.id}-estimated`, label: `${event.title} · Tahmini tarih`, kind: 'event', linkTo: `/app/etkinlikler/${event.id}` })
-      add(event.confirmedDate, { id: `${event.id}-confirmed`, label: `${event.title} · Kesinleşmiş tarih`, kind: 'event', linkTo: `/app/etkinlikler/${event.id}` })
+      const role = { coordinatorRoleName: event.ownerRoleName, coordinatorRoleSlug: event.ownerRoleSlug }
+      add(event.planningDate, { id: `${event.id}-planning`, label: `${event.title} · Planlama`, kind: 'event', linkTo: `/app/etkinlikler/${event.id}`, ...role })
+      add(event.preparationStartDate, { id: `${event.id}-preparation`, label: `${event.title} · Hazırlık başlangıcı`, kind: 'event', linkTo: `/app/etkinlikler/${event.id}`, ...role })
+      add(event.estimatedDate, { id: `${event.id}-estimated`, label: `${event.title} · Tahmini tarih`, kind: 'event', linkTo: `/app/etkinlikler/${event.id}`, ...role })
+      add(event.confirmedDate, { id: `${event.id}-confirmed`, label: `${event.title} · Kesinleşmiş tarih`, kind: 'event', linkTo: `/app/etkinlikler/${event.id}`, ...role })
     }
 
     for (const post of awarenessPosts) {
@@ -566,12 +607,12 @@ export default function Calendar({ session }: { session: Session }) {
                   >
                     <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${isToday ? 'bg-brand-dark text-white' : cell.isCurrentMonth ? 'text-ink-soft' : 'text-ink-soft/50'}`}>{Number(cell.key.slice(-2))}</span>
                     <span className="mt-1 flex flex-wrap gap-1 sm:hidden" aria-hidden="true">
-                      {items.slice(0, 4).map((item) => <span key={item.id} className={`h-1.5 w-1.5 rounded-full ${ITEM_STYLES[item.kind].dot}`} />)}
+                      {items.slice(0, 4).map((item) => <span key={item.id} className={`h-1.5 w-1.5 rounded-full ${calendarItemStyle(item).dot}`} />)}
                       {items.length > 4 ? <span className="text-[9px] leading-none text-ink-soft">+{items.length - 4}</span> : null}
                     </span>
                     <span className="hidden sm:block">
                       {items.slice(0, 2).map((item) => (
-                        <span key={item.id} title={item.label} className={`mt-1 block truncate rounded border px-1 py-0.5 text-[10px] font-medium leading-4 ${ITEM_STYLES[item.kind].badge}`}>{item.label}</span>
+                        <span key={item.id} title={item.label} className={`mt-1 block truncate rounded border px-1 py-0.5 text-[10px] font-medium leading-4 ${calendarItemStyle(item).badge}`}>{item.label}</span>
                       ))}
                       {items.length > 2 ? <span className="mt-1 block text-[10px] font-medium leading-4 text-ink-soft">+{items.length - 2} kayıt</span> : null}
                     </span>
@@ -590,8 +631,8 @@ export default function Calendar({ session }: { session: Session }) {
               <ul className="mt-4 space-y-2">
                 {selectedItems.map((item) => {
                   const content = (
-                    <span className={`flex min-h-[44px] items-start gap-2 rounded-lg border px-3 py-2.5 text-sm ${ITEM_STYLES[item.kind].badge}`}>
-                      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${ITEM_STYLES[item.kind].dot}`} />
+                    <span className={`flex min-h-[44px] items-start gap-2 rounded-lg border px-3 py-2.5 text-sm ${calendarItemStyle(item).badge}`}>
+                      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${calendarItemStyle(item).dot}`} />
                       <span className="break-words">{item.label}</span>
                     </span>
                   )

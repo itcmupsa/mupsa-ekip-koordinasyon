@@ -5,6 +5,7 @@ import AppShell from '../components/AppShell'
 import NewEventPanel from '../components/events/NewEventPanel'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
 import { supabase } from '../lib/supabaseClient'
+import { coordinatorRolePresentation } from '../lib/coordinatorRolePresentation'
 
 interface EventRow {
   id: string
@@ -17,11 +18,13 @@ interface EventRow {
   ownerName: string
   ownerRoleName: string | null
   ownerRoleId: string | null
+  ownerRoleSlug: string | null
 }
 
 interface CoordinatorRoleRelation {
   id: string
   name: string
+  slug: string
 }
 
 interface ProfileRow {
@@ -78,6 +81,14 @@ function PlusIcon() {
       <path d="M12 8v8M8 12h8" />
     </svg>
   )
+}
+
+function FilterIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><path d="M4 5h16l-6.2 7.1v5.4l-3.6 1.8v-7.2z" /></svg>
+}
+
+function CheckIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><path d="m6.5 12.5 3.2 3.2 7.8-8" /></svg>
 }
 
 function CalendarIcon() {
@@ -160,7 +171,7 @@ export default function EventsList({ session }: { session: Session }) {
         ownerIds.length > 0
           ? supabase
               .from('period_memberships')
-              .select('profile_id, period_display_name, coordinator_roles(id, name)')
+              .select('profile_id, period_display_name, coordinator_roles(id, name, slug)')
               .eq('period_id', periodId)
               .in('profile_id', ownerIds)
           : Promise.resolve({ data: [], error: null }),
@@ -182,6 +193,7 @@ export default function EventsList({ session }: { session: Session }) {
             name: profile.period_display_name,
             roleId: pickOne(profile.coordinator_roles)?.id ?? null,
             roleName: pickOne(profile.coordinator_roles)?.name ?? null,
+            roleSlug: pickOne(profile.coordinator_roles)?.slug ?? null,
           },
         ]),
       )
@@ -201,6 +213,7 @@ export default function EventsList({ session }: { session: Session }) {
           ownerName: profiles.get(event.owner_id as string)?.name ?? 'Sorumlu belirtilmemiş',
           ownerRoleId: profiles.get(event.owner_id as string)?.roleId ?? null,
           ownerRoleName: profiles.get(event.owner_id as string)?.roleName ?? null,
+          ownerRoleSlug: profiles.get(event.owner_id as string)?.roleSlug ?? null,
         })),
       )
       setLoadState('ready')
@@ -269,11 +282,17 @@ export default function EventsList({ session }: { session: Session }) {
   }
 
   const coordinatorRoleOptions = useMemo(() => {
-    const options = new Map<string, string>()
+    const options = new Map<string, { name: string; slug: string | null; count: number }>()
     for (const event of events) {
-      if (event.ownerRoleId && event.ownerRoleName) options.set(event.ownerRoleId, event.ownerRoleName)
+      if (!event.ownerRoleId || !event.ownerRoleName) continue
+      const current = options.get(event.ownerRoleId)
+      options.set(event.ownerRoleId, {
+        name: event.ownerRoleName,
+        slug: event.ownerRoleSlug,
+        count: (current?.count ?? 0) + 1,
+      })
     }
-    return Array.from(options, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'tr-TR'))
+    return Array.from(options, ([id, option]) => ({ id, ...option })).sort((a, b) => a.name.localeCompare(b.name, 'tr-TR'))
   }, [events])
 
   const filteredEvents = selectedCoordinatorRoleId === 'all'
@@ -340,14 +359,45 @@ export default function EventsList({ session }: { session: Session }) {
         />
 
         {events.length > 0 ? (
-          <section className="mt-5 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card">
-            <label className="grid gap-1.5 text-sm font-medium text-ink sm:max-w-sm">
-              Koordinatörlüğe göre filtrele
-              <select value={selectedCoordinatorRoleId} onChange={(event) => setSelectedCoordinatorRoleId(event.target.value)} className="min-h-[44px] rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2.5 font-normal text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-                <option value="all">Tüm koordinatörlükler ({events.length})</option>
-                {coordinatorRoleOptions.map((role) => <option key={role.id} value={role.id}>{role.name} ({events.filter((event) => event.ownerRoleId === role.id).length})</option>)}
-              </select>
-            </label>
+          <section className="mt-5 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-dark"><FilterIcon /></span>
+              <div>
+                <h2 className="font-semibold text-ink">Koordinatörlüğe göre filtrele</h2>
+                <p className="mt-0.5 text-xs text-ink-soft sm:text-sm">Yalnızca etkinliği bulunan ekipler gösterilir.</p>
+              </div>
+            </div>
+
+            <div className="-mx-4 mt-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 sm:-mx-5 sm:px-5 lg:mx-0 lg:grid lg:grid-cols-4 lg:overflow-visible lg:px-0" role="radiogroup" aria-label="Etkinlikleri koordinatörlüğe göre filtrele">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={selectedCoordinatorRoleId === 'all'}
+                onClick={() => setSelectedCoordinatorRoleId('all')}
+                className={`flex min-h-[52px] w-auto min-w-max snap-start items-center gap-2 rounded-xl border px-4 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 lg:min-h-[64px] lg:w-full ${selectedCoordinatorRoleId === 'all' ? 'border-brand bg-brand-soft text-brand-dark' : 'border-canvas-border bg-canvas-surface text-ink hover:border-brand/40'}`}
+              >
+                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${selectedCoordinatorRoleId === 'all' ? 'bg-brand-dark text-white' : 'bg-canvas text-ink-soft'}`}>{selectedCoordinatorRoleId === 'all' ? <CheckIcon /> : events.length}</span>
+                <span>Tümü</span>
+              </button>
+              {coordinatorRoleOptions.map((role) => {
+                const presentation = coordinatorRolePresentation(role.slug, role.name)
+                const isSelected = selectedCoordinatorRoleId === role.id
+                return (
+                  <button
+                    key={role.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    title={role.name}
+                    onClick={() => setSelectedCoordinatorRoleId(role.id)}
+                    className={`flex min-h-[52px] w-auto min-w-max snap-start items-center gap-2 rounded-xl border px-4 text-left text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 lg:min-h-[64px] lg:w-full lg:min-w-0 ${isSelected ? presentation.selectedClass : presentation.softClass}`}
+                  >
+                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${isSelected ? `${presentation.dotClass} text-white` : 'bg-white/80'}`}>{isSelected ? <CheckIcon /> : role.count}</span>
+                    <span className="whitespace-nowrap lg:whitespace-normal">{presentation.shortLabel}</span>
+                  </button>
+                )
+              })}
+            </div>
           </section>
         ) : null}
 
