@@ -1078,6 +1078,9 @@ export default function EventDetail() {
   const [editConfirmedDate, setEditConfirmedDate] = useState('')
   const [editEventStatus, setEditEventStatus] = useState('idea')
   const [editReportStatus, setEditReportStatus] = useState('no')
+  const [editOwnerId, setEditOwnerId] = useState('')
+  const [editVenue, setEditVenue] = useState('')
+  const [editNextAction, setEditNextAction] = useState('')
   const [tasksLoadState, setTasksLoadState] = useState<TasksLoadState>('loading')
   const [tasks, setTasks] = useState<TaskItem[]>([])
   const [tasksError, setTasksError] = useState<string | null>(null)
@@ -3385,6 +3388,9 @@ export default function EventDetail() {
     setEditConfirmedDate(extractDateOnly(event.confirmedDate))
     setEditEventStatus(event.eventStatus ?? 'idea')
     setEditReportStatus(event.reportStatus)
+    setEditOwnerId(event.ownerId ?? '')
+    setEditVenue(event.venue ?? '')
+    setEditNextAction(event.nextAction ?? '')
     setSaveError(null)
     setSuccessMessage(null)
     setIsEditing(true)
@@ -3408,11 +3414,14 @@ export default function EventDetail() {
       setEditConfirmedDate(extractDateOnly(event.confirmedDate))
       setEditEventStatus(event.eventStatus ?? 'idea')
       setEditReportStatus(event.reportStatus)
+      setEditOwnerId(event.ownerId ?? '')
+      setEditVenue(event.venue ?? '')
+      setEditNextAction(event.nextAction ?? '')
     }
   }
 
   async function handleSave() {
-    if (!eventId || !periodId) return
+    if (!eventId || !periodId || !event) return
     const trimmedTitle = editTitle.trim()
     if (!trimmedTitle) {
       setSaveError('Etkinlik adı boş olamaz.')
@@ -3426,22 +3435,35 @@ export default function EventDetail() {
     const nextPlanningDate = editPlanningDate || null
     const nextEstimatedDate = editEstimatedDate || null
     const nextConfirmedDate = editConfirmedDate || null
+    const nextVenue = editVenue.trim() || null
+    const nextAction = editNextAction.trim() || null
+
+    if (isSuperAdmin && !editOwnerId) {
+      setIsSaving(false)
+      setSaveError('Etkinlik sorumlusu seçilmelidir.')
+      return
+    }
+
+    const updatePayload = {
+      title: trimmedTitle,
+      description: nextDescription,
+      planning_date: nextPlanningDate,
+      estimated_date: nextEstimatedDate,
+      confirmed_date: nextConfirmedDate,
+      event_status: editEventStatus,
+      report_status: editReportStatus,
+      venue: nextVenue,
+      next_action: nextAction,
+      ...(isSuperAdmin ? { owner_id: editOwnerId } : {}),
+    }
 
     const { data, error } = await supabase
       .from('events')
-      .update({
-        title: trimmedTitle,
-        description: nextDescription,
-        planning_date: nextPlanningDate,
-        estimated_date: nextEstimatedDate,
-        confirmed_date: nextConfirmedDate,
-        event_status: editEventStatus,
-        report_status: editReportStatus,
-      })
+      .update(updatePayload)
       .eq('id', eventId)
       .eq('period_id', periodId)
       .is('deleted_at', null)
-      .select('title, description, event_status, planning_date, preparation_start_date, estimated_date, confirmed_date, report_status')
+      .select('title, description, event_status, planning_date, preparation_start_date, estimated_date, confirmed_date, report_status, owner_id, venue, next_action')
       .maybeSingle()
 
     setIsSaving(false)
@@ -3467,9 +3489,14 @@ export default function EventDetail() {
             estimatedDate: (data.estimated_date as string | null) ?? nextEstimatedDate,
             confirmedDate: (data.confirmed_date as string | null) ?? nextConfirmedDate,
             reportStatus: (data.report_status as string | null) ?? editReportStatus,
+            ownerId: (data.owner_id as string | null) ?? event.ownerId,
+            venue: data.venue as string | null,
+            nextAction: data.next_action as string | null,
           }
         : current,
     )
+    const savedOwnerId = (data.owner_id as string | null) ?? event.ownerId
+    setOwnerName(periodMembers.find((member) => member.profileId === savedOwnerId)?.displayName ?? ownerName)
     setStatusLabel(availableEventStatuses.find((status) => status.slug === ((data.event_status as string | null) ?? editEventStatus))?.label ?? null)
     setIsEditing(false)
     setSuccessMessage('Etkinlik başarıyla güncellendi.')
@@ -3679,6 +3706,67 @@ export default function EventDetail() {
                       <option key={status.slug} value={status.slug}>{status.label}</option>
                     ))}
                   </select>
+                </div>
+              </div>
+              <div className="rounded-xl border border-canvas-border bg-canvas p-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-ink">Süreç bilgileri</h3>
+                  <p className="mt-1 text-xs text-ink-soft">Etkinliğin sorumlusunu, mekânını ve sıradaki işlemini güncelle.</p>
+                </div>
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {isSuperAdmin ? (
+                    <div className="flex flex-col gap-1 sm:col-span-2">
+                      <label htmlFor="event-owner" className="text-sm font-medium text-ink-soft">
+                        Sorumlu
+                      </label>
+                      <select
+                        id="event-owner"
+                        value={editOwnerId}
+                        onChange={(e) => setEditOwnerId(e.target.value)}
+                        disabled={isSaving || periodMembersLoadState === 'loading'}
+                        className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink disabled:opacity-60"
+                      >
+                        <option value="" disabled>Sorumlu seçin</option>
+                        {periodMembers.map((member) => (
+                          <option key={member.profileId} value={member.profileId}>{member.displayName}</option>
+                        ))}
+                      </select>
+                      {periodMembersLoadState === 'error' ? <p className="text-xs text-red-600">Üye listesi yüklenemedi.</p> : null}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1 sm:col-span-2">
+                      <span className="text-sm font-medium text-ink-soft">Sorumlu</span>
+                      <span className="flex min-h-[44px] items-center rounded-md border border-canvas-border bg-canvas-surface px-3 text-sm text-ink">{displayedOwner}</span>
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="event-venue" className="text-sm font-medium text-ink-soft">
+                      Mekân
+                    </label>
+                    <input
+                      id="event-venue"
+                      type="text"
+                      value={editVenue}
+                      onChange={(e) => setEditVenue(e.target.value)}
+                      disabled={isSaving}
+                      placeholder="Örn. Konferans salonu"
+                      className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="event-next-action" className="text-sm font-medium text-ink-soft">
+                      Sonraki işlem
+                    </label>
+                    <input
+                      id="event-next-action"
+                      type="text"
+                      value={editNextAction}
+                      onChange={(e) => setEditNextAction(e.target.value)}
+                      disabled={isSaving}
+                      placeholder="Örn. Salon onayını al"
+                      className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                    />
+                  </div>
                 </div>
               </div>
               {saveError && (
@@ -4536,7 +4624,17 @@ export default function EventDetail() {
           {designAnnouncementStatusSuccess && <p className="mt-3 text-xs text-green-600">{designAnnouncementStatusSuccess}</p>}
         </div>
         <div className="mt-6 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
-          <h2 className="text-base font-semibold text-ink">Süreç bilgileri</h2>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-ink">Süreç bilgileri</h2>
+              <p className="mt-1 text-xs text-ink-soft">Sorumlu, mekân ve sıradaki işlemi görüntüle.</p>
+            </div>
+            {canEdit ? (
+              <button type="button" onClick={openStatusAndDateEditing} className="min-h-[44px] rounded-lg border border-brand/25 bg-brand-soft px-4 text-sm font-semibold text-brand-dark hover:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                Süreç bilgilerini düzenle
+              </button>
+            ) : null}
+          </div>
           <div className="mt-3 divide-y divide-canvas-border">
             <DetailRow label="Sorumlu" value={displayedOwner} />
             <DetailRow label="Mekân" value={displayedVenue} />
