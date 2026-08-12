@@ -414,6 +414,7 @@ export default function EventsList({ session }: { session: Session }) {
             {filteredEvents.map((event) => {
               const finalDate = event.confirmedDate ?? event.estimatedDate
               const finalDateLabel = event.confirmedDate ? 'Kesin tarih' : 'Tahmini tarih'
+              const ownerRolePresentation = coordinatorRolePresentation(event.ownerRoleSlug, event.ownerRoleName ?? '')
 
               return (
                 <li key={event.id}>
@@ -429,8 +430,9 @@ export default function EventsList({ session }: { session: Session }) {
                             Sorumlu: {event.ownerName}
                           </span>
                           {event.ownerRoleName ? (
-                            <span className="max-w-full truncate rounded-full bg-canvas px-2.5 py-1 font-medium text-ink-soft" title={event.ownerRoleName}>
-                              {event.ownerRoleName}
+                            <span className={`inline-flex max-w-full items-center gap-1.5 truncate rounded-full border px-2.5 py-1 font-semibold ${ownerRolePresentation.softClass}`} title={event.ownerRoleName}>
+                              <span className={`h-2 w-2 shrink-0 rounded-full ${ownerRolePresentation.dotClass}`} />
+                              {ownerRolePresentation.shortLabel}
                             </span>
                           ) : null}
                         </div>

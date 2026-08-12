@@ -159,6 +159,11 @@ interface EventReportStatusOption {
   label: string
 }
 
+interface EventStatusOption {
+  slug: string
+  label: string
+}
+
 type PeriodMembersLoadState = 'idle' | 'loading' | 'ready' | 'error'
 type DecisionsLoadState = 'idle' | 'loading' | 'ready' | 'error'
 type ReportsLoadState = 'idle' | 'loading' | 'ready' | 'error'
@@ -1071,6 +1076,7 @@ export default function EventDetail() {
   const [editPlanningDate, setEditPlanningDate] = useState('')
   const [editEstimatedDate, setEditEstimatedDate] = useState('')
   const [editConfirmedDate, setEditConfirmedDate] = useState('')
+  const [editEventStatus, setEditEventStatus] = useState('idea')
   const [editReportStatus, setEditReportStatus] = useState('no')
   const [tasksLoadState, setTasksLoadState] = useState<TasksLoadState>('loading')
   const [tasks, setTasks] = useState<TaskItem[]>([])
@@ -1107,6 +1113,7 @@ export default function EventDetail() {
   const [availableBudgetStatuses, setAvailableBudgetStatuses] = useState<BudgetStatusOption[]>([])
   const [availableEventDesignAnnouncementStatuses, setAvailableEventDesignAnnouncementStatuses] = useState<EventDesignAnnouncementStatusOption[]>([])
   const [availableEventReportStatuses, setAvailableEventReportStatuses] = useState<EventReportStatusOption[]>([])
+  const [availableEventStatuses, setAvailableEventStatuses] = useState<EventStatusOption[]>([])
   const [processingDependencyTaskId, setProcessingDependencyTaskId] = useState<string | null>(null)
   const [dependencyErrorMap, setDependencyErrorMap] = useState<Record<string, string>>({})
 
@@ -1398,12 +1405,14 @@ export default function EventDetail() {
         { data: budgetData },
         { data: designAnnouncementData },
         { data: reportStatusData },
+        { data: eventStatusData },
       ] = await Promise.all([
         supabase.from('task_progress_statuses').select('slug, label').order('sort_order', { ascending: true }),
         supabase.from('sks_statuses').select('slug, label').order('sort_order', { ascending: true }),
         hasBudgetAccess ? supabase.from('budget_statuses').select('slug, label').order('sort_order', { ascending: true }) : Promise.resolve({ data: [] }),
         supabase.from('event_design_announcement_statuses').select('slug, label').order('sort_order', { ascending: true }),
         supabase.from('event_report_statuses').select('slug, label').order('sort_order', { ascending: true }),
+        supabase.from('event_statuses').select('slug, label').order('sort_order', { ascending: true }),
       ])
 
       if (!isMounted) return
@@ -1412,6 +1421,7 @@ export default function EventDetail() {
       setAvailableBudgetStatuses((budgetData ?? []) as BudgetStatusOption[])
       setAvailableEventDesignAnnouncementStatuses((designAnnouncementData ?? []) as EventDesignAnnouncementStatusOption[])
       setAvailableEventReportStatuses((reportStatusData ?? []) as EventReportStatusOption[])
+      setAvailableEventStatuses((eventStatusData ?? []) as EventStatusOption[])
     }
 
     void loadReferenceData()
@@ -3373,10 +3383,18 @@ export default function EventDetail() {
     setEditPlanningDate(extractDateOnly(event.planningDate))
     setEditEstimatedDate(extractDateOnly(event.estimatedDate))
     setEditConfirmedDate(extractDateOnly(event.confirmedDate))
+    setEditEventStatus(event.eventStatus ?? 'idea')
     setEditReportStatus(event.reportStatus)
     setSaveError(null)
     setSuccessMessage(null)
     setIsEditing(true)
+  }
+
+  function openStatusAndDateEditing() {
+    startEditing()
+    window.setTimeout(() => {
+      document.getElementById('event-edit-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 0)
   }
 
   function cancelEditing() {
@@ -3388,6 +3406,7 @@ export default function EventDetail() {
       setEditPlanningDate(extractDateOnly(event.planningDate))
       setEditEstimatedDate(extractDateOnly(event.estimatedDate))
       setEditConfirmedDate(extractDateOnly(event.confirmedDate))
+      setEditEventStatus(event.eventStatus ?? 'idea')
       setEditReportStatus(event.reportStatus)
     }
   }
@@ -3416,18 +3435,19 @@ export default function EventDetail() {
         planning_date: nextPlanningDate,
         estimated_date: nextEstimatedDate,
         confirmed_date: nextConfirmedDate,
+        event_status: editEventStatus,
         report_status: editReportStatus,
       })
       .eq('id', eventId)
       .eq('period_id', periodId)
       .is('deleted_at', null)
-      .select('title, description, planning_date, preparation_start_date, estimated_date, confirmed_date, report_status')
+      .select('title, description, event_status, planning_date, preparation_start_date, estimated_date, confirmed_date, report_status')
       .maybeSingle()
 
     setIsSaving(false)
 
     if (error) {
-      setSaveError('Değişiklikler kaydedilirken bir hata oluştu.')
+      setSaveError(error.message || 'Değişiklikler kaydedilirken bir hata oluştu.')
       return
     }
     if (!data) {
@@ -3441,6 +3461,7 @@ export default function EventDetail() {
             ...current,
             title: (data.title as string) ?? trimmedTitle,
             description: (data.description as string | null) ?? nextDescription,
+            eventStatus: (data.event_status as string | null) ?? editEventStatus,
             planningDate: (data.planning_date as string | null) ?? nextPlanningDate,
             preparationStartDate: data.preparation_start_date as string | null,
             estimatedDate: (data.estimated_date as string | null) ?? nextEstimatedDate,
@@ -3449,6 +3470,7 @@ export default function EventDetail() {
           }
         : current,
     )
+    setStatusLabel(availableEventStatuses.find((status) => status.slug === ((data.event_status as string | null) ?? editEventStatus))?.label ?? null)
     setIsEditing(false)
     setSuccessMessage('Etkinlik başarıyla güncellendi.')
   }
@@ -3543,7 +3565,7 @@ export default function EventDetail() {
         )}
 
         {isEditing ? (
-          <div className="mt-6 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+          <div id="event-edit-form" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
             <h2 className="text-base font-semibold text-ink">Etkinliği düzenle</h2>
             <div className="mt-4 flex flex-col gap-4">
               <div className="flex flex-col gap-1">
@@ -3573,6 +3595,22 @@ export default function EventDetail() {
                 />
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="event-status" className="text-sm font-medium text-ink-soft">
+                    Etkinlik durumu
+                  </label>
+                  <select
+                    id="event-status"
+                    value={editEventStatus}
+                    onChange={(e) => setEditEventStatus(e.target.value)}
+                    disabled={isSaving || availableEventStatuses.length === 0}
+                    className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink disabled:opacity-60"
+                  >
+                    {availableEventStatuses.map((status) => (
+                      <option key={status.slug} value={status.slug}>{status.label}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="flex flex-col gap-1">
                   <label htmlFor="event-planning-date" className="text-sm font-medium text-ink-soft">
                     Planlama tarihi
@@ -4452,7 +4490,14 @@ export default function EventDetail() {
         </div>
 
         <div id="event-process" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
-          <h2 className="text-base font-semibold text-ink">Durum ve tarihler</h2>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div><h2 className="text-base font-semibold text-ink">Durum ve tarihler</h2><p className="mt-1 text-xs text-ink-soft">Etkinliğin genel durumunu ve temel tarihlerini görüntüle.</p></div>
+            {canEdit ? (
+              <button type="button" onClick={openStatusAndDateEditing} className="min-h-[44px] rounded-lg border border-brand/25 bg-brand-soft px-4 text-sm font-semibold text-brand-dark hover:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                Durum ve tarihleri düzenle
+              </button>
+            ) : null}
+          </div>
           <div className="mt-3 divide-y divide-canvas-border">
             <DetailRow label="Durum" value={displayedStatus} />
             {canChangeDesignAnnouncementStatus ? (

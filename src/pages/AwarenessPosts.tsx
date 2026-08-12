@@ -79,6 +79,10 @@ function AwarenessIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6" aria-hidden="true"><path d="M4 10v3a1 1 0 0 0 1 1h2l4.5 3.5v-11L7 10H5a1 1 0 0 0-1 1zM16.5 9a4 4 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11" /></svg>
 }
 
+function EmptyAwarenessIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6" aria-hidden="true"><path d="M12 4.5a6 6 0 1 1 0 12 6 6 0 0 1 0-12z" /><path d="M12 8v5M9.5 10.5h5M8.2 15.2 7 20l5-2 5 2-1.2-4.8M16.5 3.5l.5-1.5.5 1.5L19 4l-1.5.5L17 6l-.5-1.5L15 4z" /></svg>
+}
+
 function PlusIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
 }
@@ -553,7 +557,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
         <div className="mt-5 grid gap-4">
           {filteredPosts.length === 0 ? (
             <section className="rounded-xl border border-canvas-border bg-canvas-surface px-5 py-10 text-center shadow-card">
-              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-amber-800"><AwarenessIcon /></span>
+              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-amber-800"><EmptyAwarenessIcon /></span>
               <h2 className="mt-3 font-semibold text-ink">{posts.length === 0 ? 'Henüz farkındalık kaydı yok' : 'Aramana uygun kayıt bulunamadı'}</h2>
               <p className="mt-1 text-sm text-ink-soft">{posts.length === 0 ? 'İlk farkındalık çalışmasını oluşturarak başlayabilirsin.' : 'Arama metnini veya seçili filtreyi değiştirebilirsin.'}</p>
             </section>
