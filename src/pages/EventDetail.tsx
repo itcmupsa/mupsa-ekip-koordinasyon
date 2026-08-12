@@ -318,19 +318,6 @@ function sanitizeFileName(rawName: string): string {
   return finalName.slice(0, 150)
 }
 
-function groupAssigneesByType(assignees: TaskAssigneeInfo[]): Array<{ type: string; names: string[] }> {
-  const order: string[] = []
-  const groups: Record<string, string[]> = {}
-  for (const assignee of assignees) {
-    if (!groups[assignee.assignmentType]) {
-      groups[assignee.assignmentType] = []
-      order.push(assignee.assignmentType)
-    }
-    groups[assignee.assignmentType].push(assignee.displayName)
-  }
-  return order.map((type) => ({ type, names: groups[type] }))
-}
-
 interface TaskCardProps {
   eventId: string
   task: TaskItem
@@ -441,6 +428,7 @@ function TaskCard({
   const [editPriority, setEditPriority] = useState('normal')
   const [isEditingNote, setIsEditingNote] = useState(false)
   const [noteInputValue, setNoteInputValue] = useState(task.notes ?? '')
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
 
   const [isAddingDependency, setIsAddingDependency] = useState(false)
   const [dependencyType, setDependencyType] = useState('sks_status')
@@ -543,7 +531,10 @@ function TaskCard({
   const priorityLabel = task.priority
     ? TASK_PRIORITY_LABELS[task.priority] ?? task.priority
     : 'Belirtilmemiş'
-  const assigneeGroups = groupAssigneesByType(task.assignees)
+  const primaryAssigneeNames = task.assignees
+    .filter((assignee) => assignee.assignmentType === 'primary')
+    .map((assignee) => assignee.displayName)
+  const otherAssigneeCount = task.assignees.length - primaryAssigneeNames.length
 
   return (
     <div className={`rounded-md border border-canvas-border px-4 py-3 transition-opacity ${isDeactivated ? 'bg-canvas-surface opacity-80' : 'bg-canvas shadow-sm'}`}>
@@ -636,45 +627,6 @@ function TaskCard({
                     {activationStatusLabel}
                   </span>
                 )}
-                {effectiveCanEditTask && !isDeactivated && task.activationStatusSlug !== 'active' && (
-                  <button
-                    type="button"
-                    onClick={() => onActivateTask(task.id)}
-                    disabled={isProcessingActiveStatus}
-                    className="rounded border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 disabled:opacity-60"
-                  >
-                    {isProcessingActiveStatus ? 'Aktifleştiriliyor…' : 'Aktifleştir'}
-                  </button>
-                )}
-                {effectiveCanEditTask && (
-                  <button
-                    type="button"
-                    onClick={startEditingTask}
-                    className="rounded border border-canvas-border bg-canvas-surface px-2 py-0.5 text-xs font-medium text-ink-soft"
-                  >
-                    Düzenle
-                  </button>
-                )}
-                {isSuperAdmin && !isDeactivated && (
-                  <button
-                    type="button"
-                    onClick={() => onDeactivateTask(task.id)}
-                    disabled={isProcessingActiveStatus}
-                    className="rounded border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 disabled:opacity-60"
-                  >
-                    Pasifleştir
-                  </button>
-                )}
-                {isSuperAdmin && isDeactivated && (
-                  <button
-                    type="button"
-                    onClick={() => onReactivateTask(task.id)}
-                    disabled={isProcessingActiveStatus}
-                    className="rounded border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 disabled:opacity-60"
-                  >
-                    Yeniden aktifleştir
-                  </button>
-                )}
               </div>
               {task.description && <p className="whitespace-pre-wrap text-sm text-ink-soft">{task.description}</p>}
             </div>
@@ -707,17 +659,38 @@ function TaskCard({
           </div>
         </>
       )}
-      <div className="mt-2 flex flex-col gap-1 text-sm text-ink-soft">
-        {assigneeGroups.length === 0 ? (
-          <span>Atanan kişi yok</span>
-        ) : (
-          assigneeGroups.map((group) => (
-            <span key={group.type}>
-              {ASSIGNMENT_TYPE_LABELS[group.type] ?? group.type}: {group.names.join(', ')}
-            </span>
-          ))
-        )}
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-soft">
+        <span>Ana sorumlu: {primaryAssigneeNames.length > 0 ? primaryAssigneeNames.join(', ') : 'Atanmamış'}</span>
+        {otherAssigneeCount > 0 ? <span>+{otherAssigneeCount} diğer atama</span> : null}
       </div>
+
+      <button
+        type="button"
+        onClick={() => setIsDetailsOpen((open) => !open)}
+        aria-expanded={isDetailsOpen}
+        className="mt-3 flex min-h-[44px] w-full items-center justify-between border-t border-canvas-border pt-3 text-sm font-semibold text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+      >
+        <span>{isDetailsOpen ? 'Yönetim ayrıntılarını kapat' : 'Yönetim ayrıntıları'}</span>
+        <span aria-hidden="true" className={`transition-transform ${isDetailsOpen ? 'rotate-180' : ''}`}>⌄</span>
+      </button>
+
+      <div className={isDetailsOpen ? 'mt-1' : 'hidden'}>
+        <div className="flex flex-wrap gap-2 border-b border-canvas-border pb-3">
+          {effectiveCanEditTask && !isDeactivated && task.activationStatusSlug !== 'active' && (
+            <button type="button" onClick={() => onActivateTask(task.id)} disabled={isProcessingActiveStatus} className="min-h-[40px] rounded-md border border-green-200 bg-green-50 px-3 text-xs font-semibold text-green-700 disabled:opacity-60">
+              {isProcessingActiveStatus ? 'Aktifleştiriliyor…' : 'Aktifleştir'}
+            </button>
+          )}
+          {effectiveCanEditTask && (
+            <button type="button" onClick={startEditingTask} className="min-h-[40px] rounded-md border border-canvas-border bg-canvas-surface px-3 text-xs font-semibold text-ink-soft">Görevi düzenle</button>
+          )}
+          {isSuperAdmin && !isDeactivated && (
+            <button type="button" onClick={() => onDeactivateTask(task.id)} disabled={isProcessingActiveStatus} className="min-h-[40px] rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700 disabled:opacity-60">Pasifleştir</button>
+          )}
+          {isSuperAdmin && isDeactivated && (
+            <button type="button" onClick={() => onReactivateTask(task.id)} disabled={isProcessingActiveStatus} className="min-h-[40px] rounded-md border border-green-200 bg-green-50 px-3 text-xs font-semibold text-green-700 disabled:opacity-60">Yeniden aktifleştir</button>
+          )}
+        </div>
 
       {ENABLE_TASK_DEPENDENCY_UI && (
         <div className="mt-4 border-t border-canvas-border pt-3">
@@ -1056,6 +1029,7 @@ function TaskCard({
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }
@@ -1073,6 +1047,8 @@ export default function EventDetail() {
   const [ownerCoordinatorRoleName, setOwnerCoordinatorRoleName] = useState<string | null>(null)
   const [activeDetailTab, setActiveDetailTab] = useState<EventDetailTab>('overview')
   const [openContentSection, setOpenContentSection] = useState<'decisions' | 'reports' | 'links' | 'files' | null>(null)
+  const [isSksSectionOpen, setIsSksSectionOpen] = useState(false)
+  const [isBudgetSectionOpen, setIsBudgetSectionOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
@@ -3534,10 +3510,6 @@ export default function EventDetail() {
   const openTaskCount = tasks.filter(
     (task) => !task.deletedAt && task.progressStatusSlug !== 'completed' && task.progressStatusSlug !== 'cancelled',
   ).length
-  const contentRecordCount = decisions.filter((item) => !item.deletedAt).length
-    + reports.filter((item) => !item.deletedAt).length
-    + links.filter((item) => !item.deletedAt).length
-    + files.filter((item) => !item.deletedAt).length
 
   const assignableBudgetMembers = periodMembers.filter((member) => !budgetMembers.some((assignedMember) => assignedMember.profileId === member.profileId))
   const budgetOwnerCandidates = assignableBudgetMembers.filter(m => m.coordinatorRoleSlug === 'treasurer')
@@ -3570,7 +3542,7 @@ export default function EventDetail() {
                 Aktif dönem: <span className="font-medium text-brand-dark">{periodLabel ?? 'Belirtilmedi'}</span>
               </p>
               <h1 className="mt-1 break-words text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{event.title}</h1>
-              <p className="mt-3 max-w-3xl whitespace-pre-wrap text-sm leading-6 text-ink-soft">
+              <p className="mt-3 line-clamp-2 max-w-3xl whitespace-pre-wrap text-sm leading-6 text-ink-soft">
                 {event.description || 'Etkinlik açıklaması eklenmemiş.'}
               </p>
             </div>
@@ -3584,13 +3556,12 @@ export default function EventDetail() {
               </button>
             )}
           </div>
-          <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-canvas-border pt-5 sm:grid-cols-3 lg:grid-cols-5">
+          <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-canvas-border pt-5 sm:grid-cols-4">
             {[
               ['Etkinlik durumu', displayedStatus],
               ['Sorumlu', displayedOwner],
               ['Koordinatörlük', ownerCoordinatorRoleName ?? NOT_SPECIFIED],
               [event.confirmedDate ? 'Kesin tarih' : 'Tahmini tarih', formatDate(primaryDate)],
-              ['Açık görev', String(openTaskCount)],
             ].map(([label, value]) => (
               <div key={label} className="min-w-0">
                 <dt className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{label}</dt>
@@ -3602,12 +3573,12 @@ export default function EventDetail() {
         </section>
 
         <nav className="sticky top-16 z-20 -mx-4 mt-4 overflow-x-auto border-y border-canvas-border bg-canvas/95 px-4 py-2 backdrop-blur lg:top-0 lg:mx-0 lg:rounded-xl lg:border" aria-label="Etkinlik detay bölümleri">
-          <div className="grid min-w-[540px] grid-cols-3 gap-2" role="tablist">
+          <div className="grid min-w-[420px] grid-cols-3 gap-1 rounded-xl bg-canvas p-1" role="tablist">
             {([
-              ['overview', 'Genel Bakış', null],
-              ['content', 'İçerikler', contentRecordCount],
-              ['operations', 'Operasyon', openTaskCount],
-            ] as const).map(([tab, label, count]) => {
+              ['overview', 'Genel Bakış'],
+              ['content', 'İçerikler'],
+              ['operations', 'Operasyon'],
+            ] as const).map(([tab, label]) => {
               const isActive = activeDetailTab === tab
               return (
                 <button
@@ -3619,10 +3590,9 @@ export default function EventDetail() {
                     setActiveDetailTab(tab)
                     if (tab !== 'content') setOpenContentSection(null)
                   }}
-                  className={`flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${isActive ? 'bg-brand-dark text-white shadow-sm' : 'text-ink-soft hover:bg-canvas-surface hover:text-brand-dark'}`}
+                  className={`flex min-h-[44px] items-center justify-center rounded-lg px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${isActive ? 'bg-canvas-surface text-brand-dark shadow-sm' : 'text-ink-soft hover:text-brand-dark'}`}
                 >
                   {label}
-                  {count !== null ? <span className={`rounded-full px-2 py-0.5 text-xs ${isActive ? 'bg-white/15 text-white' : 'bg-canvas-border/60 text-ink-soft'}`}>{count}</span> : null}
                 </button>
               )
             })}
@@ -3840,72 +3810,97 @@ export default function EventDetail() {
           </div>
         ) : null}
 
-        <div id="event-notes" className={activeDetailTab === 'overview' ? 'mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6' : 'hidden'}>
-          <h2 className="text-base font-semibold text-ink">Etkinlik özeti</h2>
-          <div className="mt-4">
-            {canEdit && isEditingGeneralNote ? (
-              <div className="flex flex-col gap-3">
-                <textarea
-                  value={generalNoteInputValue}
-                  onChange={(event) => setGeneralNoteInputValue(event.target.value)}
-                  disabled={isSavingGeneralNote}
-                  rows={4}
-                  className="w-full rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink disabled:opacity-60"
-                  placeholder="Etkinliğin güncel özetini buraya yazabilirsiniz..."
-                />
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void handleSaveGeneralNote()}
-                    disabled={isSavingGeneralNote}
-                    className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
-                  >
-                    {isSavingGeneralNote ? 'Kaydediliyor…' : 'Kaydet'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingGeneralNote(false)}
-                    disabled={isSavingGeneralNote}
-                    className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
-                  >
-                    İptal
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-start gap-3">
-                {event.generalNote ? (
-                  <p className="whitespace-pre-wrap text-sm text-ink">{event.generalNote}</p>
+        <div id="event-notes" className={activeDetailTab === 'overview' ? 'mt-6 grid scroll-mt-28 gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.85fr)]' : 'hidden'}>
+          <div className="space-y-4">
+            <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+              <h2 className="text-base font-semibold text-ink">Etkinlik özeti</h2>
+              <div className="mt-4">
+                {canEdit && isEditingGeneralNote ? (
+                  <div className="flex flex-col gap-3">
+                    <textarea
+                      value={generalNoteInputValue}
+                      onChange={(event) => setGeneralNoteInputValue(event.target.value)}
+                      disabled={isSavingGeneralNote}
+                      rows={4}
+                      className="w-full rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink disabled:opacity-60"
+                      placeholder="Etkinliğin güncel özetini buraya yazabilirsiniz..."
+                    />
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={() => void handleSaveGeneralNote()} disabled={isSavingGeneralNote} className="min-h-[44px] rounded-md bg-ink px-4 text-sm font-medium text-canvas-surface disabled:opacity-60">
+                        {isSavingGeneralNote ? 'Kaydediliyor…' : 'Kaydet'}
+                      </button>
+                      <button type="button" onClick={() => setIsEditingGeneralNote(false)} disabled={isSavingGeneralNote} className="min-h-[44px] rounded-md border border-canvas-border px-4 text-sm font-medium text-ink-soft disabled:opacity-60">
+                        İptal
+                      </button>
+                    </div>
+                  </div>
                 ) : (
-                  <p className="text-sm italic text-ink-soft">Not eklenmemiş</p>
+                  <div className="flex flex-col items-start gap-3">
+                    {event.generalNote ? <p className="whitespace-pre-wrap text-sm leading-6 text-ink">{event.generalNote}</p> : <p className="text-sm italic text-ink-soft">Özet eklenmemiş.</p>}
+                    {canEdit ? (
+                      <button type="button" onClick={() => setIsEditingGeneralNote(true)} className="min-h-[40px] rounded-md border border-canvas-border bg-canvas px-3 text-xs font-medium text-ink hover:bg-canvas-surface">
+                        {event.generalNote ? 'Özeti düzenle' : 'Özet ekle'}
+                      </button>
+                    ) : null}
+                  </div>
                 )}
-                {canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingGeneralNote(true)}
-                    className="rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-xs font-medium text-ink hover:bg-canvas-surface"
-                  >
-                    {event.generalNote ? 'Özeti düzenle' : 'Özet ekle'}
-                  </button>
-                )}
+                {generalNoteError ? <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{generalNoteError}</p> : null}
+                {generalNoteSuccess && !isEditingGeneralNote ? <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">{generalNoteSuccess}</p> : null}
               </div>
-            )}
+            </section>
 
-            {generalNoteError && (
-              <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                {generalNoteError}
-              </p>
-            )}
-            {generalNoteSuccess && !isEditingGeneralNote && (
-              <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">
-                {generalNoteSuccess}
-              </p>
-            )}
+            <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-ink">Sonraki işlem</h2>
+                  <p className="mt-1 text-xs text-ink-soft">Ekibin sıradaki somut adımı.</p>
+                </div>
+                {canEdit ? <button type="button" onClick={openStatusAndDateEditing} className="min-h-[40px] shrink-0 rounded-md border border-canvas-border px-3 text-xs font-semibold text-brand-dark">Düzenle</button> : null}
+              </div>
+              <p className={`mt-4 text-sm leading-6 ${event.nextAction ? 'text-ink' : 'italic text-ink-soft'}`}>{displayedNextAction}</p>
+            </section>
           </div>
+
+          <aside className="space-y-4">
+            <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-ink">Durum ve tarihler</h2>
+                  <p className="mt-1 text-xs text-ink-soft">Alt süreçlerin ve takvimin kısa özeti.</p>
+                </div>
+                {canEdit ? <button type="button" onClick={openStatusAndDateEditing} className="min-h-[40px] shrink-0 rounded-md border border-canvas-border px-3 text-xs font-semibold text-brand-dark">Düzenle</button> : null}
+              </div>
+              <div className="mt-3 divide-y divide-canvas-border">
+                {canChangeDesignAnnouncementStatus ? (
+                  <div className="flex flex-col gap-2 py-3">
+                    <label htmlFor="event-design-announcement-inline-status" className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Tasarım / Duyuru durumu</label>
+                    <select id="event-design-announcement-inline-status" value={event.designAnnouncementStatus} onChange={(e) => void handleUpdateDesignAnnouncementStatus(e.target.value)} disabled={isUpdatingDesignAnnouncementStatus || availableEventDesignAnnouncementStatuses.length === 0} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 text-sm text-ink disabled:opacity-60">
+                      {availableEventDesignAnnouncementStatuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}
+                    </select>
+                  </div>
+                ) : <DetailRow label="Tasarım / Duyuru durumu" value={availableEventDesignAnnouncementStatuses.find((status) => status.slug === event.designAnnouncementStatus)?.label ?? event.designAnnouncementStatus} />}
+                <DetailRow label="Rapor durumu" value={availableEventReportStatuses.find((status) => status.slug === event.reportStatus)?.label ?? event.reportStatus} />
+                <DetailRow label="Planlama tarihi" value={formatDate(event.planningDate)} />
+                <DetailRow label="Hazırlık başlangıcı" value={formatDate(event.preparationStartDate)} />
+                <DetailRow label="Tahmini tarih" value={formatDate(event.estimatedDate)} />
+                <DetailRow label="Kesin tarih" value={formatDate(event.confirmedDate)} />
+              </div>
+              {designAnnouncementStatusError ? <p className="mt-3 text-xs text-red-600">{designAnnouncementStatusError}</p> : null}
+              {designAnnouncementStatusSuccess ? <p className="mt-3 text-xs text-green-600">{designAnnouncementStatusSuccess}</p> : null}
+            </section>
+
+            <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div><h2 className="text-base font-semibold text-ink">Mekân</h2><p className="mt-1 text-xs text-ink-soft">Etkinliğin yapılacağı yer.</p></div>
+                {canEdit ? <button type="button" onClick={openStatusAndDateEditing} className="min-h-[40px] shrink-0 rounded-md border border-canvas-border px-3 text-xs font-semibold text-brand-dark">Düzenle</button> : null}
+              </div>
+              <p className={`mt-4 text-sm ${event.venue ? 'text-ink' : 'italic text-ink-soft'}`}>{displayedVenue}</p>
+            </section>
+          </aside>
         </div>
 
         {activeDetailTab === 'content' ? (
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <div className="mx-auto mt-6 max-w-3xl space-y-3">
             {([
               ['decisions', 'Kararlar', decisions.filter((item) => !item.deletedAt).length],
               ['reports', 'Raporlar', reports.filter((item) => !item.deletedAt).length],
@@ -4645,75 +4640,17 @@ export default function EventDetail() {
           )}
         </div>
 
-        <div id="event-process" className={activeDetailTab === 'overview' ? 'mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6' : 'hidden'}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div><h2 className="text-base font-semibold text-ink">Durum ve tarihler</h2><p className="mt-1 text-xs text-ink-soft">Etkinliğin genel durumunu ve temel tarihlerini görüntüle.</p></div>
-            {canEdit ? (
-              <button type="button" onClick={openStatusAndDateEditing} className="min-h-[44px] rounded-lg border border-brand/25 bg-brand-soft px-4 text-sm font-semibold text-brand-dark hover:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-                Durum ve tarihleri düzenle
-              </button>
-            ) : null}
-          </div>
-          <div className="mt-3 divide-y divide-canvas-border">
-            <DetailRow label="Etkinlik durumu" value={displayedStatus} />
-            {canChangeDesignAnnouncementStatus ? (
-              <div className="flex flex-col gap-1 py-2 sm:flex-row sm:items-center sm:justify-between">
-                <label htmlFor="event-design-announcement-inline-status" className="text-sm font-medium text-ink-soft">
-                  Tasarım / Duyuru
-                </label>
-                <select
-                  id="event-design-announcement-inline-status"
-                  value={event.designAnnouncementStatus}
-                  onChange={(e) => void handleUpdateDesignAnnouncementStatus(e.target.value)}
-                  disabled={isUpdatingDesignAnnouncementStatus || availableEventDesignAnnouncementStatuses.length === 0}
-                  className="rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-sm text-ink disabled:opacity-60"
-                >
-                  {availableEventDesignAnnouncementStatuses.map((status) => (
-                    <option key={status.slug} value={status.slug}>{status.label}</option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <DetailRow
-                label="Tasarım / Duyuru"
-                value={availableEventDesignAnnouncementStatuses.find((status) => status.slug === event.designAnnouncementStatus)?.label ?? event.designAnnouncementStatus}
-              />
-            )}
-            <DetailRow
-              label="Rapor durumu"
-              value={availableEventReportStatuses.find((status) => status.slug === event.reportStatus)?.label ?? event.reportStatus}
-            />
-            <DetailRow label="Planlama tarihi" value={formatDate(event.planningDate)} />
-            <DetailRow label="Hazırlık başlangıç tarihi" value={formatDate(event.preparationStartDate)} />
-            <DetailRow label="Tahmini etkinlik tarihi" value={formatDate(event.estimatedDate)} />
-            <DetailRow label="Kesinleşmiş tarih" value={formatDate(event.confirmedDate)} />
-          </div>
-          {designAnnouncementStatusError && <p className="mt-3 text-xs text-red-600">{designAnnouncementStatusError}</p>}
-          {designAnnouncementStatusSuccess && <p className="mt-3 text-xs text-green-600">{designAnnouncementStatusSuccess}</p>}
-        </div>
-        <div className={activeDetailTab === 'overview' ? 'mt-6 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6' : 'hidden'}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-ink">Süreç bilgileri</h2>
-              <p className="mt-1 text-xs text-ink-soft">Sorumlu, mekân ve sıradaki işlemi görüntüle.</p>
-            </div>
-            {canEdit ? (
-              <button type="button" onClick={openStatusAndDateEditing} className="min-h-[44px] rounded-lg border border-brand/25 bg-brand-soft px-4 text-sm font-semibold text-brand-dark hover:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-                Süreç bilgilerini düzenle
-              </button>
-            ) : null}
-          </div>
-          <div className="mt-3 divide-y divide-canvas-border">
-            <DetailRow label="Sorumlu" value={displayedOwner} />
-            <DetailRow label="Mekân" value={displayedVenue} />
-            <DetailRow label="Sonraki işlem" value={displayedNextAction} />
-          </div>
-        </div>
-
+        <div className={activeDetailTab === 'operations' ? 'mt-6 flex flex-col gap-4' : 'hidden'}>
         {/* SKS Süreci */}
-        <div className={activeDetailTab === 'operations' ? 'mt-6 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6' : 'hidden'}>
-          <h2 className="text-base font-semibold text-ink">SKS Süreci</h2>
-          <div className="mt-4 flex flex-col gap-4">
+        <section className="order-2 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+          <button type="button" onClick={() => setIsSksSectionOpen((open) => !open)} aria-expanded={isSksSectionOpen} className="flex min-h-[44px] w-full items-center justify-between gap-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+            <div>
+              <h2 className="text-base font-semibold text-ink">SKS Süreci</h2>
+              <p className="mt-1 text-xs text-ink-soft">{event.sksStatus ? (availableSksStatuses.find((status) => status.slug === event.sksStatus)?.label ?? event.sksStatus) : 'Durum belirtilmemiş'}</p>
+            </div>
+            <span aria-hidden="true" className={`text-xl text-ink-soft transition-transform ${isSksSectionOpen ? 'rotate-180' : ''}`}>⌄</span>
+          </button>
+          <div className={isSksSectionOpen ? 'mt-4 flex flex-col gap-4 border-t border-canvas-border pt-4' : 'hidden'}>
             <div>
               <span className="text-sm font-medium text-ink-soft">SKS durumu</span>
               <div className="mt-2 flex items-center gap-3">
@@ -4797,12 +4734,20 @@ export default function EventDetail() {
               )}
             </div>
           </div>
-        </div>
+        </section>
 
         {/* Bütçe Süreci */}
-        {hasBudgetAccess ? <div id="event-budget" className={activeDetailTab === 'operations' ? 'mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6' : 'hidden'}>
+        {hasBudgetAccess ? <section id="event-budget" className="order-3 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+          <button type="button" onClick={() => setIsBudgetSectionOpen((open) => !open)} aria-expanded={isBudgetSectionOpen} className="flex min-h-[44px] w-full items-center justify-between gap-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+            <div>
+              <h2 className="text-base font-semibold text-ink">Bütçe ve sponsorlar</h2>
+              <p className="mt-1 text-xs text-ink-soft">{availableBudgetStatuses.find((status) => status.slug === event.budgetStatus)?.label ?? event.budgetStatus ?? 'Bütçe durumu belirtilmemiş'} · {sponsors.length} sponsor</p>
+            </div>
+            <span aria-hidden="true" className={`text-xl text-ink-soft transition-transform ${isBudgetSectionOpen ? 'rotate-180' : ''}`}>⌄</span>
+          </button>
+          <div className={isBudgetSectionOpen ? 'mt-4 border-t border-canvas-border pt-4' : 'hidden'}>
           <div className="flex items-start justify-between gap-4">
-            <h2 className="text-base font-semibold text-ink">Bütçe Süreci</h2>
+            <h3 className="text-sm font-semibold text-ink">Bütçe</h3>
             {canChangeBudgetFields && !isEditingBudget && (
               <button
                 type="button"
@@ -5161,12 +5106,16 @@ export default function EventDetail() {
             </div>
           )}
           </div>
-        </div> : null}
+          </div>
+        </section> : null}
 
-        <div id="event-tasks" className={activeDetailTab === 'operations' ? 'mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6' : 'hidden'}>
+        <section id="event-tasks" className="order-1 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
-              <h2 className="text-base font-semibold text-ink">Görevler</h2>
+              <div>
+                <h2 className="text-base font-semibold text-ink">Görevler</h2>
+                <p className="mt-1 text-xs text-ink-soft">{openTaskCount} açık görev</p>
+              </div>
               {isSuperAdmin && (
                 <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
                   <input
@@ -5356,6 +5305,7 @@ export default function EventDetail() {
               })}
             </div>
           )}
+        </section>
         </div>
       </main>
     </AppShell>
