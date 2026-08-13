@@ -10,6 +10,7 @@ import { coordinatorRolePresentation } from '../lib/coordinatorRolePresentation'
 interface EventRow {
   id: string
   title: string
+  description: string | null
   eventStatus: string
   eventStatusSlug: string
   planningDate: string
@@ -154,7 +155,7 @@ export default function EventsList({ session }: { session: Session }) {
 
       const { data: eventData, error: eventError } = await supabase
         .from('events')
-        .select('id, title, event_status, planning_date, estimated_date, confirmed_date, owner_id')
+        .select('id, title, description, event_status, planning_date, estimated_date, confirmed_date, owner_id')
         .eq('period_id', periodId)
         .is('deleted_at', null)
         .order('planning_date', { ascending: false })
@@ -205,6 +206,7 @@ export default function EventsList({ session }: { session: Session }) {
         eventRows.map((event) => ({
           id: event.id as string,
           title: event.title as string,
+          description: (event.description as string | null) ?? null,
           eventStatus: statuses.get(event.event_status as string) ?? (event.event_status as string),
           eventStatusSlug: event.event_status as string,
           planningDate: event.planning_date as string,
@@ -438,6 +440,11 @@ export default function EventsList({ session }: { session: Session }) {
                         </div>
 
                         <h2 className="mt-3 break-words text-base font-semibold text-ink sm:text-lg">{event.title}</h2>
+                        {event.description ? (
+                          <p className="mt-2 line-clamp-2 whitespace-pre-wrap break-words text-sm leading-5 text-ink-soft">
+                            {event.description}
+                          </p>
+                        ) : null}
 
                         <dl className="mt-4 grid gap-2 border-t border-canvas-border pt-3 text-sm text-ink-soft sm:grid-cols-2 sm:gap-4">
                           <div className="flex items-start gap-2">
