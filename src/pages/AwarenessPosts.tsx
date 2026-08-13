@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import AppShell from '../components/AppShell'
+import PermanentDeleteDialog from '../components/PermanentDeleteDialog'
 import { supabase } from '../lib/supabaseClient'
+import { deleteAwarenessPostPermanently } from '../lib/permanentDeletion'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
 
 interface StatusOption {
@@ -214,8 +216,33 @@ export default function AwarenessPosts({ session }: { session: Session }) {
   const [isSaving, setIsSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<AwarenessPost | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const savingRef = useRef(isSaving)
   savingRef.current = isSaving
+
+  const closeDeleteDialog = useCallback(() => {
+    if (isDeleting) return
+    setDeleteTarget(null)
+    setDeleteError(null)
+  }, [isDeleting])
+
+  async function handlePermanentDelete() {
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      const result = await deleteAwarenessPostPermanently(deleteTarget.id)
+      setSuccessMessage(result.cleanupWarning ?? `“${deleteTarget.awarenessName}” farkındalık kaydı kalıcı olarak silindi.`)
+      setDeleteTarget(null)
+      setReloadKey((value) => value + 1)
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'Farkındalık kaydı silinemedi.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   useEffect(() => {
     if (formMode === 'closed') return
@@ -640,9 +667,10 @@ export default function AwarenessPosts({ session }: { session: Session }) {
                       {links.map((item) => <a key={item.label} href={item.url} target="_blank" rel="noreferrer" className="flex min-h-[44px] items-center gap-1.5 rounded-md px-2 text-sm font-medium text-brand-dark hover:bg-brand-soft"><LinkIcon />{item.label}</a>)}
                     </div>
                     {canEdit ? (
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap justify-end gap-2">
                         {!post.deletedAt ? <button type="button" onClick={() => openEdit(post)} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-4 text-sm font-medium text-ink hover:border-brand">Düzenle</button> : null}
                         <button type="button" onClick={() => void toggleActive(post)} className={`min-h-[44px] rounded-md px-3 text-sm font-medium ${post.deletedAt ? 'text-brand-dark hover:bg-brand-soft' : 'text-danger hover:bg-danger-soft'}`}>{post.deletedAt ? 'Yeniden aktifleştir' : 'Pasifleştir'}</button>
+                        {isSuperAdmin ? <button type="button" onClick={() => { setSuccessMessage(null); setDeleteError(null); setDeleteTarget(post) }} className="min-h-[44px] rounded-md border border-danger/25 px-3 text-sm font-medium text-danger hover:bg-danger-soft">Kalıcı sil</button> : null}
                       </div>
                     ) : null}
                   </footer>
@@ -712,6 +740,16 @@ export default function AwarenessPosts({ session }: { session: Session }) {
           </section>
         </>
       ) : null}
+      <PermanentDeleteDialog
+        isOpen={deleteTarget !== null}
+        title="Farkındalığı kalıcı olarak sil"
+        itemName={deleteTarget?.awarenessName ?? ''}
+        description="Farkındalık kaydı ve ona bağlı görevler, atamalar, bildirimler ve görev dosyaları kalıcı olarak silinecek."
+        isDeleting={isDeleting}
+        error={deleteError}
+        onClose={closeDeleteDialog}
+        onConfirm={() => void handlePermanentDelete()}
+      />
     </AppShell>
   )
 }

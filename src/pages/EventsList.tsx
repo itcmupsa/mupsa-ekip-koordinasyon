@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Link } from 'react-router-dom'
 import AppShell from '../components/AppShell'
+import PermanentDeleteDialog from '../components/PermanentDeleteDialog'
 import NewEventPanel from '../components/events/NewEventPanel'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
 import { supabase } from '../lib/supabaseClient'
 import { coordinatorRolePresentation } from '../lib/coordinatorRolePresentation'
+import { deleteEventPermanently } from '../lib/permanentDeletion'
 
 interface EventRow {
   id: string
@@ -141,6 +143,9 @@ export default function EventsList({ session }: { session: Session }) {
   const [createError, setCreateError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [selectedCoordinatorRoleId, setSelectedCoordinatorRoleId] = useState('all')
+  const [deleteTarget, setDeleteTarget] = useState<EventRow | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     if (statusLoading) return
@@ -237,6 +242,28 @@ export default function EventsList({ session }: { session: Session }) {
     setCreateState('closed')
     setCreateError(null)
   }, [])
+
+  const closeDeleteDialog = useCallback(() => {
+    if (isDeleting) return
+    setDeleteTarget(null)
+    setDeleteError(null)
+  }, [isDeleting])
+
+  async function handlePermanentDelete() {
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      const result = await deleteEventPermanently(deleteTarget.id)
+      setSuccessMessage(result.cleanupWarning ?? `“${deleteTarget.title}” etkinliği kalıcı olarak silindi.`)
+      setDeleteTarget(null)
+      setReloadKey((value) => value + 1)
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'Etkinlik silinemedi.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   async function handleCreateEvent() {
     setCreateError(null)
@@ -419,10 +446,10 @@ export default function EventsList({ session }: { session: Session }) {
               const ownerRolePresentation = coordinatorRolePresentation(event.ownerRoleSlug, event.ownerRoleName ?? '')
 
               return (
-                <li key={event.id}>
+                <li key={event.id} className="overflow-hidden rounded-xl border border-canvas-border bg-canvas-surface shadow-card">
                   <Link
                     to={`/app/etkinlikler/${event.id}`}
-                    className="group block min-h-[44px] rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card transition-colors hover:border-brand-dark/25 hover:bg-brand-soft/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 sm:p-5"
+                    className="group block min-h-[44px] p-4 transition-colors hover:bg-brand-soft/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand sm:p-5"
                   >
                     <div className="flex items-center justify-between gap-4">
                       <div className="min-w-0 flex-1">
@@ -467,12 +494,28 @@ export default function EventsList({ session }: { session: Session }) {
                       <span className="shrink-0 text-ink-soft transition-transform group-hover:translate-x-0.5 group-hover:text-brand-dark"><ChevronIcon /></span>
                     </div>
                   </Link>
+                  {isSuperAdmin ? (
+                    <div className="flex justify-end border-t border-canvas-border bg-canvas/40 px-4 py-2 sm:px-5">
+                      <button type="button" onClick={() => { setSuccessMessage(null); setDeleteError(null); setDeleteTarget(event) }} className="min-h-[44px] rounded-lg px-3 text-sm font-medium text-danger hover:bg-danger-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger">Kalıcı sil</button>
+                    </div>
+                  ) : null}
                 </li>
               )
             })}
           </ul>
         )}
       </main>
+
+      <PermanentDeleteDialog
+        isOpen={deleteTarget !== null}
+        title="Etkinliği kalıcı olarak sil"
+        itemName={deleteTarget?.title ?? ''}
+        description="Etkinlik; bağlı görevleri, bildirimleri, kararları, raporları, bağlantıları, dosya kayıtları, SKS, bütçe ve sponsor bilgileriyle birlikte silinecek."
+        isDeleting={isDeleting}
+        error={deleteError}
+        onClose={closeDeleteDialog}
+        onConfirm={() => void handlePermanentDelete()}
+      />
 
     </AppShell>
   )

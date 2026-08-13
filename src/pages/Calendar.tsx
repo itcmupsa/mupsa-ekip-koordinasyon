@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Link } from 'react-router-dom'
 import AppShell from '../components/AppShell'
+import PermanentDeleteDialog from '../components/PermanentDeleteDialog'
 import { supabase } from '../lib/supabaseClient'
+import { deleteCalendarEntryPermanently } from '../lib/permanentDeletion'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
 import { coordinatorRolePresentation } from '../lib/coordinatorRolePresentation'
 
@@ -199,6 +201,31 @@ export default function Calendar({ session }: { session: Session }) {
   const [formError, setFormError] = useState<string | null>(null)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<ManualEntry | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const closeDeleteDialog = useCallback(() => {
+    if (isDeleting) return
+    setDeleteTarget(null)
+    setDeleteError(null)
+  }, [isDeleting])
+
+  async function handlePermanentDelete() {
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteCalendarEntryPermanently(deleteTarget.id)
+      setActionMessage(`“${deleteTarget.title}” takvim kaydı kalıcı olarak silindi.`)
+      setDeleteTarget(null)
+      setReloadKey((value) => value + 1)
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'Takvim kaydı silinemedi.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   useEffect(() => {
     if (!periodId) return
@@ -650,7 +677,10 @@ export default function Calendar({ session }: { session: Session }) {
               {manualEntries.filter((entry) => entry.deletedAt).map((entry) => (
                 <li key={entry.id} className="flex flex-col gap-2 rounded-lg border border-canvas-border bg-canvas p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                   <span>{entry.title} · {formatDate(entry.startDate)}</span>
-                  <button type="button" onClick={() => void toggleEntry(entry)} className="min-h-[44px] rounded-md px-2 text-left font-medium text-brand-dark hover:underline">Yeniden aktifleştir</button>
+                  <span className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => void toggleEntry(entry)} className="min-h-[44px] rounded-md px-2 text-left font-medium text-brand-dark hover:underline">Yeniden aktifleştir</button>
+                    <button type="button" onClick={() => { setActionMessage(null); setDeleteError(null); setDeleteTarget(entry) }} className="min-h-[44px] rounded-md px-2 font-medium text-danger hover:bg-danger-soft">Kalıcı sil</button>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -664,9 +694,10 @@ export default function Calendar({ session }: { session: Session }) {
               {manualEntries.filter((entry) => !entry.deletedAt).map((entry) => (
                 <li key={entry.id} className="flex flex-col gap-2 rounded-lg border border-canvas-border bg-canvas p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                   <span className="break-words">{entry.title} · {formatDate(entry.startDate)}{entry.endDate ? ` – ${formatDate(entry.endDate)}` : ''}</span>
-                  <span className="flex gap-2">
+                  <span className="flex flex-wrap gap-2">
                     <button type="button" onClick={() => openEdit(entry)} className="min-h-[44px] rounded-md px-2 font-medium text-brand-dark hover:underline">Düzenle</button>
                     <button type="button" onClick={() => void toggleEntry(entry)} className="min-h-[44px] rounded-md px-2 font-medium text-red-700 hover:underline">Pasifleştir</button>
+                    <button type="button" onClick={() => { setActionMessage(null); setDeleteError(null); setDeleteTarget(entry) }} className="min-h-[44px] rounded-md px-2 font-medium text-danger hover:bg-danger-soft">Kalıcı sil</button>
                   </span>
                 </li>
               ))}
@@ -674,6 +705,16 @@ export default function Calendar({ session }: { session: Session }) {
           </section>
         ) : null}
       </main>
+      <PermanentDeleteDialog
+        isOpen={deleteTarget !== null}
+        title="Takvim kaydını kalıcı olarak sil"
+        itemName={deleteTarget?.title ?? ''}
+        description="Bu manuel takvim kaydı kalıcı olarak silinecek ve daha sonra geri getirilemeyecek."
+        isDeleting={isDeleting}
+        error={deleteError}
+        onClose={closeDeleteDialog}
+        onConfirm={() => void handlePermanentDelete()}
+      />
     </AppShell>
   )
 }

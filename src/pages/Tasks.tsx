@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { deleteTaskPermanently } from '../lib/permanentDeletion'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
 import AppShell from '../components/AppShell'
+import PermanentDeleteDialog from '../components/PermanentDeleteDialog'
 import TaskFilterSheet from '../components/tasks/TaskFilterSheet'
 import NewTaskPanel from '../components/tasks/NewTaskPanel'
 
@@ -178,8 +180,32 @@ export default function Tasks({ session }: { session: Session }) {
   const [formMessage, setFormMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<TaskRecord | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const closeFilterSheet = useCallback(() => setFilterSheetOpen(false), [])
   const closeFormPanel = useCallback(() => setFormOpen(false), [])
+  const closeDeleteDialog = useCallback(() => {
+    if (isDeleting) return
+    setDeleteTarget(null)
+    setDeleteError(null)
+  }, [isDeleting])
+
+  async function handlePermanentDelete() {
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      const result = await deleteTaskPermanently(deleteTarget.id)
+      setFormMessage(result.cleanupWarning ?? `“${deleteTarget.title}” görevi kalıcı olarak silindi.`)
+      setDeleteTarget(null)
+      setReloadKey((value) => value + 1)
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'Görev silinemedi.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   useEffect(() => {
     if (statusLoading || !hasActiveMembership || !periodId || !profileId) return
@@ -588,6 +614,11 @@ export default function Tasks({ session }: { session: Session }) {
                       ) : null}
                     </div>
                   </div>
+                  {isSuperAdmin ? (
+                    <div className="mt-4 flex justify-end border-t border-canvas-border pt-2">
+                      <button type="button" onClick={() => { setFormMessage(null); setDeleteError(null); setDeleteTarget(task) }} className="min-h-[44px] rounded-lg px-3 text-sm font-medium text-danger hover:bg-danger-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger">Kalıcı sil</button>
+                    </div>
+                  ) : null}
                 </article>
               )
             })}
@@ -636,6 +667,16 @@ export default function Tasks({ session }: { session: Session }) {
         contextKeyFor={(kind, id) => contextKey(kind, id)}
         onSubmit={() => void createTask()}
         onClose={closeFormPanel}
+      />
+      <PermanentDeleteDialog
+        isOpen={deleteTarget !== null}
+        title="Görevi kalıcı olarak sil"
+        itemName={deleteTarget?.title ?? ''}
+        description="Görev; atamaları, notları, bildirimleri ve bağlı dosya kayıtlarıyla birlikte kalıcı olarak silinecek."
+        isDeleting={isDeleting}
+        error={deleteError}
+        onClose={closeDeleteDialog}
+        onConfirm={() => void handlePermanentDelete()}
       />
     </AppShell>
   )
