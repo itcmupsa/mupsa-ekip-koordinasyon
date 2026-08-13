@@ -229,7 +229,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
   }, [isDeleting])
 
   async function handlePermanentDelete() {
-    if (!deleteTarget) return
+    if (!deleteTarget?.deletedAt) return
     setIsDeleting(true)
     setDeleteError(null)
     try {
@@ -670,7 +670,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
                       <div className="flex flex-wrap justify-end gap-2">
                         {!post.deletedAt ? <button type="button" onClick={() => openEdit(post)} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-4 text-sm font-medium text-ink hover:border-brand">Düzenle</button> : null}
                         <button type="button" onClick={() => void toggleActive(post)} className={`min-h-[44px] rounded-md px-3 text-sm font-medium ${post.deletedAt ? 'text-brand-dark hover:bg-brand-soft' : 'text-danger hover:bg-danger-soft'}`}>{post.deletedAt ? 'Yeniden aktifleştir' : 'Pasifleştir'}</button>
-                        {isSuperAdmin ? <button type="button" onClick={() => { setSuccessMessage(null); setDeleteError(null); setDeleteTarget(post) }} className="min-h-[44px] rounded-md border border-danger/25 px-3 text-sm font-medium text-danger hover:bg-danger-soft">Kalıcı sil</button> : null}
+                        {isSuperAdmin && post.deletedAt ? <button type="button" onClick={() => { setSuccessMessage(null); setDeleteError(null); setDeleteTarget(post) }} className="min-h-[44px] rounded-md border border-danger/25 px-3 text-sm font-medium text-danger hover:bg-danger-soft">Kalıcı sil</button> : null}
                       </div>
                     ) : null}
                   </footer>

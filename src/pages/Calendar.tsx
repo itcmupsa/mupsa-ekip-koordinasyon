@@ -212,7 +212,7 @@ export default function Calendar({ session }: { session: Session }) {
   }, [isDeleting])
 
   async function handlePermanentDelete() {
-    if (!deleteTarget) return
+    if (!deleteTarget?.deletedAt) return
     setIsDeleting(true)
     setDeleteError(null)
     try {
@@ -697,7 +697,6 @@ export default function Calendar({ session }: { session: Session }) {
                   <span className="flex flex-wrap gap-2">
                     <button type="button" onClick={() => openEdit(entry)} className="min-h-[44px] rounded-md px-2 font-medium text-brand-dark hover:underline">Düzenle</button>
                     <button type="button" onClick={() => void toggleEntry(entry)} className="min-h-[44px] rounded-md px-2 font-medium text-red-700 hover:underline">Pasifleştir</button>
-                    <button type="button" onClick={() => { setActionMessage(null); setDeleteError(null); setDeleteTarget(entry) }} className="min-h-[44px] rounded-md px-2 font-medium text-danger hover:bg-danger-soft">Kalıcı sil</button>
                   </span>
                 </li>
               ))}

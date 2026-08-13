@@ -22,6 +22,7 @@ interface EventRow {
   ownerRoleName: string | null
   ownerRoleId: string | null
   ownerRoleSlug: string | null
+  deletedAt: string | null
 }
 
 interface CoordinatorRoleRelation {
@@ -143,6 +144,8 @@ export default function EventsList({ session }: { session: Session }) {
   const [createError, setCreateError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [selectedCoordinatorRoleId, setSelectedCoordinatorRoleId] = useState('all')
+  const [showInactive, setShowInactive] = useState(false)
+  const [updatingEventId, setUpdatingEventId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<EventRow | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -158,12 +161,13 @@ export default function EventsList({ session }: { session: Session }) {
     async function loadEvents() {
       setLoadState('loading')
 
-      const { data: eventData, error: eventError } = await supabase
+      let eventsQuery = supabase
         .from('events')
-        .select('id, title, description, event_status, planning_date, estimated_date, confirmed_date, owner_id')
+        .select('id, title, description, event_status, planning_date, estimated_date, confirmed_date, owner_id, deleted_at')
         .eq('period_id', periodId)
-        .is('deleted_at', null)
         .order('planning_date', { ascending: false })
+      if (!showInactive || !isSuperAdmin) eventsQuery = eventsQuery.is('deleted_at', null)
+      const { data: eventData, error: eventError } = await eventsQuery
 
       if (eventError) {
         if (isMounted) setLoadState('error')
@@ -221,6 +225,7 @@ export default function EventsList({ session }: { session: Session }) {
           ownerRoleId: profiles.get(event.owner_id as string)?.roleId ?? null,
           ownerRoleName: profiles.get(event.owner_id as string)?.roleName ?? null,
           ownerRoleSlug: profiles.get(event.owner_id as string)?.roleSlug ?? null,
+          deletedAt: (event.deleted_at as string | null) ?? null,
         })),
       )
       setLoadState('ready')
@@ -230,7 +235,7 @@ export default function EventsList({ session }: { session: Session }) {
     return () => {
       isMounted = false
     }
-  }, [hasActiveMembership, periodId, reloadKey, statusLoading])
+  }, [hasActiveMembership, isSuperAdmin, periodId, reloadKey, showInactive, statusLoading])
 
   function openCreateForm() {
     setSuccessMessage(null)
@@ -250,7 +255,7 @@ export default function EventsList({ session }: { session: Session }) {
   }, [isDeleting])
 
   async function handlePermanentDelete() {
-    if (!deleteTarget) return
+    if (!deleteTarget?.deletedAt) return
     setIsDeleting(true)
     setDeleteError(null)
     try {
@@ -263,6 +268,27 @@ export default function EventsList({ session }: { session: Session }) {
     } finally {
       setIsDeleting(false)
     }
+  }
+
+  async function toggleEventActive(event: EventRow) {
+    if (!isSuperAdmin || !profileId) return
+    const deactivate = !event.deletedAt
+    if (deactivate && !window.confirm('Bu etkinliği pasifleştirmek istediğinize emin misiniz?')) return
+    setUpdatingEventId(event.id)
+    setSuccessMessage(null)
+    const { error } = await supabase
+      .from('events')
+      .update(deactivate
+        ? { deleted_at: new Date().toISOString(), deleted_by: profileId, deletion_note: 'Etkinlik pasifleştirildi' }
+        : { deleted_at: null, deleted_by: null, deletion_note: null })
+      .eq('id', event.id)
+    setUpdatingEventId(null)
+    if (error) {
+      setSuccessMessage(error.message.toLowerCase().includes('kilit') ? 'Dönem kilitli olduğu için işlem yapılamadı.' : 'Etkinlik güncellenemedi.')
+      return
+    }
+    setSuccessMessage(deactivate ? 'Etkinlik pasifleştirildi.' : 'Etkinlik yeniden aktifleştirildi.')
+    setReloadKey((value) => value + 1)
   }
 
   async function handleCreateEvent() {
@@ -365,6 +391,13 @@ export default function EventsList({ session }: { session: Session }) {
           </button>
         </div>
 
+        {isSuperAdmin ? (
+          <label className="mt-4 flex min-h-[44px] items-center gap-2 text-sm text-ink-soft">
+            <input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} className="h-4 w-4 accent-brand" />
+            Pasif etkinlikleri göster
+          </label>
+        ) : null}
+
         {successMessage ? (
           <p role="status" className="mt-5 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
             {successMessage}
@@ -446,15 +479,13 @@ export default function EventsList({ session }: { session: Session }) {
               const ownerRolePresentation = coordinatorRolePresentation(event.ownerRoleSlug, event.ownerRoleName ?? '')
 
               return (
-                <li key={event.id} className="overflow-hidden rounded-xl border border-canvas-border bg-canvas-surface shadow-card">
-                  <Link
-                    to={`/app/etkinlikler/${event.id}`}
-                    className="group block min-h-[44px] p-4 transition-colors hover:bg-brand-soft/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand sm:p-5"
-                  >
+                <li key={event.id} className={`overflow-hidden rounded-xl border shadow-card ${event.deletedAt ? 'border-red-200 bg-red-50/40' : 'border-canvas-border bg-canvas-surface'}`}>
+                  <div className="group block min-h-[44px] p-4 sm:p-5">
                     <div className="flex items-center justify-between gap-4">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2 text-xs">
                           <span className={`rounded-full px-2.5 py-1 font-medium ${statusClass(event.eventStatusSlug)}`}>{event.eventStatus}</span>
+                          {event.deletedAt ? <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 font-medium text-red-700">Pasif etkinlik</span> : null}
                           <span className="max-w-full truncate rounded-full bg-canvas px-2.5 py-1 font-medium text-ink-soft" title={`Sorumlu: ${event.ownerName}`}>
                             Sorumlu: {event.ownerName}
                           </span>
@@ -491,12 +522,13 @@ export default function EventsList({ session }: { session: Session }) {
                         </dl>
                       </div>
 
-                      <span className="shrink-0 text-ink-soft transition-transform group-hover:translate-x-0.5 group-hover:text-brand-dark"><ChevronIcon /></span>
+                      {!event.deletedAt ? <Link to={`/app/etkinlikler/${event.id}`} aria-label={`${event.title} etkinliğini aç`} className="flex min-h-[44px] shrink-0 items-center rounded-md px-2 text-ink-soft transition-transform hover:translate-x-0.5 hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"><ChevronIcon /></Link> : null}
                     </div>
-                  </Link>
+                  </div>
                   {isSuperAdmin ? (
-                    <div className="flex justify-end border-t border-canvas-border bg-canvas/40 px-4 py-2 sm:px-5">
-                      <button type="button" onClick={() => { setSuccessMessage(null); setDeleteError(null); setDeleteTarget(event) }} className="min-h-[44px] rounded-lg px-3 text-sm font-medium text-danger hover:bg-danger-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger">Kalıcı sil</button>
+                    <div className="flex flex-wrap justify-end gap-2 border-t border-canvas-border bg-canvas/40 px-4 py-2 sm:px-5">
+                      <button type="button" onClick={() => void toggleEventActive(event)} disabled={updatingEventId === event.id} className={`min-h-[44px] rounded-lg px-3 text-sm font-medium disabled:opacity-50 ${event.deletedAt ? 'text-brand-dark hover:bg-brand-soft' : 'text-danger hover:bg-danger-soft'}`}>{updatingEventId === event.id ? 'İşleniyor…' : event.deletedAt ? 'Yeniden aktifleştir' : 'Pasifleştir'}</button>
+                      {event.deletedAt ? <button type="button" onClick={() => { setSuccessMessage(null); setDeleteError(null); setDeleteTarget(event) }} className="min-h-[44px] rounded-lg px-3 text-sm font-medium text-danger hover:bg-danger-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger">Kalıcı sil</button> : null}
                     </div>
                   ) : null}
                 </li>

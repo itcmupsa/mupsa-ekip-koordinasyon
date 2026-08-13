@@ -192,7 +192,7 @@ export default function Tasks({ session }: { session: Session }) {
   }, [isDeleting])
 
   async function handlePermanentDelete() {
-    if (!deleteTarget) return
+    if (!deleteTarget?.deletedAt) return
     setIsDeleting(true)
     setDeleteError(null)
     try {
@@ -205,6 +205,27 @@ export default function Tasks({ session }: { session: Session }) {
     } finally {
       setIsDeleting(false)
     }
+  }
+
+  async function toggleTaskActive(task: TaskRecord) {
+    if (!isSuperAdmin || !profileId) return
+    const deactivate = !task.deletedAt
+    if (deactivate && !window.confirm('Bu görevi pasifleştirmek istediğinize emin misiniz?')) return
+    setUpdatingTaskId(task.id)
+    setFormMessage(null)
+    const { error } = await supabase
+      .from('tasks')
+      .update(deactivate
+        ? { deleted_at: new Date().toISOString(), deleted_by: profileId, deletion_note: 'Görev pasifleştirildi' }
+        : { deleted_at: null, deleted_by: null, deletion_note: null })
+      .eq('id', task.id)
+    setUpdatingTaskId(null)
+    if (error) {
+      setFormMessage(error.message.toLowerCase().includes('kilit') ? 'Dönem kilitli olduğu için işlem yapılamadı.' : 'Görev güncellenemedi.')
+      return
+    }
+    setFormMessage(deactivate ? 'Görev pasifleştirildi.' : 'Görev yeniden aktifleştirildi.')
+    setReloadKey((value) => value + 1)
   }
 
   useEffect(() => {
@@ -615,8 +636,9 @@ export default function Tasks({ session }: { session: Session }) {
                     </div>
                   </div>
                   {isSuperAdmin ? (
-                    <div className="mt-4 flex justify-end border-t border-canvas-border pt-2">
-                      <button type="button" onClick={() => { setFormMessage(null); setDeleteError(null); setDeleteTarget(task) }} className="min-h-[44px] rounded-lg px-3 text-sm font-medium text-danger hover:bg-danger-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger">Kalıcı sil</button>
+                    <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-canvas-border pt-2">
+                      <button type="button" onClick={() => void toggleTaskActive(task)} disabled={updatingTaskId === task.id} className={`min-h-[44px] rounded-lg px-3 text-sm font-medium disabled:opacity-50 ${task.deletedAt ? 'text-brand-dark hover:bg-brand-soft' : 'text-danger hover:bg-danger-soft'}`}>{updatingTaskId === task.id ? 'İşleniyor…' : task.deletedAt ? 'Yeniden aktifleştir' : 'Pasifleştir'}</button>
+                      {task.deletedAt ? <button type="button" onClick={() => { setFormMessage(null); setDeleteError(null); setDeleteTarget(task) }} className="min-h-[44px] rounded-lg px-3 text-sm font-medium text-danger hover:bg-danger-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger">Kalıcı sil</button> : null}
                     </div>
                   ) : null}
                 </article>
