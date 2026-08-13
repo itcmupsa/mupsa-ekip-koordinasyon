@@ -1130,8 +1130,10 @@ export default function EventDetail() {
   const [editEventStatus, setEditEventStatus] = useState('idea')
   const [editReportStatus, setEditReportStatus] = useState('no')
   const [editOwnerId, setEditOwnerId] = useState('')
-  const [editVenue, setEditVenue] = useState('')
-  const [editNextAction, setEditNextAction] = useState('')
+  const [editingProcessField, setEditingProcessField] = useState<'venue' | 'nextAction' | null>(null)
+  const [processFieldValue, setProcessFieldValue] = useState('')
+  const [isSavingProcessField, setIsSavingProcessField] = useState(false)
+  const [processFieldError, setProcessFieldError] = useState<string | null>(null)
   const [tasksLoadState, setTasksLoadState] = useState<TasksLoadState>('loading')
   const [tasks, setTasks] = useState<TaskItem[]>([])
   const [tasksError, setTasksError] = useState<string | null>(null)
@@ -1293,6 +1295,24 @@ export default function EventDetail() {
   const [isSavingGeneralNote, setIsSavingGeneralNote] = useState(false)
   const [generalNoteError, setGeneralNoteError] = useState<string | null>(null)
   const [generalNoteSuccess, setGeneralNoteSuccess] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!editingProcessField) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const handleKeyDown = (keyboardEvent: KeyboardEvent) => {
+      if (keyboardEvent.key === 'Escape' && !isSavingProcessField) {
+        setEditingProcessField(null)
+        setProcessFieldValue('')
+        setProcessFieldError(null)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [editingProcessField, isSavingProcessField])
 
   useEffect(() => {
     if (statusLoading) return
@@ -3448,8 +3468,6 @@ export default function EventDetail() {
     setEditEventStatus(event.eventStatus ?? 'idea')
     setEditReportStatus(event.reportStatus)
     setEditOwnerId(event.ownerId ?? '')
-    setEditVenue(event.venue ?? '')
-    setEditNextAction(event.nextAction ?? '')
     setSaveError(null)
     setSuccessMessage(null)
     setIsEditing(true)
@@ -3474,9 +3492,66 @@ export default function EventDetail() {
       setEditEventStatus(event.eventStatus ?? 'idea')
       setEditReportStatus(event.reportStatus)
       setEditOwnerId(event.ownerId ?? '')
-      setEditVenue(event.venue ?? '')
-      setEditNextAction(event.nextAction ?? '')
     }
+  }
+
+  function openProcessFieldEditing(field: 'venue' | 'nextAction') {
+    if (!event) return
+    setIsEditing(false)
+    setEditingProcessField(field)
+    setProcessFieldValue(field === 'venue' ? event.venue ?? '' : event.nextAction ?? '')
+    setProcessFieldError(null)
+    setSuccessMessage(null)
+  }
+
+  function closeProcessFieldEditing() {
+    if (isSavingProcessField) return
+    setEditingProcessField(null)
+    setProcessFieldValue('')
+    setProcessFieldError(null)
+  }
+
+  async function handleSaveProcessField() {
+    if (!eventId || !periodId || !event || !editingProcessField) return
+    const column = editingProcessField === 'venue' ? 'venue' : 'next_action'
+    const nextValue = processFieldValue.trim() || null
+    setIsSavingProcessField(true)
+    setProcessFieldError(null)
+
+    const { data, error } = await supabase
+      .from('events')
+      .update({ [column]: nextValue })
+      .eq('id', eventId)
+      .eq('period_id', periodId)
+      .is('deleted_at', null)
+      .select(column)
+      .maybeSingle()
+
+    setIsSavingProcessField(false)
+    if (error) {
+      setProcessFieldError(error.message || 'Değişiklik kaydedilirken bir hata oluştu.')
+      return
+    }
+    if (!data) {
+      setProcessFieldError('Değişiklik kaydedilemedi. Lütfen tekrar deneyin.')
+      return
+    }
+
+    const savedValue =
+      editingProcessField === 'venue'
+        ? (data as { venue: string | null }).venue
+        : (data as { next_action: string | null }).next_action
+    setEvent((current) =>
+      current
+        ? {
+            ...current,
+            ...(editingProcessField === 'venue' ? { venue: savedValue } : { nextAction: savedValue }),
+          }
+        : current,
+    )
+    setSuccessMessage(editingProcessField === 'venue' ? 'Mekân güncellendi.' : 'Sonraki işlem güncellendi.')
+    setEditingProcessField(null)
+    setProcessFieldValue('')
   }
 
   async function handleSave() {
@@ -3494,8 +3569,6 @@ export default function EventDetail() {
     const nextPlanningDate = editPlanningDate || null
     const nextEstimatedDate = editEstimatedDate || null
     const nextConfirmedDate = editConfirmedDate || null
-    const nextVenue = editVenue.trim() || null
-    const nextAction = editNextAction.trim() || null
 
     if (isSuperAdmin && !editOwnerId) {
       setIsSaving(false)
@@ -3511,8 +3584,6 @@ export default function EventDetail() {
       confirmed_date: nextConfirmedDate,
       event_status: editEventStatus,
       report_status: editReportStatus,
-      venue: nextVenue,
-      next_action: nextAction,
       ...(isSuperAdmin ? { owner_id: editOwnerId } : {}),
     }
 
@@ -3522,7 +3593,7 @@ export default function EventDetail() {
       .eq('id', eventId)
       .eq('period_id', periodId)
       .is('deleted_at', null)
-      .select('title, description, event_status, planning_date, preparation_start_date, estimated_date, confirmed_date, report_status, owner_id, venue, next_action')
+      .select('title, description, event_status, planning_date, preparation_start_date, estimated_date, confirmed_date, report_status, owner_id')
       .maybeSingle()
 
     setIsSaving(false)
@@ -3549,8 +3620,6 @@ export default function EventDetail() {
             confirmedDate: (data.confirmed_date as string | null) ?? nextConfirmedDate,
             reportStatus: (data.report_status as string | null) ?? editReportStatus,
             ownerId: (data.owner_id as string | null) ?? event.ownerId,
-            venue: data.venue as string | null,
-            nextAction: data.next_action as string | null,
           }
         : current,
     )
@@ -3619,7 +3688,7 @@ export default function EventDetail() {
                 <p className="text-sm text-ink-soft">Aktif dönem: <span className="font-semibold text-brand-dark">{periodLabel ?? 'Belirtilmedi'}</span></p>
               </div>
               <p
-                id="event-description"
+                id="event-description-summary"
                 className={`mt-3 max-w-3xl whitespace-pre-wrap text-sm leading-6 text-ink-soft ${isEventDescriptionExpanded ? '' : 'line-clamp-2'}`}
               >
                 {event.description || 'Etkinlik açıklaması eklenmemiş.'}
@@ -3629,7 +3698,7 @@ export default function EventDetail() {
                   type="button"
                   onClick={() => setIsEventDescriptionExpanded((expanded) => !expanded)}
                   aria-expanded={isEventDescriptionExpanded}
-                  aria-controls="event-description"
+                  aria-controls="event-description-summary"
                   className="mt-1 inline-flex min-h-[40px] items-center rounded-md pr-2 text-xs font-semibold text-brand-dark hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 >
                   {isEventDescriptionExpanded ? 'Kısalt' : 'Devamını göster'}
@@ -3820,11 +3889,11 @@ export default function EventDetail() {
               <div className="rounded-xl border border-canvas-border bg-canvas p-4">
                 <div>
                   <h3 className="text-sm font-semibold text-ink">Süreç bilgileri</h3>
-                  <p className="mt-1 text-xs text-ink-soft">Etkinliğin sorumlusunu, mekânını ve sıradaki işlemini güncelle.</p>
+                  <p className="mt-1 text-xs text-ink-soft">Etkinliğin sorumlusunu güncelle.</p>
                 </div>
-                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="mt-4">
                   {isSuperAdmin ? (
-                    <div className="flex flex-col gap-1 sm:col-span-2">
+                    <div className="flex flex-col gap-1">
                       <label htmlFor="event-owner" className="text-sm font-medium text-ink-soft">
                         Sorumlu
                       </label>
@@ -3843,39 +3912,11 @@ export default function EventDetail() {
                       {periodMembersLoadState === 'error' ? <p className="text-xs text-red-600">Üye listesi yüklenemedi.</p> : null}
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-1 sm:col-span-2">
+                    <div className="flex flex-col gap-1">
                       <span className="text-sm font-medium text-ink-soft">Sorumlu</span>
                       <span className="flex min-h-[44px] items-center rounded-md border border-canvas-border bg-canvas-surface px-3 text-sm text-ink">{displayedOwner}</span>
                     </div>
                   )}
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="event-venue" className="text-sm font-medium text-ink-soft">
-                      Mekân
-                    </label>
-                    <input
-                      id="event-venue"
-                      type="text"
-                      value={editVenue}
-                      onChange={(e) => setEditVenue(e.target.value)}
-                      disabled={isSaving}
-                      placeholder="Örn. Konferans salonu"
-                      className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="event-next-action" className="text-sm font-medium text-ink-soft">
-                      Sonraki işlem
-                    </label>
-                    <input
-                      id="event-next-action"
-                      type="text"
-                      value={editNextAction}
-                      onChange={(e) => setEditNextAction(e.target.value)}
-                      disabled={isSaving}
-                      placeholder="Örn. Salon onayını al"
-                      className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
-                    />
-                  </div>
                 </div>
               </div>
               {saveError && (
@@ -3951,7 +3992,7 @@ export default function EventDetail() {
                 <p className={`mt-3 text-sm font-semibold leading-6 ${event.nextAction ? 'text-ink' : 'italic text-ink-soft'}`}>{displayedNextAction}</p>
                 <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-ink-soft"><span>Sorumlu: {displayedOwner}</span><span>Planlanan tarih: {formatDate(primaryDate)}</span></div>
               </div>
-              {canEdit ? <button type="button" onClick={openStatusAndDateEditing} className="mt-4 flex min-h-[40px] items-center gap-2 rounded-md border border-brand/40 px-3 text-xs font-semibold text-brand-dark"><EventIcon name="edit" className="h-4 w-4" />Sonraki işlemi düzenle</button> : null}
+              {canEdit ? <button type="button" onClick={() => openProcessFieldEditing('nextAction')} className="mt-4 flex min-h-[40px] items-center gap-2 rounded-md border border-brand/40 px-3 text-xs font-semibold text-brand-dark"><EventIcon name="edit" className="h-4 w-4" />Sonraki işlemi düzenle</button> : null}
             </section>
           </div>
 
@@ -3989,7 +4030,7 @@ export default function EventDetail() {
             <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3"><EventIconBadge name="pin" /><div><h2 className="text-base font-semibold text-ink">Mekân</h2><p className="mt-1 text-xs text-ink-soft">Etkinliğin yapılacağı yer.</p></div></div>
-                {canEdit ? <button type="button" onClick={openStatusAndDateEditing} className="min-h-[40px] shrink-0 rounded-md border border-brand/40 px-3 text-xs font-semibold text-brand-dark">Mekânı düzenle</button> : null}
+                {canEdit ? <button type="button" onClick={() => openProcessFieldEditing('venue')} className="min-h-[40px] shrink-0 rounded-md border border-brand/40 px-3 text-xs font-semibold text-brand-dark">Mekânı düzenle</button> : null}
               </div>
               <p className={`mt-4 text-sm ${event.venue ? 'text-ink' : 'italic text-ink-soft'}`}>{displayedVenue}</p>
             </section>
@@ -5367,6 +5408,101 @@ export default function EventDetail() {
           )}
         </section>
         </div>
+
+        {editingProcessField ? (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/45 p-0 backdrop-blur-[1px] sm:items-center sm:p-6 lg:pl-[calc(15rem+1.5rem)]">
+            <button
+              type="button"
+              aria-label="Düzenleme penceresini kapat"
+              tabIndex={-1}
+              onClick={closeProcessFieldEditing}
+              disabled={isSavingProcessField}
+              className="absolute inset-0 disabled:cursor-wait"
+            />
+            <section
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="process-field-dialog-title"
+              className="relative w-full rounded-t-2xl bg-canvas-surface p-5 shadow-2xl sm:max-w-lg sm:rounded-2xl sm:p-6"
+              style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <EventIconBadge name={editingProcessField === 'venue' ? 'pin' : 'task'} />
+                  <div className="min-w-0">
+                    <h2 id="process-field-dialog-title" className="text-lg font-semibold text-ink">
+                      {editingProcessField === 'venue' ? 'Mekânı düzenle' : 'Sonraki işlemi düzenle'}
+                    </h2>
+                    <p className="mt-1 text-xs leading-5 text-ink-soft">
+                      {editingProcessField === 'venue'
+                        ? 'Etkinliğin yapılacağı yeri belirtin.'
+                        : 'Ekibin sıradaki somut adımını belirtin.'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeProcessFieldEditing}
+                  disabled={isSavingProcessField}
+                  aria-label="Kapat"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-2xl leading-none text-ink-soft hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60"
+                >
+                  ×
+                </button>
+              </div>
+
+              <label htmlFor="process-field-value" className="mt-5 flex flex-col gap-2 text-sm font-semibold text-ink">
+                {editingProcessField === 'venue' ? 'Mekân' : 'Sonraki işlem'}
+                {editingProcessField === 'venue' ? (
+                  <input
+                    id="process-field-value"
+                    type="text"
+                    autoFocus
+                    value={processFieldValue}
+                    onChange={(event) => setProcessFieldValue(event.target.value)}
+                    disabled={isSavingProcessField}
+                    placeholder="Örn. Konferans salonu"
+                    className="min-h-[48px] rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-60"
+                  />
+                ) : (
+                  <textarea
+                    id="process-field-value"
+                    autoFocus
+                    rows={4}
+                    value={processFieldValue}
+                    onChange={(event) => setProcessFieldValue(event.target.value)}
+                    disabled={isSavingProcessField}
+                    placeholder="Örn. Salon onayını al"
+                    className="resize-y rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal leading-6 text-ink focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-60"
+                  />
+                )}
+              </label>
+
+              {processFieldError ? (
+                <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{processFieldError}</p>
+              ) : null}
+
+              <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={closeProcessFieldEditing}
+                  disabled={isSavingProcessField}
+                  className="min-h-[44px] rounded-md border border-canvas-border px-4 text-sm font-semibold text-ink-soft disabled:opacity-60"
+                >
+                  İptal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleSaveProcessField()}
+                  disabled={isSavingProcessField}
+                  className="min-h-[44px] rounded-md bg-brand-dark px-4 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {isSavingProcessField ? 'Kaydediliyor…' : 'Kaydet'}
+                </button>
+              </div>
+            </section>
+          </div>
+        ) : null}
       </main>
     </AppShell>
   )
