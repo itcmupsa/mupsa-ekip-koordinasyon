@@ -1144,6 +1144,7 @@ export default function EventDetail() {
   const [newTaskDescription, setNewTaskDescription] = useState('')
   const [newTaskDeadline, setNewTaskDeadline] = useState('')
   const [newTaskPriority, setNewTaskPriority] = useState('normal')
+  const [newTaskPrimaryProfileId, setNewTaskPrimaryProfileId] = useState('')
   const [isCreatingTask, setIsCreatingTask] = useState(false)
   const [createTaskError, setCreateTaskError] = useState<string | null>(null)
   const [taskSuccessMessage, setTaskSuccessMessage] = useState<string | null>(null)
@@ -1959,6 +1960,7 @@ export default function EventDetail() {
     setNewTaskDescription('')
     setNewTaskDeadline('')
     setNewTaskPriority('normal')
+    setNewTaskPrimaryProfileId('')
     setCreateTaskError(null)
     setTaskSuccessMessage(null)
     setIsTaskFormOpen(true)
@@ -1990,7 +1992,7 @@ export default function EventDetail() {
     setIsCreatingTask(true)
     setCreateTaskError(null)
     const trimmedDescription = newTaskDescription.trim()
-    const { error } = await supabase.from('tasks').insert({
+    const { data: createdTask, error } = await supabase.from('tasks').insert({
       period_id: periodId,
       event_id: eventId,
       title: trimmedTitle,
@@ -1999,19 +2001,44 @@ export default function EventDetail() {
       activation_status: 'active',
       deadline_at: deadlineAt,
       priority: newTaskPriority,
-    })
-    setIsCreatingTask(false)
+    }).select('id').single()
 
-    if (error) {
+    if (error || !createdTask) {
+      setIsCreatingTask(false)
       setCreateTaskError(TASK_CREATE_ERROR_MESSAGE)
       return
     }
+
+    if (newTaskPrimaryProfileId) {
+      const { error: assignmentError } = await supabase.from('task_assignees').insert({
+        task_id: createdTask.id as string,
+        profile_id: newTaskPrimaryProfileId,
+        assignment_type: 'primary',
+        assigned_by: profileId,
+      })
+
+      if (assignmentError) {
+        setIsCreatingTask(false)
+        setIsTaskFormOpen(false)
+        setNewTaskTitle('')
+        setNewTaskDescription('')
+        setNewTaskDeadline('')
+        setNewTaskPriority('normal')
+        setNewTaskPrimaryProfileId('')
+        setTaskSuccessMessage('Görev oluşturuldu ancak koordinatör ataması kaydedilemedi. Görev kartındaki Atama yönetimi alanından tekrar deneyin.')
+        setTasksRefreshKey((current) => current + 1)
+        return
+      }
+    }
+
+    setIsCreatingTask(false)
 
     setIsTaskFormOpen(false)
     setNewTaskTitle('')
     setNewTaskDescription('')
     setNewTaskDeadline('')
     setNewTaskPriority('normal')
+    setNewTaskPrimaryProfileId('')
     setTaskSuccessMessage(TASK_CREATE_SUCCESS_MESSAGE)
     setTasksRefreshKey((current) => current + 1)
   }
@@ -5248,6 +5275,33 @@ export default function EventDetail() {
                       ))}
                     </select>
                   </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="task-primary-assignee" className="text-sm font-medium text-ink-soft">
+                    Koordinatör / ana sorumlu <span className="font-normal text-ink-soft">(isteğe bağlı)</span>
+                  </label>
+                  <select
+                    id="task-primary-assignee"
+                    value={newTaskPrimaryProfileId}
+                    onChange={(e) => setNewTaskPrimaryProfileId(e.target.value)}
+                    disabled={isCreatingTask || periodMembersLoadState === 'loading'}
+                    className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink disabled:opacity-60"
+                  >
+                    <option value="">
+                      {periodMembersLoadState === 'loading' ? 'Koordinatörler yükleniyor…' : 'Atanmamış bırak'}
+                    </option>
+                    {periodMembers.map((member) => (
+                      <option key={member.profileId} value={member.profileId}>
+                        {member.displayName}{member.coordinatorRoleName ? ` — ${member.coordinatorRoleName}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-ink-soft">
+                    Seçilen kişi görevin ana sorumlusu olur. Destekleyen ve bilgilendirilen kişiler görev oluşturulduktan sonra Atama yönetimi alanından eklenebilir.
+                  </p>
+                  {periodMembersLoadState === 'error' && (
+                    <p className="text-xs text-danger">Koordinatör listesi yüklenemedi. Görevi atanmamış oluşturup daha sonra atama yapabilirsiniz.</p>
+                  )}
                 </div>
                 {createTaskError && (
                   <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
