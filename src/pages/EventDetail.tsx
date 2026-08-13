@@ -4054,13 +4054,13 @@ export default function EventDetail() {
                 </label>
               )}
             </div>
-            {canEdit && !isDecisionFormOpen && (
+            {canEdit && (
               <button
                 type="button"
-                onClick={openCreateDecisionForm}
-                className="shrink-0 rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-sm font-medium text-ink hover:bg-canvas-surface"
+                onClick={isDecisionFormOpen ? closeDecisionForm : openCreateDecisionForm}
+                className="min-h-[44px] shrink-0 rounded-md bg-brand-dark px-4 text-sm font-semibold text-white shadow-sm hover:bg-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
               >
-                Karar ekle
+                {isDecisionFormOpen ? 'Formu kapat' : 'Karar ekle'}
               </button>
             )}
           </div>
@@ -4071,150 +4071,90 @@ export default function EventDetail() {
             </p>
           )}
 
-          {isDecisionFormOpen && (
-            <div className="mt-4 rounded-md border border-canvas-border bg-canvas px-4 py-4">
-              <h3 className="text-sm font-semibold text-ink">
-                {decisionFormMode === 'create' ? 'Yeni karar' : 'Kararı düzenle'}
-              </h3>
-              <div className="mt-3 flex flex-col gap-4">
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="decision-title" className="text-sm font-medium text-ink-soft">
-                    Karar başlığı
-                  </label>
-                  <input
-                    id="decision-title"
-                    type="text"
-                    value={decisionTitle}
-                    onChange={(e) => setDecisionTitle(e.target.value)}
-                    disabled={isSavingDecision}
-                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="decision-text" className="text-sm font-medium text-ink-soft">
-                    Karar açıklaması
-                  </label>
-                  <textarea
-                    id="decision-text"
-                    value={decisionText}
-                    onChange={(e) => setDecisionText(e.target.value)}
-                    disabled={isSavingDecision}
-                    rows={4}
-                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
-                  />
-                </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="decision-date" className="text-sm font-medium text-ink-soft">
-                      Karar tarihi
-                    </label>
-                    <input
-                      id="decision-date"
-                      type="date"
-                      value={decisionDate}
-                      onChange={(e) => setDecisionDate(e.target.value)}
-                      disabled={isSavingDecision}
-                      className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
-                    />
+          <div className={`mt-4 grid gap-4 ${isDecisionFormOpen ? 'lg:grid-cols-[minmax(0,0.9fr)_minmax(420px,1.1fr)]' : ''}`}>
+            <div className={`rounded-xl border border-canvas-border bg-canvas ${isDecisionFormOpen ? 'min-h-[390px] p-4' : 'p-0 border-0 bg-transparent'}`}>
+              {decisionsLoadState === 'loading' && (
+                <p className="p-4 text-sm text-ink-soft">Kararlar yükleniyor…</p>
+              )}
+              {decisionsLoadState === 'error' && (
+                <p className="m-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  Kararlar yüklenirken bir hata oluştu.
+                </p>
+              )}
+              {decisionsLoadState === 'ready' && decisions.length === 0 && (
+                <div className="flex min-h-[340px] flex-col items-center justify-center px-5 py-10 text-center">
+                  <div className="flex items-center gap-5 text-canvas-border" aria-hidden="true">
+                    <span className="h-px w-12 bg-canvas-border" />
+                    <span className="flex h-16 w-16 items-center justify-center rounded-full border border-brand/20 bg-brand-soft text-brand-dark">
+                      <EventIcon name="decision" className="h-7 w-7" />
+                    </span>
+                    <span className="h-px w-12 bg-canvas-border" />
                   </div>
+                  <h3 className="mt-5 text-base font-semibold text-ink">Henüz karar bulunmuyor</h3>
+                  <p className="mt-2 text-sm text-ink-soft">Bu etkinlik için henüz karar eklenmemiş.</p>
                 </div>
-                {decisionFormError && (
-                  <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    {decisionFormError}
-                  </p>
-                )}
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => void handleSaveDecision()}
-                    disabled={isSavingDecision}
-                    className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
-                  >
-                    {isSavingDecision ? 'Kaydediliyor…' : 'Kaydet'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={closeDecisionForm}
-                    disabled={isSavingDecision}
-                    className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
-                  >
-                    İptal
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {decisionsLoadState === 'loading' && (
-            <p className="mt-3 text-sm text-ink-soft">Kararlar yükleniyor…</p>
-          )}
-          {decisionsLoadState === 'error' && (
-            <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              Kararlar yüklenirken bir hata oluştu.
-            </p>
-          )}
-          {decisionsLoadState === 'ready' && decisions.length === 0 && (
-            <p className="mt-3 text-sm italic text-ink-soft">Bu etkinlik için henüz karar eklenmemiş.</p>
-          )}
-          {decisionsLoadState === 'ready' && decisions.length > 0 && (
-            <div className="mt-4 flex flex-col gap-4">
-              {decisions.map((decision) => (
-                <div
-                  key={decision.id}
-                  className={`rounded-md border px-4 py-3 ${
-                    decision.deletedAt ? 'border-red-200 bg-red-50/40' : 'border-canvas-border bg-canvas'
-                  }`}
-                >
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="text-sm font-semibold text-ink">{decision.title}</h4>
-                        {decision.deletedAt && (
-                          <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
-                            Pasif karar
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-1 whitespace-pre-wrap text-sm text-ink-soft">{decision.decisionText}</p>
-                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-soft">
-                        <span>{formatDate(decision.decidedAt)}</span>
-                        <span>{decision.creatorName}</span>
+              )}
+              {decisionsLoadState === 'ready' && decisions.length > 0 && (
+                <div className="flex flex-col gap-3">
+                  {decisions.map((decision) => (
+                    <div
+                      key={decision.id}
+                      className={`rounded-lg border px-4 py-3 ${
+                        decision.deletedAt ? 'border-red-200 bg-red-50/40' : 'border-canvas-border bg-canvas-surface'
+                      }`}
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h4 className="break-words text-sm font-semibold text-ink">{decision.title}</h4>
+                            {decision.deletedAt ? <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">Pasif karar</span> : null}
+                          </div>
+                          <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-5 text-ink-soft">{decision.decisionText}</p>
+                          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-soft">
+                            <span>{formatDate(decision.decidedAt)}</span><span>{decision.creatorName}</span>
+                          </div>
+                        </div>
+                        {canEdit && !decision.deletedAt ? (
+                          <div className="flex shrink-0 items-center gap-3">
+                            <button type="button" onClick={() => openEditDecisionForm(decision)} className="min-h-[40px] rounded-md px-2 text-xs font-semibold text-brand-dark hover:bg-brand-soft">Düzenle</button>
+                            <button type="button" onClick={() => void handleDeactivateDecision(decision.id)} disabled={deactivatingDecisionId === decision.id} className="min-h-[40px] rounded-md px-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50">{deactivatingDecisionId === decision.id ? 'İşleniyor…' : 'Pasifleştir'}</button>
+                          </div>
+                        ) : null}
+                        {canEdit && decision.deletedAt ? (
+                          <button type="button" onClick={() => void handleReactivateDecision(decision.id)} disabled={deactivatingDecisionId === decision.id} className="min-h-[40px] shrink-0 rounded-md border border-green-200 bg-green-50 px-3 text-xs font-semibold text-green-700 disabled:opacity-50">{deactivatingDecisionId === decision.id ? 'İşleniyor…' : 'Yeniden aktifleştir'}</button>
+                        ) : null}
                       </div>
                     </div>
-                    {canEdit && !decision.deletedAt && (
-                      <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end sm:gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEditDecisionForm(decision)}
-                          className="text-xs font-medium text-ink-soft underline decoration-dotted"
-                        >
-                          Düzenle
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleDeactivateDecision(decision.id)}
-                          disabled={deactivatingDecisionId === decision.id}
-                          className="text-xs font-medium text-red-600 underline decoration-dotted disabled:opacity-50"
-                        >
-                          {deactivatingDecisionId === decision.id ? 'İşleniyor…' : 'Pasifleştir'}
-                        </button>
-                      </div>
-                    )}
-                    {canEdit && decision.deletedAt && (
-                      <button
-                        type="button"
-                        onClick={() => void handleReactivateDecision(decision.id)}
-                        disabled={deactivatingDecisionId === decision.id}
-                        className="shrink-0 rounded border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-700 disabled:opacity-50"
-                      >
-                        {deactivatingDecisionId === decision.id ? 'İşleniyor…' : 'Yeniden aktifleştir'}
-                      </button>
-                    )}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {isDecisionFormOpen ? (
+              <div className="rounded-xl border border-brand/15 bg-brand-soft/20 p-4 sm:p-5">
+                <h3 className="text-base font-semibold text-ink">{decisionFormMode === 'create' ? 'Yeni karar ekle' : 'Kararı düzenle'}</h3>
+                <div className="mt-4 flex flex-col gap-4">
+                  <label htmlFor="decision-title" className="flex flex-col gap-2 text-sm font-medium text-ink">
+                    Karar başlığı
+                    <input id="decision-title" type="text" value={decisionTitle} onChange={(e) => setDecisionTitle(e.target.value)} disabled={isSavingDecision} placeholder="Karar başlığını giriniz" className="min-h-[48px] rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm font-normal text-ink focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand" />
+                  </label>
+                  <label htmlFor="decision-text" className="flex flex-col gap-2 text-sm font-medium text-ink">
+                    Karar açıklaması
+                    <textarea id="decision-text" value={decisionText} onChange={(e) => setDecisionText(e.target.value)} disabled={isSavingDecision} rows={4} placeholder="Karar açıklamasını giriniz" className="resize-y rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm font-normal leading-6 text-ink focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand" />
+                  </label>
+                  <label htmlFor="decision-date" className="flex max-w-sm flex-col gap-2 text-sm font-medium text-ink">
+                    Karar tarihi
+                    <input id="decision-date" type="date" value={decisionDate} onChange={(e) => setDecisionDate(e.target.value)} disabled={isSavingDecision} className="min-h-[48px] rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm font-normal text-ink focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand" />
+                  </label>
+                  {decisionFormError ? <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{decisionFormError}</p> : null}
+                  <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                    <button type="button" onClick={closeDecisionForm} disabled={isSavingDecision} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-4 text-sm font-semibold text-ink-soft disabled:opacity-60">İptal</button>
+                    <button type="button" onClick={() => void handleSaveDecision()} disabled={isSavingDecision} className="min-h-[44px] rounded-md bg-brand-dark px-5 text-sm font-semibold text-white disabled:opacity-60">{isSavingDecision ? 'Kaydediliyor…' : 'Kaydet'}</button>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {/* Raporlar Bölümü */}
