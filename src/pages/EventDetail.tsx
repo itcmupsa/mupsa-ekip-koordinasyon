@@ -466,6 +466,7 @@ function TaskCard({
   const [isEditingNote, setIsEditingNote] = useState(false)
   const [noteInputValue, setNoteInputValue] = useState(task.notes ?? '')
   const [isDetailsOpen, setIsDetailsOpen] = useState(task.progressStatusSlug === 'completed')
+  const [isAssigneesOpen, setIsAssigneesOpen] = useState(false)
 
   const [isAddingDependency, setIsAddingDependency] = useState(false)
   const [dependencyType, setDependencyType] = useState('sks_status')
@@ -571,6 +572,12 @@ function TaskCard({
   const primaryAssigneeNames = task.assignees
     .filter((assignee) => assignee.assignmentType === 'primary')
     .map((assignee) => assignee.displayName)
+  const assigneeGroups = ASSIGNMENT_TYPE_OPTIONS.map((option) => ({
+    ...option,
+    names: task.assignees
+      .filter((assignee) => assignee.assignmentType === option.value)
+      .map((assignee) => assignee.displayName),
+  })).filter((group) => group.names.length > 0)
   const otherAssigneeCount = task.assignees.length - primaryAssigneeNames.length
 
   return (
@@ -661,12 +668,13 @@ function TaskCard({
               {task.description && <p className="line-clamp-2 whitespace-pre-wrap text-sm text-ink-soft underline decoration-dotted underline-offset-2">{task.description}</p>}
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-1 self-end sm:self-start">
+            <div className="flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1 self-end sm:self-start">
               {task.activationStatusSlug !== 'active' && !isDeactivated ? (
                 <span className="inline-flex min-h-[34px] items-center rounded-md border border-amber-200 bg-amber-50 px-3 text-xs font-semibold text-amber-700">
                   {activationStatusLabel}
                 </span>
-              ) : effectiveCanUpdateStatus ? (
+              ) : null}
+              {effectiveCanUpdateStatus ? (
                 <select
                   value={task.progressStatusSlug ?? ''}
                   onChange={(event) => onUpdateStatus(task.id, event.target.value)}
@@ -682,9 +690,13 @@ function TaskCard({
                     </option>
                   ))}
                 </select>
+              ) : isDeactivated ? (
+                <span className="inline-flex min-h-[34px] items-center rounded-md border border-canvas-border bg-canvas px-3 text-xs font-semibold text-ink-soft">
+                  Pasif
+                </span>
               ) : (
                 <span className="inline-flex min-h-[34px] items-center rounded-md border border-canvas-border bg-canvas px-3 text-xs font-semibold text-ink-soft">
-                  {isDeactivated ? 'Pasif' : statusLabel}
+                  {statusLabel}
                 </span>
               )}
               <button
@@ -707,8 +719,28 @@ function TaskCard({
       )}
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-soft sm:pl-[52px]">
         <span className="inline-flex items-center gap-1.5"><EventIcon name="person" className="h-3.5 w-3.5" /> Ana sorumlu: {primaryAssigneeNames.length > 0 ? primaryAssigneeNames.join(', ') : 'Atanmamış'}</span>
-        {otherAssigneeCount > 0 ? <span>+{otherAssigneeCount} diğer atama</span> : null}
+        {otherAssigneeCount > 0 ? (
+          <button
+            type="button"
+            onClick={() => setIsAssigneesOpen((open) => !open)}
+            aria-expanded={isAssigneesOpen}
+            className="inline-flex min-h-[40px] items-center rounded-md px-2 font-semibold text-brand-dark hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            {isAssigneesOpen ? 'Atamaları gizle' : `+${otherAssigneeCount} diğer atama`}
+          </button>
+        ) : null}
       </div>
+
+      {isAssigneesOpen && assigneeGroups.length > 0 ? (
+        <div className="mt-2 grid gap-2 rounded-lg border border-canvas-border bg-canvas px-3 py-3 text-xs sm:ml-[52px] sm:grid-cols-3">
+          {assigneeGroups.map((group) => (
+            <div key={group.value} className="min-w-0">
+              <p className="font-semibold text-ink-soft">{group.label}</p>
+              <p className="mt-1 break-words leading-5 text-ink">{group.names.join(', ')}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       <div className={isDetailsOpen ? 'mt-3' : 'hidden'}>
         <div className="flex flex-wrap gap-2 rounded-lg border border-canvas-border bg-canvas px-3 py-2">
@@ -1083,6 +1115,7 @@ export default function EventDetail() {
   const [ownerName, setOwnerName] = useState<string | null>(null)
   const [ownerCoordinatorRoleName, setOwnerCoordinatorRoleName] = useState<string | null>(null)
   const [activeDetailTab, setActiveDetailTab] = useState<EventDetailTab>('overview')
+  const [isEventDescriptionExpanded, setIsEventDescriptionExpanded] = useState(false)
   const [isSksSectionOpen, setIsSksSectionOpen] = useState(false)
   const [isBudgetSectionOpen, setIsBudgetSectionOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -3543,6 +3576,13 @@ export default function EventDetail() {
   const displayedOwner = event.ownerId ? ownerName ?? NOT_SPECIFIED : NOT_SPECIFIED
   const displayedVenue = event.venue || NOT_SPECIFIED
   const displayedNextAction = event.nextAction || NOT_SPECIFIED
+  const displayedReportStatus =
+    availableEventReportStatuses.find((status) => status.slug === event.reportStatus)?.label ??
+    event.reportStatus ??
+    NOT_SPECIFIED
+  const canExpandEventDescription =
+    !!event.description &&
+    (event.description.length > 120 || event.description.split(/\r?\n/).length > 2)
   const openTaskCount = tasks.filter(
     (task) => !task.deletedAt && task.progressStatusSlug !== 'completed' && task.progressStatusSlug !== 'cancelled',
   ).length
@@ -3578,9 +3618,23 @@ export default function EventDetail() {
                 <span className="rounded-full bg-accent-soft px-3 py-1 text-xs font-semibold text-accent">{displayedStatus}</span>
                 <p className="text-sm text-ink-soft">Aktif dönem: <span className="font-semibold text-brand-dark">{periodLabel ?? 'Belirtilmedi'}</span></p>
               </div>
-              <p className="mt-3 line-clamp-2 max-w-3xl whitespace-pre-wrap text-sm leading-6 text-ink-soft">
+              <p
+                id="event-description"
+                className={`mt-3 max-w-3xl whitespace-pre-wrap text-sm leading-6 text-ink-soft ${isEventDescriptionExpanded ? '' : 'line-clamp-2'}`}
+              >
                 {event.description || 'Etkinlik açıklaması eklenmemiş.'}
               </p>
+              {canExpandEventDescription ? (
+                <button
+                  type="button"
+                  onClick={() => setIsEventDescriptionExpanded((expanded) => !expanded)}
+                  aria-expanded={isEventDescriptionExpanded}
+                  aria-controls="event-description"
+                  className="mt-1 inline-flex min-h-[40px] items-center rounded-md pr-2 text-xs font-semibold text-brand-dark hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                >
+                  {isEventDescriptionExpanded ? 'Kısalt' : 'Devamını göster'}
+                </button>
+              ) : null}
             </div>
             {canEdit && !isEditing && (
               <button
@@ -3916,7 +3970,8 @@ export default function EventDetail() {
                 ] as const).map(([label, value, dot]) => <div key={label} className="relative flex items-start justify-between gap-3"><span className={`absolute -left-5 top-1.5 h-2.5 w-2.5 rounded-full ${dot}`} /><div><p className="text-xs font-semibold text-ink">{label}</p></div><p className="text-xs font-medium text-ink">{formatDate(value)}</p></div>)}
               </div>
               <div className="mt-5 border-t border-canvas-border pt-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">İletişim süreci</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Süreç durumları</p>
+                <p className="mt-3 text-xs font-semibold text-ink-soft">Tasarım / Duyuru durumu</p>
                 {canChangeDesignAnnouncementStatus ? (
                   <select value={event.designAnnouncementStatus} onChange={(e) => void handleUpdateDesignAnnouncementStatus(e.target.value)} disabled={isUpdatingDesignAnnouncementStatus || availableEventDesignAnnouncementStatuses.length === 0} className="mt-2 min-h-[44px] w-full rounded-md border border-canvas-border bg-canvas px-3 text-sm text-ink disabled:opacity-60">
                     {availableEventDesignAnnouncementStatuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}
@@ -3924,6 +3979,10 @@ export default function EventDetail() {
                 ) : <p className="mt-2 text-sm font-medium text-ink">{availableEventDesignAnnouncementStatuses.find((status) => status.slug === event.designAnnouncementStatus)?.label ?? event.designAnnouncementStatus}</p>}
                 {designAnnouncementStatusError ? <p className="mt-2 text-xs text-red-600">{designAnnouncementStatusError}</p> : null}
                 {designAnnouncementStatusSuccess ? <p className="mt-2 text-xs text-green-600">{designAnnouncementStatusSuccess}</p> : null}
+                <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-canvas-border bg-canvas px-3 py-3">
+                  <span className="text-xs font-semibold text-ink-soft">Rapor durumu</span>
+                  <span className="break-words text-right text-sm font-semibold text-ink">{displayedReportStatus}</span>
+                </div>
               </div>
             </section>
 
