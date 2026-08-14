@@ -47,7 +47,9 @@ export default function PermanentDeleteDialog({
 
   if (!isOpen) return null
 
-  const confirmed = confirmation === itemName
+  const normalizedConfirmation = confirmation.trim().normalize('NFC')
+  const normalizedItemName = itemName.trim().normalize('NFC')
+  const confirmed = normalizedConfirmation === normalizedItemName
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-ink/50 p-0 backdrop-blur-[1px] sm:items-center sm:p-4">
