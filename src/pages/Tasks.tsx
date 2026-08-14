@@ -193,11 +193,13 @@ export default function Tasks({ session }: { session: Session }) {
 
   async function handlePermanentDelete() {
     if (!deleteTarget?.deletedAt) return
+    const deletedTaskId = deleteTarget.id
     setIsDeleting(true)
     setDeleteError(null)
     try {
-      const result = await deleteTaskPermanently(deleteTarget.id)
+      const result = await deleteTaskPermanently(deletedTaskId)
       setFormMessage(result.cleanupWarning ?? `“${deleteTarget.title}” görevi kalıcı olarak silindi.`)
+      setTasks((currentTasks) => currentTasks.filter((task) => task.id !== deletedTaskId))
       setDeleteTarget(null)
       setReloadKey((value) => value + 1)
     } catch (error) {
