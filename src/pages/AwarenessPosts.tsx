@@ -474,7 +474,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
   async function toggleActive(post: AwarenessPost) {
     if (!profileId) return
     const isDeactivating = !post.deletedAt
-    if (isDeactivating && !window.confirm('Bu kaydı pasifleştirmek istediğinize emin misiniz?')) return
+    if (isDeactivating && !window.confirm('Bu kaydı pasifleştirmek istediğinize emin misiniz? Bağlı görevler ve görev kayıtları da otomatik olarak pasifleştirilecek.')) return
 
     const result = await supabase
       .from('awareness_posts')
@@ -487,7 +487,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
       setSuccessMessage(result.error.message.toLowerCase().includes('kilit') ? 'Dönem kilitli olduğu için işlem yapılamadı.' : 'Kayıt güncellenemedi.')
       return
     }
-    setSuccessMessage(isDeactivating ? 'Kayıt pasifleştirildi.' : 'Kayıt yeniden aktifleştirildi.')
+    setSuccessMessage(isDeactivating ? 'Kayıt ve bağlı görevleri pasifleştirildi.' : 'Kayıt ve otomatik pasifleştirilen bağlı görevleri yeniden aktifleştirildi.')
     setReloadKey((value) => value + 1)
   }
 

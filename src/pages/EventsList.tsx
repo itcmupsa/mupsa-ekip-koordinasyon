@@ -273,7 +273,7 @@ export default function EventsList({ session }: { session: Session }) {
   async function toggleEventActive(event: EventRow) {
     if (!isSuperAdmin || !profileId) return
     const deactivate = !event.deletedAt
-    if (deactivate && !window.confirm('Bu etkinliği pasifleştirmek istediğinize emin misiniz?')) return
+    if (deactivate && !window.confirm('Bu etkinliği pasifleştirmek istediğinize emin misiniz? Bağlı görevler ve diğer kayıtlar da otomatik olarak pasifleştirilecek.')) return
     setUpdatingEventId(event.id)
     setSuccessMessage(null)
     const { error } = await supabase
@@ -287,7 +287,7 @@ export default function EventsList({ session }: { session: Session }) {
       setSuccessMessage(error.message.toLowerCase().includes('kilit') ? 'Dönem kilitli olduğu için işlem yapılamadı.' : 'Etkinlik güncellenemedi.')
       return
     }
-    setSuccessMessage(deactivate ? 'Etkinlik pasifleştirildi.' : 'Etkinlik yeniden aktifleştirildi.')
+    setSuccessMessage(deactivate ? 'Etkinlik ve bağlı kayıtları pasifleştirildi.' : 'Etkinlik ve otomatik pasifleştirilen bağlı kayıtları yeniden aktifleştirildi.')
     setReloadKey((value) => value + 1)
   }
 
