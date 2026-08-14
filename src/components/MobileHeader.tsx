@@ -30,7 +30,9 @@ export default function MobileHeader({ displayName }: MobileHeaderProps) {
     >
       <div className="flex h-16 items-center justify-between px-4">
         <div className="flex min-w-0 items-center gap-2.5">
-          <img src="/mupsa-logo.svg" alt="" className="h-10 w-10 shrink-0 rounded-full bg-white p-0.5" />
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white p-1 shadow-sm ring-1 ring-white/30">
+            <img src="/mupsa-logo.svg" alt="" className="h-full w-full object-contain" />
+          </span>
           <span className="truncate text-base font-semibold tracking-tight">MUPSA</span>
         </div>
 

@@ -71,11 +71,13 @@ export default function DesktopSidebar({ isSuperAdmin, displayName, roleLabel, o
 
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden h-full w-60 flex-col bg-brand-dark text-white lg:flex" aria-label="Ana menü">
-      <div className="flex items-center gap-3 px-5 pb-5 pt-6">
-        <img src="/mupsa-logo.svg" alt="" className="h-9 w-9 shrink-0 rounded-md bg-white/10 p-1" />
+      <div className="flex items-center gap-3.5 px-5 pb-6 pt-6">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white p-1.5 shadow-sm ring-1 ring-white/30">
+          <img src="/mupsa-logo.svg" alt="" className="h-full w-full object-contain" />
+        </span>
         <div className="min-w-0">
-          <p className="text-base font-semibold leading-tight tracking-tight">MUPSA</p>
-          <p className="text-xs leading-tight text-white/65">Ekip Koordinasyon</p>
+          <p className="text-lg font-semibold leading-tight tracking-tight">MUPSA</p>
+          <p className="mt-0.5 text-[13px] leading-tight text-white/70">Ekip Koordinasyon</p>
         </div>
       </div>
 
