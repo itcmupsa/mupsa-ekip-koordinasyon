@@ -31,7 +31,6 @@ const ITEM_STYLES: Record<CalendarItem['kind'], { dot: string; badge: string; la
 interface EventRow {
   id: string
   title: string
-  planningDate: string | null
   preparationStartDate: string | null
   estimatedDate: string | null
   confirmedDate: string | null
@@ -284,7 +283,7 @@ export default function Calendar({ session }: { session: Session }) {
       const [eventResult, awarenessResult, manualResult, taskResult, membershipResult] = await Promise.all([
         supabase
           .from('events')
-          .select('id, title, planning_date, preparation_start_date, estimated_date, confirmed_date, owner_id')
+          .select('id, title, preparation_start_date, estimated_date, confirmed_date, owner_id')
           .eq('period_id', periodId)
           .is('deleted_at', null),
         supabase
@@ -318,7 +317,6 @@ export default function Calendar({ session }: { session: Session }) {
       setEvents((eventResult.data ?? []).map((row) => ({
         id: row.id as string,
         title: row.title as string,
-        planningDate: (row.planning_date as string | null) ?? null,
         preparationStartDate: (row.preparation_start_date as string | null) ?? null,
         estimatedDate: (row.estimated_date as string | null) ?? null,
         confirmedDate: (row.confirmed_date as string | null) ?? null,
@@ -370,10 +368,15 @@ export default function Calendar({ session }: { session: Session }) {
 
     for (const event of events) {
       const role = { coordinatorRoleName: event.ownerRoleName, coordinatorRoleSlug: event.ownerRoleSlug }
-      add(event.planningDate, { id: `${event.id}-planning`, label: `${event.title} · Planlama`, kind: 'event', linkTo: `/app/etkinlikler/${event.id}`, ...role })
       add(event.preparationStartDate, { id: `${event.id}-preparation`, label: `${event.title} · Hazırlık başlangıcı`, kind: 'event', linkTo: `/app/etkinlikler/${event.id}`, ...role })
-      add(event.estimatedDate, { id: `${event.id}-estimated`, label: `${event.title} · Tahmini tarih`, kind: 'event', linkTo: `/app/etkinlikler/${event.id}`, ...role })
-      add(event.confirmedDate, { id: `${event.id}-confirmed`, label: `${event.title} · Kesinleşmiş tarih`, kind: 'event', linkTo: `/app/etkinlikler/${event.id}`, ...role })
+      const eventDate = event.confirmedDate ?? event.estimatedDate
+      add(eventDate, {
+        id: `${event.id}-${event.confirmedDate ? 'confirmed' : 'estimated'}`,
+        label: `${event.title} · ${event.confirmedDate ? 'Kesinleşmiş tarih' : 'Tahmini tarih'}`,
+        kind: 'event',
+        linkTo: `/app/etkinlikler/${event.id}`,
+        ...role,
+      })
     }
 
     for (const post of awarenessPosts) {
@@ -715,8 +718,8 @@ export default function Calendar({ session }: { session: Session }) {
                     <p className="mt-4 font-semibold text-ink">Bu gün planlanan kayıt yok.</p>
                     <p className="mt-1 text-xs text-ink-soft">Güne harika bir başlangıç yapabilirsin.</p>
                     <div className="mt-5 grid grid-cols-2 gap-2">
-                      <Link to="/app/etkinlikler" className="flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-brand-dark px-3 text-sm font-medium text-white hover:brightness-95"><PlusIcon />Etkinlik ekle</Link>
-                      <Link to="/app/gorevler" className="flex min-h-[44px] items-center justify-center gap-2 rounded-md border border-sky-200 px-3 text-sm font-medium text-sky-700 hover:bg-sky-50"><PlusIcon />Görev ekle</Link>
+                      <Link to="/app/etkinlikler?create=1" className="flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-brand-dark px-3 text-sm font-medium text-white hover:brightness-95"><PlusIcon />Etkinlik ekle</Link>
+                      <Link to="/app/gorevler?create=1" className="flex min-h-[44px] items-center justify-center gap-2 rounded-md border border-sky-200 px-3 text-sm font-medium text-sky-700 hover:bg-sky-50"><PlusIcon />Görev ekle</Link>
                     </div>
                   </div>
                 </>

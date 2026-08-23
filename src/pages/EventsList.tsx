@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import PermanentDeleteDialog from '../components/PermanentDeleteDialog'
 import NewEventPanel from '../components/events/NewEventPanel'
@@ -119,6 +119,7 @@ function MoreIcon() {
 }
 
 export default function EventsList({ session }: { session: Session }) {
+  const [searchParams, setSearchParams] = useSearchParams()
   const {
     displayName,
     hasActiveMembership,
@@ -147,6 +148,14 @@ export default function EventsList({ session }: { session: Session }) {
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [mobileActionEventId, setMobileActionEventId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (searchParams.get('create') !== '1') return
+    setSuccessMessage(null)
+    setCreateError(null)
+    setCreateState('open')
+    setSearchParams({}, { replace: true })
+  }, [searchParams, setSearchParams])
 
   useEffect(() => {
     if (statusLoading) return

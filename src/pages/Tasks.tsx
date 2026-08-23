@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { deleteTaskPermanently } from '../lib/permanentDeletion'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
@@ -152,6 +152,7 @@ function TaskKindIcon({ kind }: { kind: ContextKind }) {
 }
 
 export default function Tasks({ session }: { session: Session }) {
+  const [searchParams, setSearchParams] = useSearchParams()
   const { displayName, hasActiveMembership, periodId, periodLabel, profileId, appRole, coordinatorRoleName, loading: statusLoading } = useMembershipStatus(session)
   const isSuperAdmin = appRole === 'super_admin'
   const [loadState, setLoadState] = useState<LoadState>('loading')
@@ -351,7 +352,7 @@ export default function Tasks({ session }: { session: Session }) {
     return `${task.title} ${contextTitle(task)}`.toLocaleLowerCase('tr-TR').includes(normalizedSearch)
   })
 
-  function resetForm() {
+  const resetForm = useCallback(() => {
     setContextSelection(isSuperAdmin ? 'standalone' : creatableEvents[0] ? contextKey('event', creatableEvents[0].id) : creatableAwareness[0] ? contextKey('awareness', creatableAwareness[0].id) : '')
     setTitle('')
     setDescription('')
@@ -362,7 +363,14 @@ export default function Tasks({ session }: { session: Session }) {
     setInformedProfileId('')
     setFormError(null)
     setFormMessage(null)
-  }
+  }, [creatableAwareness, creatableEvents, isSuperAdmin])
+
+  useEffect(() => {
+    if (searchParams.get('create') !== '1' || !canCreateAny) return
+    resetForm()
+    setFormOpen(true)
+    setSearchParams({}, { replace: true })
+  }, [canCreateAny, resetForm, searchParams, setSearchParams])
 
   function openForm() {
     resetForm()
