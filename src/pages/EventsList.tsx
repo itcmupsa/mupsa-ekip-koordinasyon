@@ -55,7 +55,7 @@ function formatDate(value: string | null) {
 }
 
 function eventDisplayDate(event: EventRow) {
-  return event.confirmedDate ?? event.estimatedDate ?? event.planningDate
+  return event.confirmedDate ?? event.estimatedDate
 }
 
 function pickOne<T>(value: T | T[] | null | undefined): T | null {
@@ -356,8 +356,14 @@ export default function EventsList({ session }: { session: Session }) {
     today.setHours(0, 0, 0, 0)
 
     return [...matchingEvents].sort((firstEvent, secondEvent) => {
-      const firstTime = new Date(`${eventDisplayDate(firstEvent)}T00:00:00`).getTime()
-      const secondTime = new Date(`${eventDisplayDate(secondEvent)}T00:00:00`).getTime()
+      const firstDate = eventDisplayDate(firstEvent)
+      const secondDate = eventDisplayDate(secondEvent)
+      if (!firstDate || !secondDate) {
+        if (firstDate !== secondDate) return firstDate ? -1 : 1
+        return firstEvent.title.localeCompare(secondEvent.title, 'tr-TR')
+      }
+      const firstTime = new Date(`${firstDate}T00:00:00`).getTime()
+      const secondTime = new Date(`${secondDate}T00:00:00`).getTime()
       const firstIsUpcoming = firstTime >= today.getTime()
       const secondIsUpcoming = secondTime >= today.getTime()
 

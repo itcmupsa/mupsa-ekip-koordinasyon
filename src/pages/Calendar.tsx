@@ -11,6 +11,7 @@ import { coordinatorRolePresentation } from '../lib/coordinatorRolePresentation'
 type LoadState = 'loading' | 'ready' | 'error'
 type FormMode = 'closed' | 'create' | 'edit'
 type EntryType = 'academic' | 'official' | 'meeting' | 'other'
+type CalendarFilter = 'all' | CalendarItem['kind']
 
 const WEEKDAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
 const ENTRY_TYPES: Array<{ value: EntryType; label: string }> = [
@@ -173,6 +174,10 @@ function PlusIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
 }
 
+function TodayIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="2" /><path d="M3.5 9.5h17M8 3v3M16 3v3" /></svg>
+}
+
 export default function Calendar({ session }: { session: Session }) {
   const { displayName, hasActiveMembership, periodId, periodLabel, appRole, coordinatorRoleName, loading: statusLoading } = useMembershipStatus(session)
   const isSuperAdmin = appRole === 'super_admin'
@@ -182,6 +187,7 @@ export default function Calendar({ session }: { session: Session }) {
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear())
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [activeFilter, setActiveFilter] = useState<CalendarFilter>('all')
   const [events, setEvents] = useState<EventRow[]>([])
   const [awarenessPosts, setAwarenessPosts] = useState<AwarenessRow[]>([])
   const [manualEntries, setManualEntries] = useState<ManualEntry[]>([])
@@ -423,7 +429,34 @@ export default function Calendar({ session }: { session: Session }) {
     return cells
   }, [viewMonth, viewYear])
 
-  const selectedItems = selectedDate ? itemsByDate.get(selectedDate) ?? [] : []
+  const filteredItemsByDate = useMemo(() => {
+    if (activeFilter === 'all') return itemsByDate
+    const filtered = new Map<string, CalendarItem[]>()
+    for (const [key, items] of itemsByDate) {
+      const matches = items.filter((item) => item.kind === activeFilter)
+      if (matches.length > 0) filtered.set(key, matches)
+    }
+    return filtered
+  }, [activeFilter, itemsByDate])
+
+  const selectedItems = selectedDate ? filteredItemsByDate.get(selectedDate) ?? [] : []
+
+  const filterOptions = useMemo(() => [
+    { value: 'all' as const, label: 'Tümü', count: events.length + awarenessPosts.length + tasks.length + manualEntries.filter((entry) => !entry.deletedAt).length, dot: '' },
+    { value: 'event' as const, label: 'Etkinlik', count: events.length, dot: ITEM_STYLES.event.dot },
+    { value: 'awareness' as const, label: 'Farkındalık', count: awarenessPosts.length, dot: ITEM_STYLES.awareness.dot },
+    { value: 'task' as const, label: 'Görev', count: tasks.length, dot: ITEM_STYLES.task.dot },
+    { value: 'manual' as const, label: 'Manuel kayıt', count: manualEntries.filter((entry) => !entry.deletedAt).length, dot: ITEM_STYLES.manual.dot },
+  ], [awarenessPosts.length, events.length, manualEntries, tasks.length])
+
+  const upcomingItems = useMemo(() => {
+    const startKey = selectedDate ?? dateKey(new Date())
+    return Array.from(filteredItemsByDate.entries())
+      .filter(([key]) => key >= startKey)
+      .flatMap(([key, items]) => items.map((item) => ({ key, item })))
+      .sort((first, second) => first.key.localeCompare(second.key) || first.item.label.localeCompare(second.item.label, 'tr-TR'))
+      .slice(0, 5)
+  }, [filteredItemsByDate, selectedDate])
 
   function changeMonth(amount: number) {
     const next = new Date(Date.UTC(viewYear, viewMonth + amount, 1))
@@ -603,24 +636,45 @@ export default function Calendar({ session }: { session: Session }) {
           </section>
         ) : null}
 
-        <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 rounded-xl border border-canvas-border bg-canvas-surface px-4 py-3 text-xs text-ink-soft shadow-card" aria-label="Takvim açıklaması">
+        <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 rounded-xl border border-canvas-border bg-canvas-surface px-4 py-3 text-xs text-ink-soft shadow-card lg:hidden" aria-label="Takvim açıklaması">
           {(Object.keys(ITEM_STYLES) as CalendarItem['kind'][]).map((kind) => (
             <span key={kind} className="inline-flex items-center gap-1.5"><span className={`h-2.5 w-2.5 rounded-full ${ITEM_STYLES[kind].dot}`} />{ITEM_STYLES[kind].label}</span>
           ))}
         </div>
 
-        <div className="mt-4 grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="mt-5 hidden flex-wrap gap-1 rounded-xl border border-canvas-border bg-canvas-surface p-2 text-xs text-ink-soft shadow-card lg:flex" role="radiogroup" aria-label="Takvim kayıtlarını filtrele">
+          {filterOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={activeFilter === option.value}
+              onClick={() => setActiveFilter(option.value)}
+              className={`inline-flex min-h-[36px] items-center gap-2 rounded-lg px-3 font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${activeFilter === option.value ? 'bg-canvas text-ink shadow-sm' : 'hover:bg-canvas/70'}`}
+            >
+              {option.dot ? <span className={`h-2.5 w-2.5 rounded-full ${option.dot}`} /> : null}
+              {option.label}
+              <span className="rounded-full bg-canvas-border/60 px-2 py-0.5 text-[11px]">{option.count}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <section className="min-w-0 rounded-xl border border-canvas-border bg-canvas-surface p-3 shadow-card sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <button type="button" onClick={() => changeMonth(-1)} aria-label="Önceki ay" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-canvas-border text-ink-soft hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"><ChevronIcon direction="left" /></button>
-              <h2 className="text-center text-lg font-semibold capitalize text-ink">{monthLabel(viewYear, viewMonth)}</h2>
+              <div className="text-center">
+                <h2 className="text-lg font-semibold capitalize text-ink">{monthLabel(viewYear, viewMonth)}</h2>
+                <p className="mt-1 hidden text-xs text-ink-soft lg:block">{events.length} etkinlik · {tasks.length} görev · {awarenessPosts.length} farkındalık</p>
+              </div>
+              <button type="button" onClick={() => { const today = new Date(); const key = dateKey(new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()))); setViewYear(today.getFullYear()); setViewMonth(today.getMonth()); setSelectedDate(key) }} className="hidden min-h-[40px] items-center gap-2 rounded-lg border border-canvas-border px-3 text-sm font-medium text-ink-soft hover:bg-canvas lg:flex"><TodayIcon />Bugün</button>
               <button type="button" onClick={() => changeMonth(1)} aria-label="Sonraki ay" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-canvas-border text-ink-soft hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"><ChevronIcon direction="right" /></button>
             </div>
 
             <div className="grid grid-cols-7 overflow-hidden rounded-lg border-l border-t border-canvas-border">
               {WEEKDAYS.map((weekday) => <div key={weekday} className="border-b border-r border-canvas-border bg-canvas px-0.5 py-2 text-center text-[11px] font-semibold text-ink-soft sm:px-2 sm:text-xs">{weekday}</div>)}
               {calendarCells.map((cell) => {
-                const items = itemsByDate.get(cell.key) ?? []
+                const items = filteredItemsByDate.get(cell.key) ?? []
                 const isSelected = cell.key === selectedDate
                 const isToday = cell.key === todayKey
                 return (
@@ -649,25 +703,59 @@ export default function Calendar({ session }: { session: Session }) {
             </div>
           </section>
 
-          <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card lg:sticky lg:top-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">Seçili gün</p>
-            <h2 className="mt-1 text-base font-semibold text-ink">{selectedDate ? formatDate(selectedDate) : 'Bir gün seçin'}</h2>
-            {!selectedDate || selectedItems.length === 0 ? (
-              <p className="mt-4 rounded-lg bg-canvas px-3 py-4 text-sm text-ink-soft">Bu gün için kayıt bulunmuyor.</p>
-            ) : (
-              <ul className="mt-4 space-y-2">
-                {selectedItems.map((item) => {
-                  const content = (
-                    <span className={`flex min-h-[44px] items-start gap-2 rounded-lg border px-3 py-2.5 text-sm ${calendarItemStyle(item).badge}`}>
-                      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${calendarItemStyle(item).dot}`} />
-                      <span className="break-words">{item.label}</span>
-                    </span>
-                  )
-                  return <li key={item.id}>{item.linkTo ? <Link to={item.linkTo} className="block rounded-lg hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{content}</Link> : content}</li>
-                })}
-              </ul>
-            )}
-          </section>
+          <aside className="space-y-4 lg:sticky lg:top-4">
+            <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card">
+              <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">Seçili gün</p>
+              <h2 className="mt-1 text-base font-semibold text-ink">{selectedDate ? formatDate(selectedDate) : 'Bir gün seçin'}</h2>
+              {!selectedDate || selectedItems.length === 0 ? (
+                <>
+                  <p className="mt-4 rounded-lg bg-canvas px-3 py-4 text-sm text-ink-soft lg:hidden">Bu gün için kayıt bulunmuyor.</p>
+                  <div className="mt-6 hidden text-center lg:block">
+                    <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-soft text-brand-dark"><TodayIcon /></span>
+                    <p className="mt-4 font-semibold text-ink">Bu gün planlanan kayıt yok.</p>
+                    <p className="mt-1 text-xs text-ink-soft">Güne harika bir başlangıç yapabilirsin.</p>
+                    <div className="mt-5 grid grid-cols-2 gap-2">
+                      <Link to="/app/etkinlikler" className="flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-brand-dark px-3 text-sm font-medium text-white hover:brightness-95"><PlusIcon />Etkinlik ekle</Link>
+                      <Link to="/app/gorevler" className="flex min-h-[44px] items-center justify-center gap-2 rounded-md border border-sky-200 px-3 text-sm font-medium text-sky-700 hover:bg-sky-50"><PlusIcon />Görev ekle</Link>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <ul className="mt-4 space-y-2">
+                  {selectedItems.map((item) => {
+                    const content = (
+                      <span className={`flex min-h-[44px] items-start gap-2 rounded-lg border px-3 py-2.5 text-sm ${calendarItemStyle(item).badge}`}>
+                        <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${calendarItemStyle(item).dot}`} />
+                        <span className="break-words">{item.label}</span>
+                      </span>
+                    )
+                    return <li key={item.id}>{item.linkTo ? <Link to={item.linkTo} className="block rounded-lg hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{content}</Link> : content}</li>
+                  })}
+                </ul>
+              )}
+            </section>
+
+            <section className="hidden rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card lg:block">
+              <h2 className="text-sm font-semibold text-ink">Yaklaşan kayıtlar</h2>
+              {upcomingItems.length === 0 ? <p className="mt-4 text-sm text-ink-soft">Yaklaşan kayıt bulunmuyor.</p> : (
+                <ul className="mt-3 divide-y divide-canvas-border">
+                  {upcomingItems.map(({ key, item }) => {
+                    const date = parseDateOnly(key)
+                    const day = date?.getUTCDate()
+                    const month = date ? new Intl.DateTimeFormat('tr-TR', { month: 'short', timeZone: 'UTC' }).format(date).toLocaleUpperCase('tr-TR') : ''
+                    const content = (
+                      <span className="grid min-h-[56px] grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-2 py-2.5">
+                        <span className="text-center"><span className="block text-sm font-semibold text-ink">{day}</span><span className="block text-[10px] text-ink-soft">{month}</span></span>
+                        <span className="min-w-0"><span className="flex items-center gap-2"><span className={`h-2 w-2 shrink-0 rounded-full ${calendarItemStyle(item).dot}`} /><span className="truncate text-xs font-medium text-ink">{item.label}</span></span></span>
+                        <span className={`rounded border px-1.5 py-1 text-[10px] font-medium ${calendarItemStyle(item).badge}`}>{ITEM_STYLES[item.kind].label}</span>
+                      </span>
+                    )
+                    return <li key={`${key}-${item.id}`}>{item.linkTo ? <Link to={item.linkTo} className="block hover:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{content}</Link> : content}</li>
+                  })}
+                </ul>
+              )}
+            </section>
+          </aside>
         </div>
 
         {isSuperAdmin && showInactive && manualEntries.some((entry) => entry.deletedAt) ? (
