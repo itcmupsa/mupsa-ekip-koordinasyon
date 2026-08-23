@@ -675,12 +675,13 @@ export default function Calendar({ session }: { session: Session }) {
               <button type="button" onClick={() => changeMonth(1)} aria-label="Sonraki ay" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-canvas-border text-ink-soft hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"><ChevronIcon direction="right" /></button>
             </div>
 
-            <div className="grid grid-cols-7 overflow-hidden rounded-lg border-l border-t border-canvas-border">
-              {WEEKDAYS.map((weekday) => <div key={weekday} className="border-b border-r border-canvas-border bg-canvas px-0.5 py-2 text-center text-[11px] font-semibold text-ink-soft sm:px-2 sm:text-xs">{weekday}</div>)}
-              {calendarCells.map((cell) => {
+            <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+              {WEEKDAYS.map((weekday, index) => <div key={weekday} className={`rounded-lg px-0.5 py-2 text-center text-[11px] font-semibold text-ink-soft sm:px-2 sm:text-xs ${index >= 5 ? 'bg-brand-soft/60' : 'bg-canvas'}`}>{weekday}</div>)}
+              {calendarCells.map((cell, index) => {
                 const items = filteredItemsByDate.get(cell.key) ?? []
                 const isSelected = cell.key === selectedDate
                 const isToday = cell.key === todayKey
+                const isWeekend = index % 7 >= 5
                 return (
                   <button
                     key={cell.key}
@@ -688,18 +689,16 @@ export default function Calendar({ session }: { session: Session }) {
                     onClick={() => setSelectedDate(cell.key)}
                     aria-label={`${formatDate(cell.key)}, ${items.length} kayıt`}
                     aria-pressed={isSelected}
-                    className={`min-h-[64px] border-b border-r border-canvas-border p-1 text-left align-top transition-colors sm:min-h-24 sm:p-2 ${isSelected ? 'bg-brand-soft' : cell.isCurrentMonth ? 'bg-canvas-surface' : 'bg-canvas/50'} hover:bg-canvas focus-visible:relative focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand`}
+                    className={`min-h-[64px] rounded-xl border p-1 text-left align-top transition sm:min-h-24 sm:p-2 ${isSelected ? 'border-brand-dark bg-gradient-to-br from-brand to-brand-dark text-white shadow-md' : cell.isCurrentMonth ? isWeekend ? 'border-brand/10 bg-brand-soft/20 hover:bg-brand-soft/50' : 'border-canvas-border bg-canvas-surface hover:bg-canvas' : 'border-canvas-border/70 bg-canvas/50'} focus-visible:relative focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand`}
                   >
-                    <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${isToday ? 'bg-brand-dark text-white' : cell.isCurrentMonth ? 'text-ink-soft' : 'text-ink-soft/50'}`}>{Number(cell.key.slice(-2))}</span>
+                    <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${isSelected ? 'text-white' : isToday ? 'bg-brand-dark text-white' : cell.isCurrentMonth ? 'text-ink' : 'text-ink-soft/45'}`}>{Number(cell.key.slice(-2))}</span>
                     <span className="mt-1 flex flex-wrap gap-1 sm:hidden" aria-hidden="true">
-                      {items.slice(0, 4).map((item) => <span key={item.id} className={`h-1.5 w-1.5 rounded-full ${calendarItemStyle(item).dot}`} />)}
-                      {items.length > 4 ? <span className="text-[9px] leading-none text-ink-soft">+{items.length - 4}</span> : null}
+                      {items.slice(0, 3).map((item) => <span key={item.id} className={`h-1.5 w-1.5 rounded-full ${calendarItemStyle(item).dot} ${isSelected ? 'ring-1 ring-white/70' : ''}`} />)}
+                      {items.length > 3 ? <span className={`text-[9px] leading-none ${isSelected ? 'text-white/80' : 'text-ink-soft'}`}>+{items.length - 3}</span> : null}
                     </span>
                     <span className="hidden sm:block">
-                      {items.slice(0, 2).map((item) => (
-                        <span key={item.id} title={item.label} className={`mt-1 block truncate rounded border px-1 py-0.5 text-[10px] font-medium leading-4 ${calendarItemStyle(item).badge}`}>{item.label}</span>
-                      ))}
-                      {items.length > 2 ? <span className="mt-1 block text-[10px] font-medium leading-4 text-ink-soft">+{items.length - 2} kayıt</span> : null}
+                      {items.length > 0 ? <span className="mt-1 flex flex-wrap items-center gap-1" aria-hidden="true">{items.slice(0, 4).map((item) => <span key={item.id} className={`h-2 w-2 rounded-full ${calendarItemStyle(item).dot} ${isSelected ? 'ring-1 ring-white/70' : ''}`} />)}{items.length > 4 ? <span className={`text-[10px] font-medium ${isSelected ? 'text-white/80' : 'text-ink-soft'}`}>+{items.length - 4}</span> : null}</span> : null}
+                      {items.length === 1 ? <span title={items[0].label} className={`mt-1 block truncate rounded border px-1 py-0.5 text-[10px] font-medium leading-4 ${calendarItemStyle(items[0]).badge}`}>{items[0].label}</span> : null}
                     </span>
                   </button>
                 )
