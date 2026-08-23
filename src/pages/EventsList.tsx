@@ -54,6 +54,10 @@ function formatDate(value: string | null) {
   }).format(new Date(`${value}T00:00:00`))
 }
 
+function eventDisplayDate(event: EventRow) {
+  return event.confirmedDate ?? event.estimatedDate ?? event.planningDate
+}
+
 function pickOne<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null
   return Array.isArray(value) ? (value[0] ?? null) : value
@@ -121,6 +125,16 @@ function ChevronIcon() {
   )
 }
 
+function MoreIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5" aria-hidden="true">
+      <circle cx="12" cy="5" r="1.7" />
+      <circle cx="12" cy="12" r="1.7" />
+      <circle cx="12" cy="19" r="1.7" />
+    </svg>
+  )
+}
+
 export default function EventsList({ session }: { session: Session }) {
   const {
     displayName,
@@ -149,6 +163,7 @@ export default function EventsList({ session }: { session: Session }) {
   const [deleteTarget, setDeleteTarget] = useState<EventRow | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [mobileActionEventId, setMobileActionEventId] = useState<string | null>(null)
 
   useEffect(() => {
     if (statusLoading) return
@@ -350,9 +365,24 @@ export default function EventsList({ session }: { session: Session }) {
     return Array.from(options, ([id, option]) => ({ id, ...option })).sort((a, b) => a.name.localeCompare(b.name, 'tr-TR'))
   }, [events])
 
-  const filteredEvents = selectedCoordinatorRoleId === 'all'
-    ? events
-    : events.filter((event) => event.ownerRoleId === selectedCoordinatorRoleId)
+  const filteredEvents = useMemo(() => {
+    const matchingEvents = selectedCoordinatorRoleId === 'all'
+      ? events
+      : events.filter((event) => event.ownerRoleId === selectedCoordinatorRoleId)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    return [...matchingEvents].sort((firstEvent, secondEvent) => {
+      const firstTime = new Date(`${eventDisplayDate(firstEvent)}T00:00:00`).getTime()
+      const secondTime = new Date(`${eventDisplayDate(secondEvent)}T00:00:00`).getTime()
+      const firstIsUpcoming = firstTime >= today.getTime()
+      const secondIsUpcoming = secondTime >= today.getTime()
+
+      if (firstIsUpcoming !== secondIsUpcoming) return firstIsUpcoming ? -1 : 1
+      if (firstTime !== secondTime) return firstIsUpcoming ? firstTime - secondTime : secondTime - firstTime
+      return firstEvent.title.localeCompare(secondEvent.title, 'tr-TR')
+    })
+  }, [events, selectedCoordinatorRoleId])
 
   if (statusLoading || loadState === 'loading') return <CenteredMessage text="Etkinlikler yükleniyor…" />
   if (!hasActiveMembership) return <CenteredMessage text="Bu sayfaya erişim yetkin yok." />
@@ -371,7 +401,7 @@ export default function EventsList({ session }: { session: Session }) {
     >
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <div className="grid gap-4 lg:flex lg:items-end lg:justify-between">
-          <div>
+          <div className="hidden lg:block">
             <p className="text-sm text-ink-soft">
               Aktif dönem: <span className="font-medium text-brand-dark">{periodLabel ?? 'Belirtilmedi'}</span>
             </p>
@@ -384,7 +414,7 @@ export default function EventsList({ session }: { session: Session }) {
             onClick={openCreateForm}
             aria-expanded={createState !== 'closed'}
             aria-controls="new-event-mobile-form"
-            className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-semibold text-white shadow-card transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 lg:w-auto"
+            className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 via-accent to-amber-600 px-4 text-base font-semibold text-white shadow-card transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 lg:min-h-[44px] lg:w-auto lg:rounded-md lg:bg-accent lg:text-sm"
           >
             <PlusIcon />
             Etkinlik oluştur
@@ -472,7 +502,71 @@ export default function EventsList({ session }: { session: Session }) {
         ) : (
           filteredEvents.length === 0 ? (
             <div className="mt-6 rounded-xl border border-canvas-border bg-canvas-surface px-4 py-8 text-center shadow-card"><p className="text-sm font-medium text-ink">Bu koordinatörlüğe ait etkinlik bulunmuyor.</p><button type="button" onClick={() => setSelectedCoordinatorRoleId('all')} className="mt-3 min-h-[44px] rounded-md px-3 text-sm font-medium text-brand-dark">Tüm etkinlikleri göster</button></div>
-          ) : <ul className="mt-6 grid gap-3">
+          ) : <>
+          <ul className="mt-5 grid grid-cols-2 gap-2.5 lg:hidden">
+            {filteredEvents.map((event) => {
+              const ownerRolePresentation = coordinatorRolePresentation(event.ownerRoleSlug, event.ownerRoleName ?? '')
+              const displayDate = eventDisplayDate(event)
+
+              return (
+                <li key={event.id} className={`relative flex min-h-[168px] flex-col rounded-xl border shadow-card ${event.deletedAt ? 'border-red-200 bg-red-50/40' : 'border-canvas-border bg-canvas-surface'}`}>
+                  <div className="flex flex-1 flex-col overflow-hidden rounded-xl p-3">
+                    <div className="flex flex-wrap gap-1.5 text-[11px] leading-4">
+                      <span className={`rounded-full px-2 py-1 font-medium ${statusClass(event.eventStatusSlug)}`}>{event.eventStatus}</span>
+                      {event.ownerRoleName ? (
+                        <span className={`max-w-full truncate rounded-full border px-2 py-1 font-semibold ${ownerRolePresentation.softClass}`} title={event.ownerRoleName}>
+                          {ownerRolePresentation.shortLabel}
+                        </span>
+                      ) : null}
+                      {event.deletedAt ? <span className="rounded-full border border-red-200 bg-red-50 px-2 py-1 font-medium text-red-700">Pasif</span> : null}
+                    </div>
+
+                    <p className="mt-3 truncate text-xs text-ink-soft" title={`Sorumlu: ${event.ownerName}`}>Sorumlu: {event.ownerName}</p>
+
+                    {event.deletedAt ? (
+                      <div className="flex flex-1 flex-col">
+                        <h2 className="mt-3 line-clamp-2 break-words text-base font-semibold leading-5 text-ink">{event.title}</h2>
+                        <div className={`mt-auto flex items-center gap-2 border-t border-canvas-border pt-2 text-xs text-ink-soft ${isSuperAdmin ? 'pr-9' : ''}`}>
+                          <span className="shrink-0 text-brand-dark"><CalendarIcon /></span>
+                          <span>{formatDate(displayDate)}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <Link to={`/app/etkinlikler/${event.id}`} aria-label={`${event.title} etkinliğini aç`} className="flex flex-1 flex-col rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                        <h2 className="mt-3 line-clamp-2 break-words text-base font-semibold leading-5 text-ink">{event.title}</h2>
+                        <div className={`mt-auto flex items-center gap-2 border-t border-canvas-border pt-2 text-xs text-ink-soft ${isSuperAdmin ? 'pr-9' : ''}`}>
+                          <span className="shrink-0 text-brand-dark"><CalendarIcon /></span>
+                          <span>{formatDate(displayDate)}</span>
+                        </div>
+                      </Link>
+                    )}
+                  </div>
+
+                  {isSuperAdmin ? (
+                    <>
+                      <button
+                        type="button"
+                        aria-label={`${event.title} için yönetim işlemlerini göster`}
+                        aria-expanded={mobileActionEventId === event.id}
+                        onClick={() => setMobileActionEventId((currentId) => currentId === event.id ? null : event.id)}
+                        className="absolute bottom-0.5 right-0.5 z-10 flex h-11 w-11 items-center justify-center rounded-full text-ink-soft hover:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      >
+                        <MoreIcon />
+                      </button>
+                      {mobileActionEventId === event.id ? (
+                        <div className="absolute bottom-11 right-2 z-20 grid w-40 overflow-hidden rounded-lg border border-canvas-border bg-canvas-surface shadow-xl">
+                          <button type="button" onClick={() => { setMobileActionEventId(null); void toggleEventActive(event) }} disabled={updatingEventId === event.id} className={`min-h-[44px] px-3 text-left text-xs font-medium disabled:opacity-50 ${event.deletedAt ? 'text-brand-dark' : 'text-danger'}`}>{updatingEventId === event.id ? 'İşleniyor…' : event.deletedAt ? 'Yeniden aktifleştir' : 'Pasifleştir'}</button>
+                          {event.deletedAt ? <button type="button" onClick={() => { setMobileActionEventId(null); setSuccessMessage(null); setDeleteError(null); setDeleteTarget(event) }} className="min-h-[44px] border-t border-canvas-border px-3 text-left text-xs font-medium text-danger">Kalıcı sil</button> : null}
+                        </div>
+                      ) : null}
+                    </>
+                  ) : null}
+                </li>
+              )
+            })}
+          </ul>
+
+          <ul className="mt-6 hidden gap-3 lg:grid">
             {filteredEvents.map((event) => {
               const finalDate = event.confirmedDate ?? event.estimatedDate
               const finalDateLabel = event.confirmedDate ? 'Kesin tarih' : 'Tahmini tarih'
@@ -535,6 +629,7 @@ export default function EventsList({ session }: { session: Session }) {
               )
             })}
           </ul>
+          </>
         )}
       </main>
 
