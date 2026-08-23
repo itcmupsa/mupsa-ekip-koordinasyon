@@ -1,36 +1,9 @@
 import { NavLink, useLocation } from 'react-router-dom'
+import NavigationIcon from './navigation/NavigationIcon'
 
 interface MobileBottomNavigationProps {
   isMoreOpen: boolean
   onMoreClick: () => void
-}
-
-function HomeIcon({ active }: { active: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.75} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
-      <path d="M3 11.5 12 4l9 7.5" />
-      <path d="M5.5 10v9a1 1 0 0 0 1 1H10v-6h4v6h3.5a1 1 0 0 0 1-1v-9" />
-    </svg>
-  )
-}
-
-function TasksIcon({ active }: { active: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.75} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
-      <rect x="5" y="3.5" width="14" height="17" rx="2" />
-      <path d="M9 3.5V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v.5" />
-      <path d="m8.5 11.5 2 2L15 9" />
-    </svg>
-  )
-}
-
-function CalendarIcon({ active }: { active: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.75} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
-      <rect x="3.5" y="4.5" width="17" height="16" rx="2" />
-      <path d="M3.5 9.5h17M8 3v3M16 3v3M7.5 13.5h3v3h-3z" />
-    </svg>
-  )
 }
 
 function MoreIcon({ active }: { active: boolean }) {
@@ -64,13 +37,13 @@ export default function MobileBottomNavigation({ isMoreOpen, onMoreClick }: Mobi
     >
       <div className="flex items-stretch justify-between px-2 py-1.5">
         <NavLink to="/app" end className={({ isActive }) => itemClass(isActive)}>
-          {({ isActive }) => <><HomeIcon active={isActive} /><span>Ana Sayfa</span></>}
+          {({ isActive }) => <><NavigationIcon name="home" className="h-5 w-5" strokeWidth={isActive ? 2 : 1.75} /><span>Ana Sayfa</span></>}
         </NavLink>
         <NavLink to="/app/gorevler" className={({ isActive }) => itemClass(isActive)}>
-          {({ isActive }) => <><TasksIcon active={isActive} /><span>Görevler</span></>}
+          {({ isActive }) => <><NavigationIcon name="tasks" className="h-5 w-5" strokeWidth={isActive ? 2 : 1.75} /><span>Görevler</span></>}
         </NavLink>
         <NavLink to="/app/takvim" className={({ isActive }) => itemClass(isActive)}>
-          {({ isActive }) => <><CalendarIcon active={isActive} /><span>Takvim</span></>}
+          {({ isActive }) => <><NavigationIcon name="calendar" className="h-5 w-5" strokeWidth={isActive ? 2 : 1.75} /><span>Takvim</span></>}
         </NavLink>
         <button
           type="button"
