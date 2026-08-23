@@ -108,23 +108,6 @@ function CalendarIcon() {
   )
 }
 
-function ClockIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
-      <circle cx="12" cy="12" r="8.5" />
-      <path d="M12 7.5v5l3 2" />
-    </svg>
-  )
-}
-
-function ChevronIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
-      <path d="m9 5 7 7-7 7" />
-    </svg>
-  )
-}
-
 function MoreIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5" aria-hidden="true">
@@ -460,13 +443,13 @@ export default function EventsList({ session }: { session: Session }) {
               </div>
             </div>
 
-            <div className="-mx-4 mt-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 sm:-mx-5 sm:px-5 lg:mx-0 lg:grid lg:grid-cols-4 lg:overflow-visible lg:px-0" role="radiogroup" aria-label="Etkinlikleri koordinatörlüğe göre filtrele">
+            <div className="-mx-4 mt-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 sm:-mx-5 sm:px-5 lg:mx-0 lg:flex lg:flex-wrap lg:gap-4 lg:overflow-visible lg:px-0" role="radiogroup" aria-label="Etkinlikleri koordinatörlüğe göre filtrele">
               <button
                 type="button"
                 role="radio"
                 aria-checked={selectedCoordinatorRoleId === 'all'}
                 onClick={() => setSelectedCoordinatorRoleId('all')}
-                className={`flex min-h-[52px] w-auto min-w-max snap-start items-center gap-2 rounded-xl border px-4 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 lg:min-h-[64px] lg:w-full ${selectedCoordinatorRoleId === 'all' ? 'border-brand bg-brand-soft text-brand-dark' : 'border-canvas-border bg-canvas-surface text-ink hover:border-brand/40'}`}
+                className={`flex min-h-[52px] w-auto min-w-max snap-start items-center gap-2 rounded-xl border px-4 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 lg:min-h-[52px] lg:w-60 ${selectedCoordinatorRoleId === 'all' ? 'border-brand bg-brand-soft text-brand-dark' : 'border-canvas-border bg-canvas-surface text-ink hover:border-brand/40'}`}
               >
                 <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${selectedCoordinatorRoleId === 'all' ? 'bg-brand-dark text-white' : 'bg-canvas text-ink-soft'}`}>{selectedCoordinatorRoleId === 'all' ? <CheckIcon /> : events.length}</span>
                 <span>Tümü</span>
@@ -482,7 +465,7 @@ export default function EventsList({ session }: { session: Session }) {
                     aria-checked={isSelected}
                     title={role.name}
                     onClick={() => setSelectedCoordinatorRoleId(role.id)}
-                    className={`flex min-h-[52px] w-auto min-w-max snap-start items-center gap-2 rounded-xl border px-4 text-left text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 lg:min-h-[64px] lg:w-full lg:min-w-0 ${isSelected ? presentation.selectedClass : presentation.softClass}`}
+                    className={`flex min-h-[52px] w-auto min-w-max snap-start items-center gap-2 rounded-xl border px-4 text-left text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 lg:min-h-[52px] lg:w-60 lg:min-w-0 ${isSelected ? presentation.selectedClass : presentation.softClass}`}
                   >
                     <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${isSelected ? `${presentation.dotClass} text-white` : 'bg-white/80'}`}>{isSelected ? <CheckIcon /> : role.count}</span>
                     <span className="whitespace-nowrap lg:whitespace-normal">{presentation.shortLabel}</span>
@@ -566,65 +549,43 @@ export default function EventsList({ session }: { session: Session }) {
             })}
           </ul>
 
-          <ul className="mt-6 hidden gap-3 lg:grid">
+          <ul className="mt-6 hidden grid-cols-3 gap-4 lg:grid">
             {filteredEvents.map((event) => {
-              const finalDate = event.confirmedDate ?? event.estimatedDate
-              const finalDateLabel = event.confirmedDate ? 'Kesin tarih' : 'Tahmini tarih'
               const ownerRolePresentation = coordinatorRolePresentation(event.ownerRoleSlug, event.ownerRoleName ?? '')
+              const displayDate = eventDisplayDate(event)
 
               return (
-                <li key={event.id} className={`overflow-hidden rounded-xl border shadow-card ${event.deletedAt ? 'border-red-200 bg-red-50/40' : 'border-canvas-border bg-canvas-surface'}`}>
-                  <div className="group block min-h-[44px] p-4 sm:p-5">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2 text-xs">
-                          <span className={`rounded-full px-2.5 py-1 font-medium ${statusClass(event.eventStatusSlug)}`}>{event.eventStatus}</span>
-                          {event.deletedAt ? <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 font-medium text-red-700">Pasif etkinlik</span> : null}
-                          <span className="max-w-full truncate rounded-full bg-canvas px-2.5 py-1 font-medium text-ink-soft" title={`Sorumlu: ${event.ownerName}`}>
-                            Sorumlu: {event.ownerName}
-                          </span>
-                          {event.ownerRoleName ? (
-                            <span className={`inline-flex max-w-full items-center gap-1.5 truncate rounded-full border px-2.5 py-1 font-semibold ${ownerRolePresentation.softClass}`} title={event.ownerRoleName}>
-                              <span className={`h-2 w-2 shrink-0 rounded-full ${ownerRolePresentation.dotClass}`} />
-                              {ownerRolePresentation.shortLabel}
-                            </span>
-                          ) : null}
-                        </div>
-
-                        <h2 className="mt-3 break-words text-base font-semibold text-ink sm:text-lg">{event.title}</h2>
-                        {event.description ? (
-                          <p className="mt-2 line-clamp-2 whitespace-pre-wrap break-words text-sm leading-5 text-ink-soft">
-                            {event.description}
-                          </p>
-                        ) : null}
-
-                        <dl className="mt-4 grid gap-2 border-t border-canvas-border pt-3 text-sm text-ink-soft sm:grid-cols-2 sm:gap-4">
-                          <div className="flex items-start gap-2">
-                            <span className="mt-0.5 shrink-0 text-brand-dark"><CalendarIcon /></span>
-                            <div>
-                              <dt className="font-medium text-ink">Planlama</dt>
-                              <dd>{formatDate(event.planningDate)}</dd>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <span className="mt-0.5 shrink-0 text-brand-dark"><ClockIcon /></span>
-                            <div>
-                              <dt className="font-medium text-ink">{finalDateLabel}</dt>
-                              <dd>{formatDate(finalDate)}</dd>
-                            </div>
-                          </div>
-                        </dl>
+                <li key={event.id} className={`flex min-h-[176px] flex-col overflow-hidden rounded-xl border shadow-card ${event.deletedAt ? 'border-red-200 bg-red-50/40' : 'border-canvas-border bg-canvas-surface'}`}>
+                  {event.deletedAt ? (
+                    <div className="flex flex-1 flex-col p-4">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className={`rounded-full px-2.5 py-1 font-medium ${statusClass(event.eventStatusSlug)}`}>{event.eventStatus}</span>
+                        {event.ownerRoleName ? <span className={`inline-flex max-w-full items-center gap-1.5 truncate rounded-full border px-2.5 py-1 font-semibold ${ownerRolePresentation.softClass}`} title={event.ownerRoleName}><span className={`h-2 w-2 shrink-0 rounded-full ${ownerRolePresentation.dotClass}`} />{ownerRolePresentation.shortLabel}</span> : null}
+                        <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 font-medium text-red-700">Pasif</span>
                       </div>
+                      <p className="mt-3 truncate text-sm text-ink-soft" title={`Sorumlu: ${event.ownerName}`}>Sorumlu: {event.ownerName}</p>
+                      <h2 className="mt-3 line-clamp-2 break-words text-lg font-semibold leading-6 text-ink">{event.title}</h2>
+                    </div>
+                  ) : (
+                    <Link to={`/app/etkinlikler/${event.id}`} aria-label={`${event.title} etkinliğini aç`} className="flex flex-1 flex-col p-4 transition hover:bg-canvas/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className={`rounded-full px-2.5 py-1 font-medium ${statusClass(event.eventStatusSlug)}`}>{event.eventStatus}</span>
+                        {event.ownerRoleName ? <span className={`inline-flex max-w-full items-center gap-1.5 truncate rounded-full border px-2.5 py-1 font-semibold ${ownerRolePresentation.softClass}`} title={event.ownerRoleName}><span className={`h-2 w-2 shrink-0 rounded-full ${ownerRolePresentation.dotClass}`} />{ownerRolePresentation.shortLabel}</span> : null}
+                      </div>
+                      <p className="mt-3 truncate text-sm text-ink-soft" title={`Sorumlu: ${event.ownerName}`}>Sorumlu: {event.ownerName}</p>
+                      <h2 className="mt-3 line-clamp-2 break-words text-lg font-semibold leading-6 text-ink">{event.title}</h2>
+                    </Link>
+                  )}
 
-                      {!event.deletedAt ? <Link to={`/app/etkinlikler/${event.id}`} aria-label={`${event.title} etkinliğini aç`} className="flex min-h-[44px] shrink-0 items-center rounded-md px-2 text-ink-soft transition-transform hover:translate-x-0.5 hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"><ChevronIcon /></Link> : null}
-                    </div>
+                  <div className="flex min-h-[48px] items-center justify-between gap-2 border-t border-canvas-border px-4 py-2 text-sm text-ink-soft">
+                    <span className="flex min-w-0 items-center gap-2"><span className="shrink-0 text-brand-dark"><CalendarIcon /></span><span className="truncate">{formatDate(displayDate)}</span></span>
+                    {isSuperAdmin ? (
+                      <span className="flex shrink-0 items-center gap-1">
+                        <button type="button" onClick={() => void toggleEventActive(event)} disabled={updatingEventId === event.id} className={`min-h-[36px] rounded-md px-2 text-xs font-medium disabled:opacity-50 ${event.deletedAt ? 'text-brand-dark hover:bg-brand-soft' : 'text-danger hover:bg-danger-soft'}`}>{updatingEventId === event.id ? 'İşleniyor…' : event.deletedAt ? 'Aktifleştir' : 'Pasifleştir'}</button>
+                        {event.deletedAt ? <button type="button" onClick={() => { setSuccessMessage(null); setDeleteError(null); setDeleteTarget(event) }} className="min-h-[36px] rounded-md px-2 text-xs font-medium text-danger hover:bg-danger-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger">Kalıcı sil</button> : null}
+                      </span>
+                    ) : null}
                   </div>
-                  {isSuperAdmin ? (
-                    <div className="flex flex-wrap justify-end gap-2 border-t border-canvas-border bg-canvas/40 px-4 py-2 sm:px-5">
-                      <button type="button" onClick={() => void toggleEventActive(event)} disabled={updatingEventId === event.id} className={`min-h-[44px] rounded-lg px-3 text-sm font-medium disabled:opacity-50 ${event.deletedAt ? 'text-brand-dark hover:bg-brand-soft' : 'text-danger hover:bg-danger-soft'}`}>{updatingEventId === event.id ? 'İşleniyor…' : event.deletedAt ? 'Yeniden aktifleştir' : 'Pasifleştir'}</button>
-                      {event.deletedAt ? <button type="button" onClick={() => { setSuccessMessage(null); setDeleteError(null); setDeleteTarget(event) }} className="min-h-[44px] rounded-lg px-3 text-sm font-medium text-danger hover:bg-danger-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger">Kalıcı sil</button> : null}
-                    </div>
-                  ) : null}
                 </li>
               )
             })}
