@@ -187,6 +187,7 @@ export default function Calendar({ session }: { session: Session }) {
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<CalendarFilter>('all')
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false)
   const [events, setEvents] = useState<EventRow[]>([])
   const [awarenessPosts, setAwarenessPosts] = useState<AwarenessRow[]>([])
   const [manualEntries, setManualEntries] = useState<ManualEntry[]>([])
@@ -453,13 +454,13 @@ export default function Calendar({ session }: { session: Session }) {
   ], [awarenessPosts.length, events.length, manualEntries, tasks.length])
 
   const upcomingItems = useMemo(() => {
-    const startKey = selectedDate ?? dateKey(new Date())
+    const now = new Date()
+    const startKey = dateKey(new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())))
     return Array.from(filteredItemsByDate.entries())
       .filter(([key]) => key >= startKey)
       .flatMap(([key, items]) => items.map((item) => ({ key, item })))
       .sort((first, second) => first.key.localeCompare(second.key) || first.item.label.localeCompare(second.item.label, 'tr-TR'))
-      .slice(0, 5)
-  }, [filteredItemsByDate, selectedDate])
+  }, [filteredItemsByDate])
 
   function changeMonth(amount: number) {
     const next = new Date(Date.UTC(viewYear, viewMonth + amount, 1))
@@ -670,7 +671,7 @@ export default function Calendar({ session }: { session: Session }) {
                 <h2 className="text-lg font-semibold capitalize text-ink">{monthLabel(viewYear, viewMonth)}</h2>
                 <p className="mt-1 hidden text-xs text-ink-soft lg:block">{events.length} etkinlik · {tasks.length} görev · {awarenessPosts.length} farkındalık</p>
               </div>
-              <button type="button" onClick={() => { const today = new Date(); const key = dateKey(new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()))); setViewYear(today.getFullYear()); setViewMonth(today.getMonth()); setSelectedDate(key) }} className="hidden min-h-[40px] items-center gap-2 rounded-lg border border-canvas-border px-3 text-sm font-medium text-ink-soft hover:bg-canvas lg:flex"><TodayIcon />Bugün</button>
+              <button type="button" onClick={() => { const today = new Date(); const key = dateKey(new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()))); setViewYear(today.getFullYear()); setViewMonth(today.getMonth()); setSelectedDate(key) }} className="flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-lg border border-canvas-border px-2 text-xs font-medium text-ink-soft hover:bg-canvas sm:px-3 sm:text-sm"><TodayIcon />Bugün</button>
               <button type="button" onClick={() => changeMonth(1)} aria-label="Sonraki ay" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-canvas-border text-ink-soft hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"><ChevronIcon direction="right" /></button>
             </div>
 
@@ -711,18 +712,17 @@ export default function Calendar({ session }: { session: Session }) {
               <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">Seçili gün</p>
               <h2 className="mt-1 text-base font-semibold text-ink">{selectedDate ? formatDate(selectedDate) : 'Bir gün seçin'}</h2>
               {!selectedDate || selectedItems.length === 0 ? (
-                <>
-                  <p className="mt-4 rounded-lg bg-canvas px-3 py-4 text-sm text-ink-soft lg:hidden">Bu gün için kayıt bulunmuyor.</p>
-                  <div className="mt-6 hidden text-center lg:block">
-                    <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-soft text-brand-dark"><TodayIcon /></span>
-                    <p className="mt-4 font-semibold text-ink">Bu gün planlanan kayıt yok.</p>
+                <div className="mt-5 grid grid-cols-[4rem_minmax(0,1fr)] items-center gap-4 lg:block lg:text-center">
+                  <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-soft text-brand-dark"><TodayIcon /></span>
+                  <div>
+                    <p className="font-semibold text-ink">Bu gün planlanan kayıt yok.</p>
                     <p className="mt-1 text-xs text-ink-soft">Güne harika bir başlangıç yapabilirsin.</p>
-                    <div className="mt-5 grid grid-cols-2 gap-2">
-                      <Link to="/app/etkinlikler?create=1" className="flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-brand-dark px-3 text-sm font-medium text-white hover:brightness-95"><PlusIcon />Etkinlik ekle</Link>
-                      <Link to="/app/gorevler?create=1" className="flex min-h-[44px] items-center justify-center gap-2 rounded-md border border-sky-200 px-3 text-sm font-medium text-sky-700 hover:bg-sky-50"><PlusIcon />Görev ekle</Link>
+                    <div className="mt-4 grid grid-cols-2 gap-2 lg:mt-5">
+                      <Link to="/app/etkinlikler?create=1" className="flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-brand-dark px-2 text-xs font-medium text-white hover:brightness-95 sm:px-3 sm:text-sm"><PlusIcon />Etkinlik ekle</Link>
+                      <Link to="/app/gorevler?create=1" className="flex min-h-[44px] items-center justify-center gap-2 rounded-md border border-sky-200 px-2 text-xs font-medium text-sky-700 hover:bg-sky-50 sm:px-3 sm:text-sm"><PlusIcon />Görev ekle</Link>
                     </div>
                   </div>
-                </>
+                </div>
               ) : (
                 <ul className="mt-4 space-y-2">
                   {selectedItems.map((item) => {
@@ -738,11 +738,11 @@ export default function Calendar({ session }: { session: Session }) {
               )}
             </section>
 
-            <section className="hidden rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card lg:block">
+            <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card">
               <h2 className="text-sm font-semibold text-ink">Yaklaşan kayıtlar</h2>
               {upcomingItems.length === 0 ? <p className="mt-4 text-sm text-ink-soft">Yaklaşan kayıt bulunmuyor.</p> : (
                 <ul className="mt-3 divide-y divide-canvas-border">
-                  {upcomingItems.map(({ key, item }) => {
+                  {(showAllUpcoming ? upcomingItems : upcomingItems.slice(0, 5)).map(({ key, item }) => {
                     const date = parseDateOnly(key)
                     const day = date?.getUTCDate()
                     const month = date ? new Intl.DateTimeFormat('tr-TR', { month: 'short', timeZone: 'UTC' }).format(date).toLocaleUpperCase('tr-TR') : ''
@@ -757,6 +757,7 @@ export default function Calendar({ session }: { session: Session }) {
                   })}
                 </ul>
               )}
+              {upcomingItems.length > 5 ? <button type="button" onClick={() => setShowAllUpcoming((current) => !current)} className="mt-2 min-h-[40px] text-xs font-semibold text-sky-700 hover:underline">{showAllUpcoming ? 'Daha az göster' : 'Tümünü görüntüle'}</button> : null}
             </section>
           </aside>
         </div>
