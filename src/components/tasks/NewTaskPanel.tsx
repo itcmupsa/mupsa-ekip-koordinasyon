@@ -46,7 +46,7 @@ interface NewTaskPanelProps {
 }
 
 const FOCUSABLE_SELECTOR = 'button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
-const fieldClass = 'min-h-[44px] rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2.5 font-normal text-ink focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/15'
+const fieldClass = 'min-h-[48px] w-full rounded-xl border border-canvas-border bg-canvas-surface px-3.5 py-3 font-normal text-ink shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition focus-visible:border-brand focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-brand/10'
 
 function CloseIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
@@ -58,6 +58,22 @@ function TaskIcon() {
 
 function PersonIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><circle cx="12" cy="8" r="3.25" /><path d="M5.5 20a6.5 6.5 0 0 1 13 0" /></svg>
+}
+
+function LinkIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l2-2a5 5 0 0 0-7.07-7.07l-1.15 1.15" /><path d="M14 11a5 5 0 0 0-7.54-.54l-2 2a5 5 0 0 0 7.07 7.07l1.14-1.14" /></svg>
+}
+
+function CalendarIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></svg>
+}
+
+function FlagIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><path d="M5 21V4m0 0h10l-1.5 3L15 10H5" /></svg>
+}
+
+function InfoIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v5m0-8h.01" /></svg>
 }
 
 export default function NewTaskPanel({
@@ -140,36 +156,56 @@ export default function NewTaskPanel({
     onSubmit()
   }
 
+  const selectedContextLabel = contextSelection === 'standalone'
+    ? 'Bağımsız görev'
+    : events.find((item) => contextSelection === contextKeyFor('event', item.id))?.title
+      ?? awarenessPosts.find((item) => contextSelection === contextKeyFor('awareness', item.id))?.title
+      ?? 'Henüz seçilmedi'
+  const selectedPriorityLabel = priorities.find((item) => item.value === priority)?.label ?? 'Normal'
+  const formattedDeadline = deadline
+    ? new Intl.DateTimeFormat('tr-TR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(deadline))
+    : 'Tarih seçilmedi'
+
   return (
     <div className="fixed inset-0 z-50">
       <button type="button" aria-label="Yeni görev panelini kapat" tabIndex={-1} onClick={onClose} className="absolute inset-y-0 left-60 right-0 hidden bg-ink/35 backdrop-blur-[1px] lg:block" />
-      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="new-task-title" className="absolute inset-0 flex flex-col bg-canvas-surface shadow-2xl lg:inset-y-0 lg:left-auto lg:right-0 lg:w-full lg:max-w-[640px]">
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-canvas-border bg-canvas-surface px-4 pb-3 lg:px-6 lg:py-5" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)' }}>
-          <div className="flex min-w-0 items-center gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-dark"><TaskIcon /></span><div className="min-w-0"><h2 id="new-task-title" className="truncate text-base font-semibold text-ink lg:text-lg">Yeni görev oluştur</h2><p className="mt-0.5 text-xs text-ink-soft">Görev bilgilerini, zamanını ve sorumlularını belirleyin.</p></div></div>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="new-task-title" className="absolute inset-0 flex flex-col bg-canvas-surface shadow-2xl lg:inset-y-0 lg:left-auto lg:right-0 lg:w-full lg:max-w-[760px]">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-canvas-border bg-gradient-to-r from-brand-soft/70 via-canvas-surface to-canvas-surface px-4 pb-3 lg:px-7 lg:py-5" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)' }}>
+          <div className="flex min-w-0 items-center gap-3"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand text-white shadow-card"><TaskIcon /></span><div className="min-w-0"><h2 id="new-task-title" className="truncate text-lg font-semibold text-ink lg:text-xl">Yeni görev oluştur</h2><p className="mt-0.5 text-xs text-ink-soft lg:text-sm">Görevin kapsamını, zamanını ve görev dağılımını tek adımda belirleyin.</p></div></div>
           <button ref={closeButtonRef} type="button" onClick={onClose} aria-label="Kapat" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-canvas-border text-ink-soft hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"><CloseIcon /></button>
         </div>
 
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <div className="flex-1 overflow-y-auto px-4 py-5 lg:px-6 lg:py-6">
-            <div className="grid gap-4">
-              <section className="rounded-xl border border-canvas-border bg-canvas p-4 sm:p-5">
-                <div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand-dark"><TaskIcon /></span><div><h3 className="text-sm font-semibold text-ink">Görev bilgileri</h3><p className="mt-0.5 text-xs text-ink-soft">Bağlı kayıt, görev adı ve açıklama.</p></div></div>
-                <div className="mt-4 grid gap-4">
+          <div className="flex-1 overflow-y-auto bg-canvas px-4 py-5 lg:px-7 lg:py-6">
+            <div className="mb-5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+              <div className="flex min-w-0 items-center gap-3 rounded-xl border border-brand/15 bg-canvas-surface p-3 shadow-[0_3px_12px_rgba(15,90,76,0.05)]"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-dark"><LinkIcon /></span><div className="min-w-0"><p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Bağlı kayıt</p><p className="truncate text-sm font-semibold text-ink">{selectedContextLabel}</p></div></div>
+              <div className="flex min-w-0 items-center gap-3 rounded-xl border border-blue-100 bg-canvas-surface p-3 shadow-[0_3px_12px_rgba(15,90,76,0.05)]"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><CalendarIcon /></span><div className="min-w-0"><p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Son tarih</p><p className="truncate text-sm font-semibold text-ink">{formattedDeadline}</p></div></div>
+              <div className="flex min-w-0 items-center gap-3 rounded-xl border border-amber-100 bg-canvas-surface p-3 shadow-[0_3px_12px_rgba(15,90,76,0.05)]"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-700"><FlagIcon /></span><div className="min-w-0"><p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Öncelik</p><p className="truncate text-sm font-semibold text-ink">{selectedPriorityLabel}</p></div></div>
+            </div>
+
+            <div className="grid gap-5">
+              <section className="overflow-hidden rounded-2xl border border-canvas-border bg-canvas-surface shadow-[0_4px_18px_rgba(15,23,42,0.04)]">
+                <div className="flex items-center gap-3 border-b border-canvas-border bg-brand-soft/35 px-4 py-3.5 sm:px-5"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-white"><TaskIcon /></span><div><h3 className="text-sm font-semibold text-ink">1. Görevin kapsamı</h3><p className="mt-0.5 text-xs text-ink-soft">Görevin hangi çalışmaya ait olduğunu ve beklenen işi tanımlayın.</p></div></div>
+                <div className="grid gap-4 p-4 sm:p-5">
                   <label className="grid gap-1.5 text-sm font-medium text-ink">Bağlı kayıt<select value={contextSelection} onChange={(event) => onContextSelectionChange(event.target.value)} className={fieldClass}>{isSuperAdmin ? <option value="standalone">Bağımsız görev</option> : null}{events.length > 0 ? <optgroup label="Etkinlikler">{events.map((item) => <option key={item.id} value={contextKeyFor('event', item.id)}>{item.title}</option>)}</optgroup> : null}{awarenessPosts.length > 0 ? <optgroup label="Farkındalıklar">{awarenessPosts.map((item) => <option key={item.id} value={contextKeyFor('awareness', item.id)}>{item.title}</option>)}</optgroup> : null}</select></label>
-                  <label className="grid gap-1.5 text-sm font-medium text-ink">Görev adı<input value={title} onChange={(event) => onTitleChange(event.target.value)} maxLength={200} placeholder="Görev adını yazın" className={fieldClass} /></label>
-                  <label className="grid gap-1.5 text-sm font-medium text-ink"><span>Açıklama <span className="text-xs font-normal text-ink-soft">(isteğe bağlı)</span></span><textarea value={description} onChange={(event) => onDescriptionChange(event.target.value)} rows={4} placeholder="Görevin kapsamını açıklayın" className={`${fieldClass} resize-y`} /></label>
-                  <div className="grid gap-4 sm:grid-cols-2"><label className="grid gap-1.5 text-sm font-medium text-ink">Son tarih<input type="datetime-local" value={deadline} onChange={(event) => onDeadlineChange(event.target.value)} className={fieldClass} /></label><label className="grid gap-1.5 text-sm font-medium text-ink">Öncelik<select value={priority} onChange={(event) => onPriorityChange(event.target.value)} className={fieldClass}>{priorities.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></div>
+                  <label className="grid gap-1.5 text-sm font-medium text-ink">Görev adı<input value={title} onChange={(event) => onTitleChange(event.target.value)} maxLength={200} placeholder="Örn. Etkinlik afişini tamamla" className={fieldClass} /></label>
+                  <label className="grid gap-1.5 text-sm font-medium text-ink"><span className="flex items-center justify-between"><span>Açıklama <span className="text-xs font-normal text-ink-soft">(isteğe bağlı)</span></span><span className="text-xs font-normal text-ink-soft">{description.length} karakter</span></span><textarea value={description} onChange={(event) => onDescriptionChange(event.target.value)} rows={4} placeholder="Görevin kapsamını, beklenen çıktıyı ve önemli notları yazın" className={`${fieldClass} resize-y`} /></label>
                 </div>
               </section>
 
-              <section className="rounded-xl border border-canvas-border bg-canvas p-4 sm:p-5">
-                <div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-soft text-amber-800"><PersonIcon /></span><div><h3 className="text-sm font-semibold text-ink">Sorumluluklar</h3><p className="mt-0.5 text-xs text-ink-soft">Görevde yer alacak ekip üyeleri.</p></div></div>
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <label className="grid gap-1.5 text-sm font-medium text-ink sm:col-span-2">Ana sorumlu<select value={primaryProfileId} onChange={(event) => onPrimaryProfileIdChange(event.target.value)} className={fieldClass}><option value="">Seçiniz</option>{members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
-                  <label className="grid gap-1.5 text-sm font-medium text-ink">Destekleyen<select value={supportingProfileId} onChange={(event) => onSupportingProfileIdChange(event.target.value)} className={fieldClass}><option value="">Seçiniz</option>{members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
-                  <label className="grid gap-1.5 text-sm font-medium text-ink">Bilgilendirilen<select value={informedProfileId} onChange={(event) => onInformedProfileIdChange(event.target.value)} className={fieldClass}><option value="">Seçiniz</option>{members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
+              <section className="overflow-hidden rounded-2xl border border-canvas-border bg-canvas-surface shadow-[0_4px_18px_rgba(15,23,42,0.04)]">
+                <div className="flex items-center gap-3 border-b border-canvas-border bg-blue-50/50 px-4 py-3.5 sm:px-5"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white"><CalendarIcon /></span><div><h3 className="text-sm font-semibold text-ink">2. Zaman ve öncelik</h3><p className="mt-0.5 text-xs text-ink-soft">Teslim zamanını ve görevin önem seviyesini belirleyin.</p></div></div>
+                <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5"><label className="grid gap-1.5 text-sm font-medium text-ink">Son tarih<input type="datetime-local" value={deadline} onChange={(event) => onDeadlineChange(event.target.value)} className={fieldClass} /></label><label className="grid gap-1.5 text-sm font-medium text-ink">Öncelik<select value={priority} onChange={(event) => onPriorityChange(event.target.value)} className={fieldClass}>{priorities.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></div>
+              </section>
+
+              <section className="overflow-hidden rounded-2xl border border-canvas-border bg-canvas-surface shadow-[0_4px_18px_rgba(15,23,42,0.04)]">
+                <div className="flex items-center gap-3 border-b border-canvas-border bg-amber-50/55 px-4 py-3.5 sm:px-5"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-600 text-white"><PersonIcon /></span><div><h3 className="text-sm font-semibold text-ink">3. Görev dağılımı</h3><p className="mt-0.5 text-xs text-ink-soft">Görevin sahibi ile sürece eşlik edecek kişileri seçin.</p></div></div>
+                <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5">
+                  <label className="grid gap-2 rounded-xl border border-brand/20 bg-brand-soft/25 p-3.5 text-sm font-medium text-ink sm:col-span-2"><span><span className="block font-semibold text-brand-dark">Ana sorumlu</span><span className="mt-0.5 block text-xs font-normal text-ink-soft">Görevin tamamlanmasından doğrudan sorumludur.</span></span><select value={primaryProfileId} onChange={(event) => onPrimaryProfileIdChange(event.target.value)} className={fieldClass}><option value="">Ana sorumlu seçin</option>{members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
+                  <label className="grid gap-2 rounded-xl border border-blue-100 bg-blue-50/40 p-3.5 text-sm font-medium text-ink"><span><span className="block font-semibold text-blue-800">Destekleyen</span><span className="mt-0.5 block text-xs font-normal text-ink-soft">Görevin yürütülmesine katkı sağlar.</span></span><select value={supportingProfileId} onChange={(event) => onSupportingProfileIdChange(event.target.value)} className={fieldClass}><option value="">Destekleyen seçin</option>{members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
+                  <label className="grid gap-2 rounded-xl border border-amber-100 bg-amber-50/40 p-3.5 text-sm font-medium text-ink"><span><span className="block font-semibold text-amber-800">Bilgilendirilen</span><span className="mt-0.5 block text-xs font-normal text-ink-soft">İlerlemelerden haberdar edilir.</span></span><select value={informedProfileId} onChange={(event) => onInformedProfileIdChange(event.target.value)} className={fieldClass}><option value="">Bilgilendirilen seçin</option>{members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
+                  <p className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs leading-5 text-amber-900 sm:col-span-2"><span className="mt-0.5 shrink-0"><InfoIcon /></span><span>Aynı kişi bir görevde birden fazla sorumluluk türünde seçilemez.</span></p>
                 </div>
-                <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">Aynı kişi bir görevde birden fazla sorumluluk türünde seçilemez.</p>
               </section>
             </div>
 
