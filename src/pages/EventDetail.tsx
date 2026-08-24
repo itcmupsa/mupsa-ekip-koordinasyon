@@ -880,28 +880,42 @@ function TaskCard({
       )}
 
       {(isEditingNote || Boolean(task.notes)) && (
-      <div className="mt-3 rounded-lg border border-canvas-border bg-canvas px-3 py-3">
-        <h5 className="text-sm font-semibold text-ink">Görev notu</h5>
-        {effectiveCanUpdateStatus ? (
-          isEditingNote ? (
-            <div className="mt-2 flex flex-col gap-2">
+        <div className="mt-3 overflow-hidden rounded-xl border border-canvas-border bg-canvas-surface shadow-card">
+          <div className="flex items-center justify-between gap-3 border-b border-canvas-border px-4 py-3 sm:px-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <EventIconBadge name="note" />
+              <div className="min-w-0">
+                <h5 className="text-sm font-semibold text-ink">Görev notu</h5>
+                <p className="mt-0.5 text-xs text-ink-soft">Görevle ilgili güncel bilgi ve açıklamalar.</p>
+              </div>
+            </div>
+            {effectiveCanUpdateStatus && !isEditingNote && task.notes ? (
+              <button
+                type="button"
+                onClick={() => setIsEditingNote(true)}
+                className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-brand/40 px-3 text-xs font-semibold text-brand-dark transition hover:bg-brand-soft"
+              >
+                <EventIcon name="edit" className="h-3.5 w-3.5" />
+                Düzenle
+              </button>
+            ) : null}
+          </div>
+
+          {effectiveCanUpdateStatus && isEditingNote ? (
+            <div className="p-4 sm:p-5">
+              <label className="text-xs font-semibold uppercase tracking-wide text-ink-soft" htmlFor={`task-note-${task.id}`}>
+                Not
+              </label>
               <textarea
+                id={`task-note-${task.id}`}
                 value={noteInputValue}
                 onChange={(event) => setNoteInputValue(event.target.value)}
                 disabled={isUpdatingNote}
-                rows={3}
-                className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink disabled:opacity-60"
-                placeholder="Görev notu ekleyin..."
+                rows={5}
+                className="mt-2 min-h-32 w-full resize-y rounded-xl border border-canvas-border bg-canvas px-3 py-3 text-sm leading-6 text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:cursor-not-allowed disabled:opacity-60"
+                placeholder="Görevle ilgili notunuzu buraya yazın..."
               />
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => void handleSaveNote()}
-                  disabled={isUpdatingNote}
-                  className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
-                >
-                  {isUpdatingNote ? 'Kaydediliyor…' : 'Kaydet'}
-                </button>
+              <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   onClick={() => {
@@ -909,33 +923,46 @@ function TaskCard({
                     setNoteInputValue(task.notes ?? '')
                   }}
                   disabled={isUpdatingNote}
-                  className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-brand px-5 text-sm font-semibold text-brand-dark transition hover:bg-brand-soft disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                 >
                   İptal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleSaveNote()}
+                  disabled={isUpdatingNote}
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand-dark px-6 text-sm font-semibold text-white transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                >
+                  {isUpdatingNote ? 'Kaydediliyor…' : 'Notu kaydet'}
                 </button>
               </div>
             </div>
           ) : (
-            <div className="mt-2 flex flex-col items-start gap-2">
+            <div className="p-4 sm:p-5">
               {task.notes ? (
-                <p className="whitespace-pre-wrap text-sm text-ink">{task.notes}</p>
+                <div className="rounded-xl border border-brand/10 bg-brand-soft/20 px-4 py-3.5">
+                  <p className="whitespace-pre-wrap text-sm leading-6 text-ink">{task.notes}</p>
+                </div>
               ) : (
-                <p className="text-sm italic text-ink-soft">Not eklenmemiş</p>
+                <div className="rounded-xl border border-dashed border-canvas-border bg-canvas px-4 py-7 text-center">
+                  <p className="text-sm font-medium text-ink">Henüz görev notu yok</p>
+                  <p className="mt-1 text-xs text-ink-soft">Görev işlemlerinden yeni bir not ekleyebilirsiniz.</p>
+                </div>
               )}
             </div>
-          )
-        ) : (
-          <div className="mt-2">
-            {task.notes ? (
-              <p className="whitespace-pre-wrap text-sm text-ink">{task.notes}</p>
-            ) : (
-              <p className="text-sm italic text-ink-soft">Not eklenmemiş</p>
-            )}
-          </div>
-        )}
-        {updateNoteError && <p className="mt-2 text-xs text-red-600">{updateNoteError}</p>}
-        {updateNoteSuccess && !isEditingNote && <p className="mt-2 text-xs text-green-600">{updateNoteSuccess}</p>}
-      </div>
+          )}
+
+          {updateNoteError && (
+            <p className="mx-4 mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 sm:mx-5 sm:mb-5">
+              {updateNoteError}
+            </p>
+          )}
+          {updateNoteSuccess && !isEditingNote && (
+            <p className="mx-4 mb-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 sm:mx-5 sm:mb-5">
+              {updateNoteSuccess}
+            </p>
+          )}
+        </div>
       )}
 
       {effectiveCanManageAssignments && isPanelOpen && (
