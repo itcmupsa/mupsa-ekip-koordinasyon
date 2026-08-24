@@ -4216,74 +4216,44 @@ export default function EventDetail() {
           )}
 
           {isLinkFormOpen && (
-            <div className="mt-4 rounded-md border border-canvas-border bg-canvas px-4 py-4">
-              <h3 className="text-sm font-semibold text-ink">
-                {linkFormMode === 'create' ? 'Yeni bağlantı' : 'Bağlantıyı düzenle'}
-              </h3>
-              <div className="mt-3 flex flex-col gap-4">
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="link-title" className="text-sm font-medium text-ink-soft">
-                    Bağlantı başlığı
+            <div className="mt-4 overflow-hidden rounded-xl border border-canvas-border bg-canvas shadow-card">
+              <div className="flex items-center justify-between gap-3 border-b border-canvas-border bg-canvas-surface px-4 py-3 sm:px-5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <EventIconBadge name="link" />
+                  <div className="min-w-0"><h3 className="text-sm font-semibold text-ink sm:text-base">{linkFormMode === 'create' ? 'Yeni bağlantı' : 'Bağlantıyı düzenle'}</h3><p className="mt-0.5 text-xs text-ink-soft">Etkinlikte kullanılan dış kaynağı kaydedin.</p></div>
+                </div>
+                <button type="button" onClick={closeLinkForm} disabled={isSavingLink} aria-label="Bağlantı formunu kapat" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-canvas-border text-lg text-ink-soft transition hover:bg-canvas hover:text-ink disabled:opacity-60">×</button>
+              </div>
+
+              <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]">
+                <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4">
+                  <div className="flex items-center gap-2"><EventIconBadge name="link" /><div><h4 className="text-sm font-semibold text-ink">Bağlantı bilgileri</h4><p className="mt-0.5 text-xs text-ink-soft">Kaynağın adı ve internet adresi.</p></div></div>
+                  <div className="mt-4 flex flex-col gap-4">
+                    <label htmlFor="link-title" className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                      Bağlantı başlığı
+                      <input id="link-title" type="text" value={linkTitle} onChange={(e) => setLinkTitle(e.target.value)} disabled={isSavingLink} placeholder="Örn. Başvuru formu" className="min-h-11 rounded-lg border border-canvas-border bg-canvas px-3 py-2.5 text-sm font-normal normal-case tracking-normal text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60" />
+                    </label>
+                    <label htmlFor="link-url" className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                      İnternet adresi
+                      <input id="link-url" type="url" inputMode="url" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} disabled={isSavingLink} placeholder="https://ornek.com" className="min-h-11 rounded-lg border border-canvas-border bg-canvas px-3 py-2.5 text-sm font-normal normal-case tracking-normal text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60" />
+                    </label>
+                  </div>
+                </section>
+
+                <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4">
+                  <div className="flex items-center gap-2"><EventIconBadge name="note" /><div><h4 className="text-sm font-semibold text-ink">Açıklama</h4><p className="mt-0.5 text-xs text-ink-soft">Bağlantının ne amaçla kullanıldığını belirtin.</p></div></div>
+                  <label htmlFor="link-description" className="mt-4 flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                    Açıklama <span className="normal-case tracking-normal text-ink-soft/80">(isteğe bağlı)</span>
+                    <textarea id="link-description" value={linkDescription} onChange={(e) => setLinkDescription(e.target.value)} disabled={isSavingLink} rows={5} placeholder="Kısa bir açıklama yazınız" className="min-h-32 resize-y rounded-lg border border-canvas-border bg-canvas px-3 py-3 text-sm font-normal normal-case leading-6 tracking-normal text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60" />
                   </label>
-                  <input
-                    id="link-title"
-                    type="text"
-                    value={linkTitle}
-                    onChange={(e) => setLinkTitle(e.target.value)}
-                    disabled={isSavingLink}
-                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="link-url" className="text-sm font-medium text-ink-soft">
-                    URL (http:// veya https://)
-                  </label>
-                  <input
-                    id="link-url"
-                    type="text"
-                    value={linkUrl}
-                    onChange={(e) => setLinkUrl(e.target.value)}
-                    disabled={isSavingLink}
-                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
-                    placeholder="https://ornek.com"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="link-description" className="text-sm font-medium text-ink-soft">
-                    Açıklama (İsteğe bağlı)
-                  </label>
-                  <textarea
-                    id="link-description"
-                    value={linkDescription}
-                    onChange={(e) => setLinkDescription(e.target.value)}
-                    disabled={isSavingLink}
-                    rows={2}
-                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
-                  />
-                </div>
-                {linkFormError && (
-                  <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    {linkFormError}
-                  </p>
-                )}
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => void handleSaveLink()}
-                    disabled={isSavingLink}
-                    className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
-                  >
-                    {isSavingLink ? 'Kaydediliyor…' : 'Kaydet'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={closeLinkForm}
-                    disabled={isSavingLink}
-                    className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
-                  >
-                    İptal
-                  </button>
-                </div>
+                </section>
+
+                {linkFormError && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 lg:col-span-2">{linkFormError}</p>}
+              </div>
+
+              <div className="flex flex-col-reverse gap-2 border-t border-canvas-border bg-canvas-surface px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
+                <button type="button" onClick={closeLinkForm} disabled={isSavingLink} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-brand px-5 text-sm font-semibold text-brand-dark transition hover:bg-brand-soft disabled:opacity-60 sm:w-auto">İptal</button>
+                <button type="button" onClick={() => void handleSaveLink()} disabled={isSavingLink} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand-dark px-6 text-sm font-semibold text-white transition hover:bg-brand disabled:opacity-60 sm:w-auto">{isSavingLink ? 'Kaydediliyor…' : linkFormMode === 'create' ? 'Bağlantıyı kaydet' : 'Değişiklikleri kaydet'}</button>
               </div>
             </div>
           )}
