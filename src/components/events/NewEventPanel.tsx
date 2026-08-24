@@ -21,7 +21,7 @@ type EventFormProps = Omit<NewEventPanelProps, 'isOpen' | 'onClose'> & {
 }
 
 const FOCUSABLE_SELECTOR = 'button:not([disabled]), textarea:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
-const fieldClass = 'min-h-[44px] rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2.5 font-normal text-ink placeholder:text-ink-soft/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60'
+const fieldClass = 'min-h-[44px] rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2.5 font-normal text-ink placeholder:text-ink-soft/70 focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-60'
 
 function CloseIcon() {
   return (
@@ -62,52 +62,29 @@ function EventForm({
   return (
     <form onSubmit={handleSubmit} className={desktop ? 'flex min-h-0 flex-1 flex-col' : 'mt-5'}>
       <div className={desktop ? 'flex-1 overflow-y-auto px-6 py-5' : ''}>
-        <div className="grid gap-5">
-          <label className="grid gap-1.5 text-sm font-medium text-ink">
-            Etkinlik adı
-            <input
-              value={title}
-              onChange={(event) => onTitleChange(event.target.value)}
-              placeholder="Örn. Dünya Sağlık Günü etkinliği"
-              disabled={submitting}
-              className={fieldClass}
-            />
-          </label>
+        <div className="grid gap-4">
+          <section className="rounded-xl border border-canvas-border bg-canvas p-4 sm:p-5">
+            <div className="flex items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-sm font-semibold text-brand-dark">1</span><div><h3 className="text-sm font-semibold text-ink">Temel bilgiler</h3><p className="mt-0.5 text-xs text-ink-soft">Etkinliğin adı ve kısa açıklaması.</p></div></div>
+            <div className="mt-4 grid gap-4">
+              <label className="grid gap-1.5 text-sm font-medium text-ink">
+                Etkinlik adı
+                <input value={title} onChange={(event) => onTitleChange(event.target.value)} placeholder="Örn. Dünya Sağlık Günü etkinliği" disabled={submitting} className={fieldClass} />
+              </label>
+              <label className="grid gap-1.5 text-sm font-medium text-ink">
+                <span>Açıklama <span className="text-xs font-normal text-ink-soft">(isteğe bağlı)</span></span>
+                <textarea value={description} onChange={(event) => onDescriptionChange(event.target.value)} placeholder="Etkinlik hakkında kısa bir açıklama yazın…" rows={desktop ? 4 : 5} disabled={submitting} className={`${fieldClass} resize-y`} />
+              </label>
+            </div>
+          </section>
 
-          <label className="grid gap-1.5 text-sm font-medium text-ink">
-            Açıklama (isteğe bağlı)
-            <textarea
-              value={description}
-              onChange={(event) => onDescriptionChange(event.target.value)}
-              placeholder="Etkinlik hakkında kısa bir açıklama yazın…"
-              rows={desktop ? 4 : 5}
-              disabled={submitting}
-              className={`${fieldClass} resize-y`}
-            />
-          </label>
-
-          <div className="grid gap-5 sm:grid-cols-2 sm:gap-4">
-            <label className="grid gap-1.5 text-sm font-medium text-ink">
-              Planlama tarihi
-              <input
-                type="date"
-                value={planningDate}
-                onChange={(event) => onPlanningDateChange(event.target.value)}
-                disabled={submitting}
-                className={fieldClass}
-              />
-            </label>
-            <label className="grid gap-1.5 text-sm font-medium text-ink">
-              Tahmini etkinlik tarihi
-              <input
-                type="date"
-                value={estimatedDate}
-                onChange={(event) => onEstimatedDateChange(event.target.value)}
-                disabled={submitting}
-                className={fieldClass}
-              />
-            </label>
-          </div>
+          <section className="rounded-xl border border-canvas-border bg-canvas p-4 sm:p-5">
+            <div className="flex items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-sm font-semibold text-amber-800">2</span><div><h3 className="text-sm font-semibold text-ink">Tarih planlaması</h3><p className="mt-0.5 text-xs text-ink-soft">Planlama ve tahmini etkinlik tarihleri.</p></div></div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <label className="grid gap-1.5 text-sm font-medium text-ink">Planlama tarihi<input type="date" value={planningDate} onChange={(event) => onPlanningDateChange(event.target.value)} disabled={submitting} className={fieldClass} /></label>
+              <label className="grid gap-1.5 text-sm font-medium text-ink">Tahmini etkinlik tarihi<input type="date" value={estimatedDate} onChange={(event) => onEstimatedDateChange(event.target.value)} disabled={submitting} className={fieldClass} /></label>
+            </div>
+            <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">Hazırlık başlangıç tarihi, etkinlik takvimine göre sistem tarafından otomatik hesaplanır.</p>
+          </section>
         </div>
 
         {error ? (
@@ -115,7 +92,7 @@ function EventForm({
         ) : null}
       </div>
 
-      <div className={desktop ? 'shrink-0 border-t border-canvas-border px-6 py-4' : 'mt-5'}>
+      <div className={desktop ? 'shrink-0 border-t border-canvas-border bg-canvas px-6 py-4' : 'mt-5'}>
         <button
           type="submit"
           disabled={submitting}
