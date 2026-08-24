@@ -3803,28 +3803,32 @@ export default function EventDetail() {
               </div>
               <div className="mt-4">
                 {canEdit && isEditingGeneralNote ? (
-                  <div className="flex flex-col gap-3">
-                    <textarea
-                      value={generalNoteInputValue}
-                      onChange={(event) => setGeneralNoteInputValue(event.target.value)}
-                      disabled={isSavingGeneralNote}
-                      rows={4}
-                      className="w-full rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink disabled:opacity-60"
-                      placeholder="Etkinliğin güncel özetini buraya yazabilirsiniz..."
-                    />
-                    <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => void handleSaveGeneralNote()} disabled={isSavingGeneralNote} className="min-h-[44px] rounded-md bg-ink px-4 text-sm font-medium text-canvas-surface disabled:opacity-60">
-                        {isSavingGeneralNote ? 'Kaydediliyor…' : 'Kaydet'}
-                      </button>
-                      <button type="button" onClick={() => setIsEditingGeneralNote(false)} disabled={isSavingGeneralNote} className="min-h-[44px] rounded-md border border-canvas-border px-4 text-sm font-medium text-ink-soft disabled:opacity-60">
-                        İptal
+                  <div className="overflow-hidden rounded-xl border border-canvas-border bg-canvas">
+                    <div className="p-4">
+                      <label htmlFor="event-general-note" className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Güncel özet</label>
+                      <textarea
+                        id="event-general-note"
+                        value={generalNoteInputValue}
+                        onChange={(event) => setGeneralNoteInputValue(event.target.value)}
+                        disabled={isSavingGeneralNote}
+                        rows={6}
+                        className="mt-2 min-h-36 w-full resize-y rounded-xl border border-canvas-border bg-canvas-surface px-3 py-3 text-sm leading-6 text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60"
+                        placeholder="Etkinliğin güncel durumunu, önemli gelişmeleri ve kısa özetini yazınız..."
+                      />
+                    </div>
+                    <div className="flex flex-col-reverse gap-2 border-t border-canvas-border bg-canvas-surface px-4 py-3 sm:flex-row sm:justify-end">
+                      <button type="button" onClick={() => setIsEditingGeneralNote(false)} disabled={isSavingGeneralNote} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-brand px-5 text-sm font-semibold text-brand-dark transition hover:bg-brand-soft disabled:opacity-60 sm:w-auto">İptal</button>
+                      <button type="button" onClick={() => void handleSaveGeneralNote()} disabled={isSavingGeneralNote} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand-dark px-6 text-sm font-semibold text-white transition hover:bg-brand disabled:opacity-60 sm:w-auto">
+                        {isSavingGeneralNote ? 'Kaydediliyor…' : 'Özeti kaydet'}
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-start gap-3">
-                    {event.generalNote ? <p className="whitespace-pre-wrap text-sm leading-6 text-ink">{event.generalNote}</p> : <p className="text-sm italic text-ink-soft">Özet eklenmemiş.</p>}
-                  </div>
+                  event.generalNote ? (
+                    <div className="rounded-xl border border-brand/10 bg-brand-soft/20 px-4 py-3.5"><p className="whitespace-pre-wrap text-sm leading-6 text-ink">{event.generalNote}</p></div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-canvas-border bg-canvas px-4 py-8 text-center"><p className="text-sm font-semibold text-ink">Henüz etkinlik özeti yok</p><p className="mt-1 text-xs text-ink-soft">Güncel durumu ekibe aktarmak için bir özet ekleyebilirsiniz.</p></div>
+                  )
                 )}
                 {generalNoteError ? <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{generalNoteError}</p> : null}
                 {generalNoteSuccess && !isEditingGeneralNote ? <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">{generalNoteSuccess}</p> : null}
@@ -5182,10 +5186,10 @@ export default function EventDetail() {
               role="dialog"
               aria-modal="true"
               aria-labelledby="process-field-dialog-title"
-              className="relative w-full rounded-t-2xl bg-canvas-surface p-5 shadow-2xl sm:max-w-lg sm:rounded-2xl sm:p-6"
-              style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
+              className="relative w-full overflow-hidden rounded-t-2xl border border-canvas-border bg-canvas-surface shadow-2xl sm:max-w-xl sm:rounded-2xl"
+              style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start justify-between gap-4 border-b border-canvas-border px-4 py-4 sm:px-5">
                 <div className="flex min-w-0 items-center gap-3">
                   <EventIconBadge name={editingProcessField === 'venue' ? 'pin' : 'task'} />
                   <div className="min-w-0">
@@ -5204,49 +5208,54 @@ export default function EventDetail() {
                   onClick={closeProcessFieldEditing}
                   disabled={isSavingProcessField}
                   aria-label="Kapat"
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-2xl leading-none text-ink-soft hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-canvas-border text-xl leading-none text-ink-soft hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60"
                 >
                   ×
                 </button>
               </div>
 
-              <label htmlFor="process-field-value" className="mt-5 flex flex-col gap-2 text-sm font-semibold text-ink">
-                {editingProcessField === 'venue' ? 'Mekân' : 'Sonraki işlem'}
-                {editingProcessField === 'venue' ? (
-                  <input
-                    id="process-field-value"
-                    type="text"
-                    autoFocus
-                    value={processFieldValue}
-                    onChange={(event) => setProcessFieldValue(event.target.value)}
-                    disabled={isSavingProcessField}
-                    placeholder="Örn. Konferans salonu"
-                    className="min-h-[48px] rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-60"
-                  />
-                ) : (
-                  <textarea
-                    id="process-field-value"
-                    autoFocus
-                    rows={4}
-                    value={processFieldValue}
-                    onChange={(event) => setProcessFieldValue(event.target.value)}
-                    disabled={isSavingProcessField}
-                    placeholder="Örn. Salon onayını al"
-                    className="resize-y rounded-lg border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal leading-6 text-ink focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-60"
-                  />
-                )}
-              </label>
+              <div className="p-4 sm:p-5">
+                <section className="rounded-xl border border-canvas-border bg-canvas p-4">
+                  <div className="flex items-center gap-2"><EventIconBadge name={editingProcessField === 'venue' ? 'pin' : 'task'} /><div><h3 className="text-sm font-semibold text-ink">{editingProcessField === 'venue' ? 'Mekân bilgisi' : 'İşlem bilgisi'}</h3><p className="mt-0.5 text-xs text-ink-soft">{editingProcessField === 'venue' ? 'Etkinlikte kullanılacak alanı yazın.' : 'Ekibin uygulayacağı sıradaki adımı yazın.'}</p></div></div>
+                  <label htmlFor="process-field-value" className="mt-4 flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                    {editingProcessField === 'venue' ? 'Mekân' : 'Sonraki işlem'}
+                    {editingProcessField === 'venue' ? (
+                      <input
+                        id="process-field-value"
+                        type="text"
+                        autoFocus
+                        value={processFieldValue}
+                        onChange={(event) => setProcessFieldValue(event.target.value)}
+                        disabled={isSavingProcessField}
+                        placeholder="Örn. Konferans salonu"
+                        className="min-h-11 rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2.5 text-sm font-normal normal-case tracking-normal text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60"
+                      />
+                    ) : (
+                      <textarea
+                        id="process-field-value"
+                        autoFocus
+                        rows={5}
+                        value={processFieldValue}
+                        onChange={(event) => setProcessFieldValue(event.target.value)}
+                        disabled={isSavingProcessField}
+                        placeholder="Örn. Salon onayını al"
+                        className="min-h-32 resize-y rounded-lg border border-canvas-border bg-canvas-surface px-3 py-3 text-sm font-normal normal-case leading-6 tracking-normal text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60"
+                      />
+                    )}
+                  </label>
+                </section>
 
-              {processFieldError ? (
-                <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{processFieldError}</p>
-              ) : null}
+                {processFieldError ? (
+                  <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{processFieldError}</p>
+                ) : null}
+              </div>
 
-              <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <div className="flex flex-col-reverse gap-2 border-t border-canvas-border bg-canvas px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
                 <button
                   type="button"
                   onClick={closeProcessFieldEditing}
                   disabled={isSavingProcessField}
-                  className="min-h-[44px] rounded-md border border-canvas-border px-4 text-sm font-semibold text-ink-soft disabled:opacity-60"
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-brand px-5 text-sm font-semibold text-brand-dark transition hover:bg-brand-soft disabled:opacity-60 sm:w-auto"
                 >
                   İptal
                 </button>
@@ -5254,9 +5263,9 @@ export default function EventDetail() {
                   type="button"
                   onClick={() => void handleSaveProcessField()}
                   disabled={isSavingProcessField}
-                  className="min-h-[44px] rounded-md bg-brand-dark px-4 text-sm font-semibold text-white disabled:opacity-60"
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand-dark px-6 text-sm font-semibold text-white transition hover:bg-brand disabled:opacity-60 sm:w-auto"
                 >
-                  {isSavingProcessField ? 'Kaydediliyor…' : 'Kaydet'}
+                  {isSavingProcessField ? 'Kaydediliyor…' : 'Değişiklikleri kaydet'}
                 </button>
               </div>
             </section>
