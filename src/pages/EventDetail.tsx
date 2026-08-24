@@ -939,102 +939,163 @@ function TaskCard({
       )}
 
       {effectiveCanManageAssignments && isPanelOpen && (
-        <div className="mt-3 rounded-md border border-canvas-border bg-canvas-surface px-4 py-4">
-          <h4 className="text-sm font-semibold text-ink">Atama yönetimi</h4>
-          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="flex flex-1 flex-col gap-1">
-              <label className="text-sm font-medium text-ink-soft" htmlFor={`assignee-select-${task.id}`}>
-                Üye
-              </label>
-              <select
-                id={`assignee-select-${task.id}`}
-                value={selectedProfileId}
-                onChange={(e) => onSelectedProfileIdChange(e.target.value)}
-                disabled={isAssigning || membersLoadState === 'loading'}
-                className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
-              >
-                <option value="">Üye seçin</option>
-                {members.map((member) => (
-                  <option key={member.profileId} value={member.profileId}>
-                    {member.displayName}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-1 flex-col gap-1">
-              <label className="text-sm font-medium text-ink-soft" htmlFor={`assignment-type-select-${task.id}`}>
-                Atama türü
-              </label>
-              <select
-                id={`assignment-type-select-${task.id}`}
-                value={selectedAssignmentType}
-                onChange={(e) => onSelectedAssignmentTypeChange(e.target.value)}
-                disabled={isAssigning}
-                className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
-              >
-                {ASSIGNMENT_TYPE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+        <div className="mt-3 overflow-hidden rounded-xl border border-canvas-border bg-canvas-surface shadow-card">
+          <div className="flex items-center justify-between gap-3 border-b border-canvas-border px-4 py-3 sm:px-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <EventIconBadge name="person" />
+              <div className="min-w-0">
+                <h4 className="text-sm font-semibold text-ink">Atama yönetimi</h4>
+                <p className="mt-0.5 text-xs text-ink-soft">Görevin sorumlularını ve bilgilendirilecek kişileri yönetin.</p>
+              </div>
             </div>
             <button
               type="button"
-              onClick={onAssign}
-              disabled={isAssigning}
-              className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
+              onClick={onTogglePanel}
+              aria-label="Atama yönetimini kapat"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-canvas-border text-lg text-ink-soft transition hover:bg-canvas hover:text-ink"
             >
-              {isAssigning ? 'Atanıyor…' : 'Ata'}
+              ×
             </button>
           </div>
 
-          {membersLoadState === 'loading' && (
-            <p className="mt-2 text-sm text-ink-soft">Üyeler yükleniyor…</p>
-          )}
-          {membersLoadState === 'error' && (
-            <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {PERIOD_MEMBERS_ERROR_MESSAGE}
-            </p>
-          )}
-          {assignError && (
-            <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {assignError}
-            </p>
-          )}
+          <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+            <section className="rounded-xl border border-canvas-border bg-canvas p-4">
+              <div className="mb-4">
+                <h5 className="text-sm font-semibold text-ink">Yeni atama</h5>
+                <p className="mt-1 text-xs text-ink-soft">Bir ekip üyesi ve sorumluluk türü seçin.</p>
+              </div>
 
-          <div className="mt-4">
-            <h5 className="text-sm font-medium text-ink-soft">Mevcut atamalar</h5>
-            {task.assignees.length === 0 ? (
-              <p className="mt-2 text-sm text-ink-soft">Atanan kişi yok</p>
-            ) : (
-              <div className="mt-2 flex flex-col gap-2">
-                {task.assignees.map((assignee) => (
-                  <div
-                    key={assignee.id}
-                    className="flex items-center justify-between gap-2 rounded-md border border-canvas-border bg-canvas px-3 py-2"
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-ink-soft" htmlFor={`assignee-select-${task.id}`}>
+                    Üye
+                  </label>
+                  <select
+                    id={`assignee-select-${task.id}`}
+                    value={selectedProfileId}
+                    onChange={(e) => onSelectedProfileIdChange(e.target.value)}
+                    disabled={isAssigning || membersLoadState === 'loading'}
+                    className="min-h-11 w-full rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2.5 text-sm text-ink outline-none transition focus:border-brand disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <span className="text-sm text-ink">
-                      {ASSIGNMENT_TYPE_LABELS[assignee.assignmentType] ?? assignee.assignmentType}:{' '}
-                      {assignee.displayName}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onRemove(assignee)}
-                      disabled={removingAssignmentId === assignee.id}
-                      className="shrink-0 rounded-md border border-canvas-border px-3 py-1 text-xs font-medium text-ink-soft disabled:opacity-60"
-                    >
-                      {removingAssignmentId === assignee.id ? 'Kaldırılıyor…' : 'Kaldır'}
-                    </button>
+                    <option value="">Üye seçin</option>
+                    {members.map((member) => (
+                      <option key={member.profileId} value={member.profileId}>
+                        {member.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-ink-soft" htmlFor={`assignment-type-select-${task.id}`}>
+                    Atama türü
+                  </label>
+                  <select
+                    id={`assignment-type-select-${task.id}`}
+                    value={selectedAssignmentType}
+                    onChange={(e) => onSelectedAssignmentTypeChange(e.target.value)}
+                    disabled={isAssigning}
+                    className="min-h-11 w-full rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2.5 text-sm text-ink outline-none transition focus:border-brand disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {ASSIGNMENT_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onAssign}
+                  disabled={isAssigning}
+                  className="mt-1 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isAssigning ? 'Atanıyor…' : '+ Atama ekle'}
+                </button>
+              </div>
+
+              {membersLoadState === 'loading' && (
+                <p className="mt-3 text-sm text-ink-soft">Üyeler yükleniyor…</p>
+              )}
+              {membersLoadState === 'error' && (
+                <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {PERIOD_MEMBERS_ERROR_MESSAGE}
+                </p>
+              )}
+              {assignError && (
+                <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {assignError}
+                </p>
+              )}
+            </section>
+
+            <section className="rounded-xl border border-canvas-border bg-canvas p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h5 className="text-sm font-semibold text-ink">Mevcut atamalar</h5>
+                  <p className="mt-1 text-xs text-ink-soft">Göreve erişimi olan ekip üyeleri.</p>
+                </div>
+                <span className="rounded-full bg-canvas-surface px-2.5 py-1 text-xs font-semibold text-ink-soft">
+                  {task.assignees.length}
+                </span>
+              </div>
+
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                {ASSIGNMENT_TYPE_OPTIONS.map((option) => (
+                  <div key={option.value} className="rounded-lg border border-canvas-border bg-canvas-surface px-2 py-2.5 text-center">
+                    <p className="text-lg font-semibold text-ink">
+                      {task.assignees.filter((assignee) => assignee.assignmentType === option.value).length}
+                    </p>
+                    <p className="mt-0.5 truncate text-[11px] text-ink-soft">{option.label}</p>
                   </div>
                 ))}
               </div>
-            )}
-            {removeError && (
-              <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {removeError}
-              </p>
-            )}
+
+              {task.assignees.length === 0 ? (
+                <div className="mt-4 rounded-xl border border-dashed border-canvas-border bg-canvas-surface px-4 py-8 text-center">
+                  <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-brand-soft text-brand">
+                    <EventIcon name="person" className="h-5 w-5" />
+                  </div>
+                  <p className="mt-3 text-sm font-medium text-ink">Henüz atama yok</p>
+                  <p className="mt-1 text-xs text-ink-soft">Soldaki alandan ilk ekip üyesini ekleyebilirsiniz.</p>
+                </div>
+              ) : (
+                <div className="mt-4 flex flex-col gap-2">
+                  {task.assignees.map((assignee) => (
+                    <div
+                      key={assignee.id}
+                      className="flex flex-col gap-3 rounded-xl border border-canvas-border bg-canvas-surface p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-semibold text-brand">
+                          {assignee.displayName.trim().charAt(0).toLocaleUpperCase('tr-TR') || '?'}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-ink">{assignee.displayName}</p>
+                          <p className="mt-0.5 text-xs text-ink-soft">
+                            {ASSIGNMENT_TYPE_LABELS[assignee.assignmentType] ?? assignee.assignmentType}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onRemove(assignee)}
+                        disabled={removingAssignmentId === assignee.id}
+                        className="inline-flex min-h-10 w-full shrink-0 items-center justify-center rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                      >
+                        {removingAssignmentId === assignee.id ? 'Kaldırılıyor…' : 'Kaldır'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {removeError && (
+                <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {removeError}
+                </p>
+              )}
+            </section>
           </div>
         </div>
       )}
