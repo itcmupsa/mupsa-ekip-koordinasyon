@@ -177,6 +177,18 @@ function TodayIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="2" /><path d="M3.5 9.5h17M8 3v3M16 3v3" /></svg>
 }
 
+function CloseIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+}
+
+function NoteIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><path d="M6 3.5h9l3 3V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z" /><path d="M14 3.5V8h4M8 12h7M8 16h5" /></svg>
+}
+
+function TagIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><path d="M20 13 13 20l-9-9V4h7l9 9Z" /><circle cx="8.5" cy="8.5" r="1.25" /></svg>
+}
+
 export default function Calendar({ session }: { session: Session }) {
   const { displayName, hasActiveMembership, periodId, periodLabel, appRole, coordinatorRoleName, loading: statusLoading } = useMembershipStatus(session)
   const isSuperAdmin = appRole === 'super_admin'
@@ -565,6 +577,8 @@ export default function Calendar({ session }: { session: Session }) {
   const roleLabel = coordinatorRoleName ?? (isSuperAdmin ? 'Süper Yönetici' : 'Koordinatör')
   const now = new Date()
   const todayKey = dateKey(new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())))
+  const selectedEntryTypeLabel = ENTRY_TYPES.find((option) => option.value === entryType)?.label ?? 'Diğer'
+  const calendarFieldClass = 'min-h-[48px] w-full rounded-xl border border-canvas-border bg-canvas-surface px-3.5 py-3 font-normal text-ink shadow-[0_1px_2px_rgba(15,23,42,0.03)] outline-none transition focus:border-purple-500 focus:ring-3 focus:ring-purple-500/10 disabled:opacity-60'
 
   return (
     <AppShell
@@ -606,39 +620,49 @@ export default function Calendar({ session }: { session: Session }) {
         ) : null}
 
         {formMode !== 'closed' ? (
-          <section className="mt-5 overflow-hidden rounded-xl border border-canvas-border bg-canvas-surface shadow-card">
-            <div className="flex items-center justify-between gap-3 border-b border-canvas-border px-4 py-4 sm:px-5">
-              <div className="flex min-w-0 items-center gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-700"><TodayIcon /></span><div className="min-w-0"><h2 className="truncate text-base font-semibold text-ink">{formMode === 'create' ? 'Yeni manuel takvim kaydı' : 'Takvim kaydını düzenle'}</h2><p className="mt-0.5 text-xs text-ink-soft">Takvime ekip için özel bir kayıt ekleyin.</p></div></div>
-              <button type="button" onClick={() => setFormMode('closed')} disabled={saving} className="min-h-[44px] shrink-0 rounded-lg border border-canvas-border px-3 text-sm font-medium text-ink-soft hover:bg-canvas disabled:opacity-60">Kapat</button>
-            </div>
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 backdrop-blur-[2px] sm:items-center sm:p-5" role="presentation">
+            <section role="dialog" aria-modal="true" aria-labelledby="calendar-entry-form-title" className="flex max-h-[100dvh] w-full flex-col overflow-hidden bg-canvas-surface shadow-2xl sm:max-h-[92vh] sm:max-w-5xl sm:rounded-2xl sm:border sm:border-canvas-border">
+              <div className="flex shrink-0 items-center justify-between gap-3 border-b border-canvas-border bg-gradient-to-r from-purple-50 via-canvas-surface to-canvas-surface px-4 pb-3 sm:px-6 sm:py-5" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)' }}>
+                <div className="flex min-w-0 items-center gap-3"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-purple-600 text-white shadow-card"><TodayIcon /></span><div className="min-w-0"><h2 id="calendar-entry-form-title" className="truncate text-lg font-semibold text-ink sm:text-xl">{formMode === 'create' ? 'Yeni manuel takvim kaydı' : 'Takvim kaydını düzenle'}</h2><p className="mt-0.5 text-xs text-ink-soft sm:text-sm">Ekibin takviminde görünecek özel kaydın ayrıntılarını belirleyin.</p></div></div>
+                <button type="button" aria-label="Kapat" onClick={() => setFormMode('closed')} disabled={saving} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-canvas-border bg-canvas-surface text-ink-soft hover:bg-canvas hover:text-ink disabled:opacity-60"><CloseIcon /></button>
+              </div>
 
-            <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-2">
-              <section className="rounded-xl border border-canvas-border bg-canvas p-4">
-                <div><h3 className="text-sm font-semibold text-ink">Kayıt bilgileri</h3><p className="mt-1 text-xs text-ink-soft">Başlık, kategori ve isteğe bağlı not.</p></div>
-                <div className="mt-4 grid gap-4">
-                  <label className="grid gap-1.5 text-sm font-medium text-ink">Başlık<input value={title} onChange={(event) => setTitle(event.target.value)} disabled={saving} placeholder="Örn. Değerlendirme toplantısı" className="min-h-[44px] rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2 font-normal outline-none focus:border-brand focus:ring-2 focus:ring-brand/10" /></label>
-                  <label className="grid gap-1.5 text-sm font-medium text-ink">Kategori<select value={entryType} onChange={(event) => setEntryType(event.target.value as EntryType)} disabled={saving} className="min-h-[44px] rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2 font-normal outline-none focus:border-brand focus:ring-2 focus:ring-brand/10">{ENTRY_TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-                  <label className="grid gap-1.5 text-sm font-medium text-ink"><span>Not <span className="text-xs font-normal text-ink-soft">(isteğe bağlı)</span></span><textarea value={note} onChange={(event) => setNote(event.target.value)} rows={4} disabled={saving} placeholder="Kayıtla ilgili kısa bir not yazın" className="min-h-28 resize-y rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2 font-normal outline-none focus:border-brand focus:ring-2 focus:ring-brand/10" /></label>
+              <div className="flex-1 overflow-y-auto bg-canvas px-4 py-5 sm:px-6 sm:py-6">
+                <div className="mb-5 grid gap-2.5 sm:grid-cols-3">
+                  <div className="flex min-w-0 items-center gap-3 rounded-xl border border-purple-100 bg-canvas-surface p-3.5 shadow-[0_3px_12px_rgba(88,28,135,0.05)]"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-700"><TagIcon /></span><div className="min-w-0"><p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Kategori</p><p className="truncate text-sm font-semibold text-ink">{selectedEntryTypeLabel}</p></div></div>
+                  <div className="flex min-w-0 items-center gap-3 rounded-xl border border-brand/15 bg-canvas-surface p-3.5 shadow-[0_3px_12px_rgba(15,90,76,0.05)]"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-dark"><TodayIcon /></span><div className="min-w-0"><p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Başlangıç</p><p className="truncate text-sm font-semibold text-ink">{startDate ? formatDate(startDate) : 'Tarih seçilmedi'}</p></div></div>
+                  <div className="flex min-w-0 items-center gap-3 rounded-xl border border-blue-100 bg-canvas-surface p-3.5 shadow-[0_3px_12px_rgba(3,105,161,0.05)]"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><TodayIcon /></span><div className="min-w-0"><p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Bitiş</p><p className="truncate text-sm font-semibold text-ink">{endDate ? formatDate(endDate) : 'Tek günlük kayıt'}</p></div></div>
                 </div>
-              </section>
 
-              <section className="rounded-xl border border-canvas-border bg-canvas p-4">
-                <div><h3 className="text-sm font-semibold text-ink">Tarih aralığı</h3><p className="mt-1 text-xs text-ink-soft">Kaydın başlangıç ve varsa bitiş günü.</p></div>
-                <div className="mt-4 grid gap-4">
-                  <label className="grid gap-1.5 text-sm font-medium text-ink">Başlangıç tarihi<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} disabled={saving} className="min-h-[44px] rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2 font-normal outline-none focus:border-brand focus:ring-2 focus:ring-brand/10" /></label>
-                  <label className="grid gap-1.5 text-sm font-medium text-ink"><span>Bitiş tarihi <span className="text-xs font-normal text-ink-soft">(isteğe bağlı)</span></span><input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} disabled={saving} className="min-h-[44px] rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2 font-normal outline-none focus:border-brand focus:ring-2 focus:ring-brand/10" /></label>
+                <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+                  <section className="overflow-hidden rounded-2xl border border-canvas-border bg-canvas-surface shadow-[0_4px_18px_rgba(15,23,42,0.04)]">
+                    <div className="flex items-center gap-3 border-b border-canvas-border bg-purple-50/55 px-4 py-3.5 sm:px-5"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-600 text-white"><NoteIcon /></span><div><h3 className="text-sm font-semibold text-ink">1. Kayıt bilgileri</h3><p className="mt-0.5 text-xs text-ink-soft">Takvimde görünecek başlık, kategori ve açıklama.</p></div></div>
+                    <div className="grid gap-4 p-4 sm:p-5">
+                      <label className="grid gap-1.5 text-sm font-medium text-ink">Başlık<input value={title} onChange={(event) => setTitle(event.target.value)} disabled={saving} placeholder="Örn. Değerlendirme toplantısı" className={calendarFieldClass} /></label>
+                      <label className="grid gap-1.5 text-sm font-medium text-ink">Kategori<select value={entryType} onChange={(event) => setEntryType(event.target.value as EntryType)} disabled={saving} className={calendarFieldClass}>{ENTRY_TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+                      <label className="grid gap-1.5 text-sm font-medium text-ink"><span className="flex items-center justify-between"><span>Not <span className="text-xs font-normal text-ink-soft">(isteğe bağlı)</span></span><span className="text-xs font-normal text-ink-soft">{note.length} karakter</span></span><textarea value={note} onChange={(event) => setNote(event.target.value)} rows={5} disabled={saving} placeholder="Kaydın amacı, konumu veya önemli ayrıntıları" className={`${calendarFieldClass} min-h-32 resize-y`} /></label>
+                    </div>
+                  </section>
+
+                  <section className="overflow-hidden rounded-2xl border border-canvas-border bg-canvas-surface shadow-[0_4px_18px_rgba(15,23,42,0.04)]">
+                    <div className="flex items-center gap-3 border-b border-canvas-border bg-brand-soft/45 px-4 py-3.5 sm:px-5"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-white"><TodayIcon /></span><div><h3 className="text-sm font-semibold text-ink">2. Tarih aralığı</h3><p className="mt-0.5 text-xs text-ink-soft">Kaydın takvimde hangi günlerde yer alacağını seçin.</p></div></div>
+                    <div className="grid gap-4 p-4 sm:p-5">
+                      <label className="grid gap-1.5 text-sm font-medium text-ink">Başlangıç tarihi<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} disabled={saving} className={calendarFieldClass} /></label>
+                      <div className="flex items-center gap-3" aria-hidden="true"><span className="h-px flex-1 bg-canvas-border" /><span className="rounded-full bg-canvas px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Tarih aralığı</span><span className="h-px flex-1 bg-canvas-border" /></div>
+                      <label className="grid gap-1.5 text-sm font-medium text-ink"><span>Bitiş tarihi <span className="text-xs font-normal text-ink-soft">(isteğe bağlı)</span></span><input type="date" min={startDate || undefined} value={endDate} onChange={(event) => setEndDate(event.target.value)} disabled={saving} className={calendarFieldClass} /></label>
+                      <p className="flex gap-2 rounded-xl border border-purple-100 bg-purple-50/70 px-3.5 py-3 text-xs leading-5 text-purple-900"><span className="shrink-0 text-purple-700"><TodayIcon /></span><span>{endDate ? 'Kayıt, başlangıç ve bitiş tarihleri arasındaki bütün günlerde gösterilir.' : 'Bitiş tarihi seçmezseniz kayıt yalnızca başlangıç gününde gösterilir.'}</span></p>
+                    </div>
+                  </section>
                 </div>
-                <p className="mt-4 rounded-lg border border-purple-100 bg-purple-50/60 px-3 py-2 text-xs leading-5 text-ink-soft">Bitiş tarihi girilmezse kayıt yalnızca başlangıç gününde gösterilir.</p>
-              </section>
 
-              {formError ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 lg:col-span-2">{formError}</p> : null}
-            </div>
+                {formError ? <p role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-sm text-red-700">{formError}</p> : null}
+              </div>
 
-            <div className="flex flex-col-reverse gap-2 border-t border-canvas-border bg-canvas px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
-              <button type="button" disabled={saving} onClick={() => setFormMode('closed')} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-brand px-5 text-sm font-semibold text-brand-dark hover:bg-brand-soft disabled:opacity-60 sm:w-auto">İptal</button>
-              <button type="button" disabled={saving} onClick={() => void saveEntry()} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand-dark px-6 text-sm font-semibold text-white hover:bg-brand disabled:opacity-60 sm:w-auto">{saving ? 'Kaydediliyor…' : formMode === 'create' ? 'Kaydı oluştur' : 'Değişiklikleri kaydet'}</button>
-            </div>
-          </section>
+              <div className="shrink-0 border-t border-canvas-border bg-canvas-surface px-4 pt-3 sm:flex sm:justify-end sm:gap-3 sm:px-6 sm:py-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.875rem)' }}>
+                <div className="flex gap-3 sm:contents"><button type="button" disabled={saving} onClick={() => setFormMode('closed')} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-brand px-5 text-sm font-semibold text-brand-dark hover:bg-brand-soft disabled:opacity-60 sm:flex-none">İptal</button><button type="button" disabled={saving} onClick={() => void saveEntry()} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-purple-600 px-6 text-sm font-semibold text-white shadow-card hover:bg-purple-700 disabled:opacity-60 sm:flex-none">{saving ? 'Kaydediliyor…' : formMode === 'create' ? 'Kaydı oluştur' : 'Değişiklikleri kaydet'}</button></div>
+              </div>
+            </section>
+          </div>
         ) : null}
 
         <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 rounded-xl border border-canvas-border bg-canvas-surface px-4 py-3 text-xs text-ink-soft shadow-card lg:hidden" aria-label="Takvim açıklaması">
