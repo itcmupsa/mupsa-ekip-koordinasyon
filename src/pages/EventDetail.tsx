@@ -3694,178 +3694,65 @@ export default function EventDetail() {
         )}
 
         {isEditing ? (
-          <div id="event-edit-form" className="mt-6 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
-            <h2 className="text-base font-semibold text-ink">Etkinliği düzenle</h2>
-            <div className="mt-4 flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <label htmlFor="event-title" className="text-sm font-medium text-ink-soft">
-                  Etkinlik adı
-                </label>
-                <input
-                  id="event-title"
-                  type="text"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  disabled={isSaving}
-                  className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
-                />
+          <div id="event-edit-form" className="mt-6 scroll-mt-28 overflow-hidden rounded-2xl border border-canvas-border bg-canvas-surface shadow-card">
+            <div className="flex items-center justify-between gap-4 border-b border-canvas-border px-4 py-4 sm:px-6">
+              <div className="flex items-center gap-3"><EventIconBadge name="calendar" /><div><h2 className="text-lg font-semibold text-ink">Etkinliği düzenle</h2><p className="mt-0.5 text-xs text-ink-soft">Etkinlik bilgilerini güncelleyin ve yönetin.</p></div></div>
+              <button type="button" onClick={cancelEditing} disabled={isSaving} aria-label="Düzenleme penceresini kapat" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl text-ink-soft hover:bg-canvas disabled:opacity-60">×</button>
+            </div>
+
+            <div className="p-4 sm:p-6">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+                {([
+                  ['status', 'Durum', availableEventStatuses.find((status) => status.slug === editEventStatus)?.label ?? editEventStatus],
+                  ['calendar', 'Planlama', formatDate(editPlanningDate || null)],
+                  ['status', 'Tahmini tarih', formatDate(editEstimatedDate || null)],
+                  ['person', 'Sorumlu', periodMembers.find((member) => member.profileId === editOwnerId)?.displayName ?? displayedOwner],
+                ] as const).map(([icon, label, value]) => <div key={label} className="flex min-h-[84px] items-center gap-3 rounded-xl border border-canvas-border bg-canvas p-3 sm:p-4"><EventIconBadge name={icon} /><div className="min-w-0"><p className="text-xs font-medium text-ink-soft">{label}</p><p className="mt-1 truncate text-sm font-semibold text-ink sm:text-base">{value}</p></div></div>)}
               </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="event-description" className="text-sm font-medium text-ink-soft">
-                  Açıklama
-                </label>
-                <textarea
-                  id="event-description"
-                  value={editDescription}
-                  onChange={(e) => setEditDescription(e.target.value)}
-                  disabled={isSaving}
-                  rows={4}
-                  className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
-                />
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="event-status" className="text-sm font-medium text-ink-soft">
-                    Etkinlik durumu
-                  </label>
-                  <select
-                    id="event-status"
-                    value={editEventStatus}
-                    onChange={(e) => setEditEventStatus(e.target.value)}
-                    disabled={isSaving || availableEventStatuses.length === 0}
-                    className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink disabled:opacity-60"
-                  >
-                    {availableEventStatuses.map((status) => (
-                      <option key={status.slug} value={status.slug}>{status.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="event-planning-date" className="text-sm font-medium text-ink-soft">
-                    Planlama tarihi
-                  </label>
-                  <input
-                    id="event-planning-date"
-                    type="date"
-                    value={editPlanningDate}
-                    onChange={(e) => setEditPlanningDate(e.target.value)}
-                    disabled={isSaving}
-                    className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="event-preparation-start-date" className="text-sm font-medium text-ink-soft">
-                    Hazırlığa başlangıç tarihi (otomatik)
-                  </label>
-                  <input
-                    id="event-preparation-start-date"
-                    type="date"
-                    value={editConfirmedDate ? formatOffset(editConfirmedDate, -40) : formatOffset(editEstimatedDate, -40)}
-                    disabled
-                    className="cursor-not-allowed rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink-soft opacity-70"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="event-estimated-date" className="text-sm font-medium text-ink-soft">
-                    Tahmini etkinlik tarihi
-                  </label>
-                  <input
-                    id="event-estimated-date"
-                    type="date"
-                    value={editEstimatedDate}
-                    onChange={(e) => setEditEstimatedDate(e.target.value)}
-                    disabled={isSaving}
-                    className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="event-confirmed-date" className="text-sm font-medium text-ink-soft">
-                    Kesinleşmiş tarih
-                  </label>
-                  <input
-                    id="event-confirmed-date"
-                    type="date"
-                    value={editConfirmedDate}
-                    onChange={(e) => setEditConfirmedDate(e.target.value)}
-                    disabled={isSaving}
-                    className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="event-report-status" className="text-sm font-medium text-ink-soft">
-                    Rapor durumu
-                  </label>
-                  <select
-                    id="event-report-status"
-                    value={editReportStatus}
-                    onChange={(e) => setEditReportStatus(e.target.value)}
-                    disabled={isSaving || availableEventReportStatuses.length === 0}
-                    className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink disabled:opacity-60"
-                  >
-                    {availableEventReportStatuses.map((status) => (
-                      <option key={status.slug} value={status.slug}>{status.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="rounded-xl border border-canvas-border bg-canvas p-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-ink">Süreç bilgileri</h3>
-                  <p className="mt-1 text-xs text-ink-soft">Etkinliğin sorumlusunu güncelle.</p>
-                </div>
-                <div className="mt-4">
-                  {isSuperAdmin ? (
-                    <div className="flex flex-col gap-1">
-                      <label htmlFor="event-owner" className="text-sm font-medium text-ink-soft">
-                        Sorumlu
-                      </label>
-                      <select
-                        id="event-owner"
-                        value={editOwnerId}
-                        onChange={(e) => setEditOwnerId(e.target.value)}
-                        disabled={isSaving || periodMembersLoadState === 'loading'}
-                        className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink disabled:opacity-60"
-                      >
-                        <option value="" disabled>Sorumlu seçin</option>
-                        {periodMembers.map((member) => (
-                          <option key={member.profileId} value={member.profileId}>{member.displayName}</option>
-                        ))}
-                      </select>
-                      {periodMembersLoadState === 'error' ? <p className="text-xs text-red-600">Üye listesi yüklenemedi.</p> : null}
+
+              <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(17rem,0.75fr)]">
+                <div className="space-y-4">
+                  <section className="rounded-xl border border-canvas-border p-4 sm:p-5">
+                    <div className="flex items-center gap-2"><EventIconBadge name="content" /><h3 className="text-sm font-semibold text-ink">Temel bilgiler</h3></div>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                      <label className="grid gap-1.5 text-sm font-medium text-ink-soft sm:col-span-2">Etkinlik adı<input id="event-title" type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} disabled={isSaving} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /></label>
+                      <label className="grid gap-1.5 text-sm font-medium text-ink-soft sm:col-span-2">Açıklama<textarea id="event-description" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} disabled={isSaving} rows={4} className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /></label>
+                      <label className="grid gap-1.5 text-sm font-medium text-ink-soft">Etkinlik durumu<select id="event-status" value={editEventStatus} onChange={(e) => setEditEventStatus(e.target.value)} disabled={isSaving || availableEventStatuses.length === 0} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink disabled:opacity-60">{availableEventStatuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}</select></label>
+                      <label className="grid gap-1.5 text-sm font-medium text-ink-soft">Rapor durumu<select id="event-report-status" value={editReportStatus} onChange={(e) => setEditReportStatus(e.target.value)} disabled={isSaving || availableEventReportStatuses.length === 0} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink disabled:opacity-60">{availableEventReportStatuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}</select></label>
                     </div>
-                  ) : (
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm font-medium text-ink-soft">Sorumlu</span>
-                      <span className="flex min-h-[44px] items-center rounded-md border border-canvas-border bg-canvas-surface px-3 text-sm text-ink">{displayedOwner}</span>
+                  </section>
+
+                  <section className="rounded-xl border border-canvas-border p-4 sm:p-5">
+                    <div className="flex items-center gap-2"><EventIconBadge name="calendar" /><h3 className="text-sm font-semibold text-ink">Tarih planlaması</h3></div>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                      <label className="grid gap-1.5 text-sm font-medium text-ink-soft">Planlama tarihi<input id="event-planning-date" type="date" value={editPlanningDate} onChange={(e) => setEditPlanningDate(e.target.value)} disabled={isSaving} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /></label>
+                      <label className="grid gap-1.5 text-sm font-medium text-ink-soft">Tahmini etkinlik tarihi<input id="event-estimated-date" type="date" value={editEstimatedDate} onChange={(e) => setEditEstimatedDate(e.target.value)} disabled={isSaving} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /></label>
+                      <label className="grid gap-1.5 text-sm font-medium text-ink-soft">Hazırlığa başlangıç tarihi (otomatik)<input id="event-preparation-start-date" type="date" value={editConfirmedDate ? formatOffset(editConfirmedDate, -40) : formatOffset(editEstimatedDate, -40)} disabled className="min-h-[44px] cursor-not-allowed rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink-soft opacity-70" /><span className="text-xs font-normal">Sistem tarafından hesaplanır.</span></label>
+                      <label className="grid gap-1.5 text-sm font-medium text-ink-soft">Kesinleşmiş tarih<input id="event-confirmed-date" type="date" value={editConfirmedDate} onChange={(e) => setEditConfirmedDate(e.target.value)} disabled={isSaving} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /></label>
                     </div>
-                  )}
+                  </section>
                 </div>
+
+                <aside className="rounded-xl border border-canvas-border p-4 sm:p-5">
+                  <div className="flex items-center gap-2"><EventIconBadge name="person" /><h3 className="text-sm font-semibold text-ink">Süreç bilgileri</h3></div>
+                  <p className="mt-2 text-xs text-ink-soft">Etkinliğin sorumlusu ve önemli durumları.</p>
+                  <div className="mt-5">
+                    {isSuperAdmin ? <label className="grid gap-1.5 text-sm font-medium text-ink-soft">Sorumlu<select id="event-owner" value={editOwnerId} onChange={(e) => setEditOwnerId(e.target.value)} disabled={isSaving || periodMembersLoadState === 'loading'} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink disabled:opacity-60"><option value="" disabled>Sorumlu seçin</option>{periodMembers.map((member) => <option key={member.profileId} value={member.profileId}>{member.displayName}</option>)}</select>{periodMembersLoadState === 'error' ? <span className="text-xs text-red-600">Üye listesi yüklenemedi.</span> : null}</label> : <div><p className="text-sm font-medium text-ink-soft">Sorumlu</p><p className="mt-1 flex min-h-[44px] items-center rounded-md border border-canvas-border bg-canvas px-3 text-sm text-ink">{displayedOwner}</p></div>}
+                  </div>
+                  <div className="mt-5 space-y-3 border-t border-dashed border-canvas-border pt-5">
+                    <div className="rounded-xl border border-brand/15 bg-brand-soft/40 p-4"><p className="text-xs text-ink-soft">Etkinlik durumu</p><p className="mt-1 font-semibold text-ink">{availableEventStatuses.find((status) => status.slug === editEventStatus)?.label ?? editEventStatus}</p></div>
+                    <div className="rounded-xl border border-brand/15 bg-brand-soft/40 p-4"><p className="text-xs text-ink-soft">Rapor durumu</p><p className="mt-1 font-semibold text-ink">{availableEventReportStatuses.find((status) => status.slug === editReportStatus)?.label ?? editReportStatus}</p></div>
+                    <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-900">Hazırlık başlangıcı, kesinleşmiş tarih varsa ona; yoksa tahmini tarihe göre sistem tarafından hesaplanır.</p>
+                  </div>
+                </aside>
               </div>
-              {saveError && (
-                <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {saveError}
-                </p>
-              )}
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className="min-h-[44px] rounded-md bg-brand-dark px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-                >
-                  {isSaving ? 'Kaydediliyor…' : 'Kaydet'}
-                </button>
-                <button
-                  type="button"
-                  onClick={cancelEditing}
-                  disabled={isSaving}
-                  className="min-h-[44px] rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
-                >
-                  İptal
-                </button>
-              </div>
+
+              {saveError ? <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{saveError}</p> : null}
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-canvas-border bg-canvas/50 px-4 py-4 sm:flex-row sm:justify-end sm:px-6">
+              <button type="button" onClick={cancelEditing} disabled={isSaving} className="min-h-[44px] rounded-md border border-brand px-6 text-sm font-medium text-brand-dark disabled:opacity-60">İptal</button>
+              <button type="button" onClick={handleSave} disabled={isSaving} className="min-h-[44px] rounded-md bg-brand-dark px-7 text-sm font-medium text-white disabled:opacity-60">{isSaving ? 'Kaydediliyor…' : 'Kaydet'}</button>
             </div>
           </div>
         ) : null}
