@@ -4765,58 +4765,60 @@ export default function EventDetail() {
           )}
 
           {isSponsorFormOpen && (
-            <div className="mt-4 rounded-xl border border-canvas-border bg-canvas-surface px-4 py-4">
-              <h3 className="text-sm font-semibold text-ink">
-                {sponsorFormMode === 'create' ? 'Yeni Sponsor' : 'Sponsoru Düzenle'}
-              </h3>
-              <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="sponsor-name" className="text-sm font-medium text-ink-soft">
-                    Sponsor Adı
-                  </label>
+            <div className="mt-4 overflow-hidden rounded-xl border border-canvas-border bg-canvas-surface shadow-card">
+              <div className="flex items-center justify-between gap-3 border-b border-canvas-border px-4 py-3 sm:px-5">
+                <div className="flex items-center gap-3"><EventIconBadge name="budget" /><div><h3 className="text-sm font-semibold text-ink">{sponsorFormMode === 'create' ? 'Yeni sponsor' : 'Sponsoru düzenle'}</h3><p className="mt-0.5 text-xs text-ink-soft">Sponsor bilgilerini ve destek tutarını kaydedin.</p></div></div>
+                <button type="button" onClick={closeSponsorForm} disabled={isSavingSponsor} aria-label="Sponsor formunu kapat" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xl text-ink-soft hover:bg-canvas disabled:opacity-60">×</button>
+              </div>
+              <div className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1.4fr)_minmax(12rem,0.6fr)] sm:p-5">
+                <label htmlFor="sponsor-name" className="grid gap-1.5 text-sm font-medium text-ink-soft">
+                    Sponsor adı
                   <input
                     id="sponsor-name"
                     type="text"
                     value={sponsorName}
                     onChange={(e) => setSponsorName(e.target.value)}
                     disabled={isSavingSponsor}
-                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                    placeholder="Sponsor kurum veya kişi adı"
+                    className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink"
                   />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="sponsor-amount" className="text-sm font-medium text-ink-soft">
-                    Tutar (₺)
-                  </label>
+                </label>
+                <label htmlFor="sponsor-amount" className="grid gap-1.5 text-sm font-medium text-ink-soft">
+                    Destek tutarı (₺)
                   <input
                     id="sponsor-amount"
                     type="number"
+                    inputMode="decimal"
                     step="0.01"
                     min="0"
                     value={sponsorAmount}
                     onChange={(e) => setSponsorAmount(e.target.value)}
                     disabled={isSavingSponsor}
-                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                    placeholder="0,00"
+                    className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink"
                   />
-                </div>
-                <div className="flex flex-col gap-1 sm:col-span-2">
-                  <label htmlFor="sponsor-note" className="text-sm font-medium text-ink-soft">
-                    Not (İsteğe bağlı)
-                  </label>
+                </label>
+                <label htmlFor="sponsor-note" className="grid gap-1.5 text-sm font-medium text-ink-soft sm:col-span-2">
+                    Not <span className="sr-only">isteğe bağlı</span>
                   <textarea
                     id="sponsor-note"
                     value={sponsorNote}
                     onChange={(e) => setSponsorNote(e.target.value)}
                     disabled={isSavingSponsor}
-                    rows={2}
-                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
+                    rows={3}
+                    maxLength={500}
+                    placeholder="Sponsorluk kapsamı veya ek açıklama (isteğe bağlı)"
+                    className="resize-y rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink"
                   />
-                </div>
+                  <span className="text-right text-[11px] font-normal text-ink-soft">{sponsorNote.length}/500</span>
+                </label>
                 {sponsorFormError && (
                   <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 sm:col-span-2">
                     {sponsorFormError}
                   </p>
                 )}
-                <div className="flex flex-col gap-3 sm:col-span-2 sm:flex-row sm:justify-end">
+              </div>
+              <div className="flex flex-col gap-3 border-t border-canvas-border bg-canvas/50 px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
                   <button
                     type="button"
                     onClick={closeSponsorForm}
@@ -4833,7 +4835,6 @@ export default function EventDetail() {
                   >
                     {isSavingSponsor ? 'Kaydediliyor…' : 'Kaydet'}
                   </button>
-                </div>
               </div>
             </div>
           )}
@@ -4846,7 +4847,7 @@ export default function EventDetail() {
               Sponsorlar yüklenirken bir hata oluştu.
             </p>
           )}
-          {sponsorsLoadState === 'ready' && sponsors.length === 0 && (
+          {sponsorsLoadState === 'ready' && sponsors.length === 0 && !isSponsorFormOpen && (
             <p className="mt-3 text-sm italic text-ink-soft">Bu etkinlik için henüz sponsor eklenmemiş.</p>
           )}
           {sponsorsLoadState === 'ready' && sponsors.length > 0 && (
