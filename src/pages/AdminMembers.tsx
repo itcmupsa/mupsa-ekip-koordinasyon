@@ -601,20 +601,15 @@ export default function AdminMembers({ session }: { session: Session }) {
         )}
 
         {isCreateUserOpen && (
-          <section role="dialog" aria-modal="true" aria-labelledby="create-user-title" className="fixed inset-0 z-50 overflow-y-auto bg-canvas-surface p-4 shadow-2xl sm:p-6 lg:left-auto lg:w-[min(36rem,calc(100vw-15rem))]" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
-            <div className="flex items-center justify-between border-b border-canvas-border pb-4">
-              <div><h2 id="create-user-title" className="text-lg font-semibold text-ink">Yeni kullanıcı oluştur</h2><p className="mt-1 text-xs text-ink-soft">Hesabı oluştur ve aktif döneme yetkileriyle ekle.</p></div>
-              <button
-                type="button"
-                onClick={handleCloseCreateUserPanel}
-                className="min-h-[44px] rounded-md px-2 text-sm font-medium text-ink-soft"
-              >
-                Kapat
-              </button>
+          <section role="dialog" aria-modal="true" aria-labelledby="create-user-title" className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-canvas-surface shadow-2xl lg:left-auto lg:w-[min(42rem,calc(100vw-15rem))]" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-canvas-border px-4 py-4 sm:px-6">
+              <div className="flex min-w-0 items-center gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-dark"><TeamIcon /></span><div className="min-w-0"><h2 id="create-user-title" className="truncate text-lg font-semibold text-ink">Yeni kullanıcı oluştur</h2><p className="mt-1 text-xs text-ink-soft">Hesabı oluştur ve aktif döneme yetkileriyle ekle.</p></div></div>
+              <button type="button" onClick={handleCloseCreateUserPanel} disabled={isCreatingUser} className="min-h-[44px] shrink-0 rounded-lg border border-canvas-border px-3 text-sm font-medium text-ink-soft hover:bg-canvas disabled:opacity-60">Kapat</button>
             </div>
 
-            <p className="mt-2 text-xs text-ink-soft">
-              E-posta hesabı sabit kimliktir; aşağıdaki ad, aktif dönemde görünen addır.
+            <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+            <p className="rounded-xl border border-brand/15 bg-brand-soft/30 px-4 py-3 text-xs leading-5 text-ink-soft">
+              E-posta hesabı sabit kimliktir; dönem görünen adı yalnızca aktif dönem içindeki ekip ekranlarında kullanılır.
             </p>
 
             {createUserState === 'loading' && (
@@ -628,114 +623,39 @@ export default function AdminMembers({ session }: { session: Session }) {
             )}
 
             {createUserState === 'ready' && (
-              <div className="mt-3 space-y-3">
+              <div className="mt-4">
                 {coordinatorRoleOptions.length === 0 ? (
                   <p className="text-sm text-ink-soft">Aktif koordinatörlük bulunamadı.</p>
                 ) : (
-                  <>
-                    <label className="block text-sm">
-                      <span className="mb-1 block font-medium text-ink">Dönem görünen adı</span>
-                      <input
-                        type="text"
-                        value={newUserName}
-                        onChange={(event) => setNewUserName(event.target.value)}
-                        placeholder="Örn: Ahmet Yılmaz"
-                        autoComplete="name"
-                        className={fieldClass}
-                      />
-                    </label>
+                  <div className="space-y-4">
+                    <section className="rounded-xl border border-canvas-border bg-canvas p-4 sm:p-5">
+                      <div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand-dark"><TeamIcon /></span><div><h3 className="text-sm font-semibold text-ink">Hesap bilgileri</h3><p className="mt-0.5 text-xs text-ink-soft">Kullanıcının kimlik ve giriş bilgileri.</p></div></div>
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <label className="block text-sm sm:col-span-2"><span className="mb-1.5 block font-medium text-ink">Dönem görünen adı</span><input type="text" value={newUserName} onChange={(event) => setNewUserName(event.target.value)} placeholder="Örn: Ahmet Yılmaz" autoComplete="name" className={fieldClass} /></label>
+                        <label className="block text-sm sm:col-span-2"><span className="mb-1.5 block font-medium text-ink">Kişisel e-posta</span><input type="email" value={newUserEmail} onChange={(event) => setNewUserEmail(event.target.value)} placeholder="ahmet@ornek.com" autoComplete="email" className={fieldClass} /></label>
+                        <label className="block text-sm"><span className="mb-1.5 block font-medium text-ink">Geçici şifre</span><input type="password" value={newUserPassword} onChange={(event) => setNewUserPassword(event.target.value)} placeholder="En az 8 karakter" autoComplete="new-password" className={fieldClass} /></label>
+                        <label className="block text-sm"><span className="mb-1.5 block font-medium text-ink">Geçici şifre tekrar</span><input type="password" value={newUserPasswordConfirm} onChange={(event) => setNewUserPasswordConfirm(event.target.value)} placeholder="Şifreyi onayla" autoComplete="new-password" className={fieldClass} /></label>
+                      </div>
+                    </section>
 
-                    <label className="block text-sm">
-                      <span className="mb-1 block font-medium text-ink">Kişisel e-posta</span>
-                      <input
-                        type="email"
-                        value={newUserEmail}
-                        onChange={(event) => setNewUserEmail(event.target.value)}
-                        placeholder="ahmet@ornek.com"
-                        autoComplete="email"
-                        className={fieldClass}
-                      />
-                    </label>
+                    <section className="rounded-xl border border-canvas-border bg-canvas p-4 sm:p-5">
+                      <div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-soft text-amber-800"><TeamIcon /></span><div><h3 className="text-sm font-semibold text-ink">Dönem ve yetki</h3><p className="mt-0.5 text-xs text-ink-soft">Koordinatörlük ve uygulama erişim seviyesi.</p></div></div>
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <label className="block text-sm"><span className="mb-1.5 block font-medium text-ink">Koordinatörlük</span><select value={newUserCoordinatorRoleId} onChange={(event) => setNewUserCoordinatorRoleId(event.target.value)} className={fieldClass}><option value="">Seç…</option>{coordinatorRoleOptions.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
+                        <label className="block text-sm"><span className="mb-1.5 block font-medium text-ink">Uygulama rolü</span><select value={newUserAppRole} onChange={(event) => setNewUserAppRole(event.target.value as AppRole | '')} className={fieldClass}><option value="">Seç…</option><option value="coordinator">Koordinatör</option><option value="super_admin">Süper Yönetici</option></select></label>
+                      </div>
+                    </section>
 
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <label className="block text-sm">
-                        <span className="mb-1 block font-medium text-ink">Geçici şifre</span>
-                        <input
-                          type="password"
-                          value={newUserPassword}
-                          onChange={(event) => setNewUserPassword(event.target.value)}
-                          placeholder="En az 8 karakter"
-                          autoComplete="new-password"
-                          className={fieldClass}
-                        />
-                      </label>
-                      <label className="block text-sm">
-                        <span className="mb-1 block font-medium text-ink">Geçici şifre tekrar</span>
-                        <input
-                          type="password"
-                          value={newUserPasswordConfirm}
-                          onChange={(event) => setNewUserPasswordConfirm(event.target.value)}
-                          placeholder="Şifreyi onayla"
-                          autoComplete="new-password"
-                          className={fieldClass}
-                        />
-                      </label>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <label className="block text-sm">
-                        <span className="mb-1 block font-medium text-ink">Koordinatörlük</span>
-                        <select
-                          value={newUserCoordinatorRoleId}
-                          onChange={(event) => setNewUserCoordinatorRoleId(event.target.value)}
-                          className={fieldClass}
-                        >
-                          <option value="">Seç…</option>
-                          {coordinatorRoleOptions.map((role) => (
-                            <option key={role.id} value={role.id}>
-                              {role.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="block text-sm">
-                        <span className="mb-1 block font-medium text-ink">Uygulama rolü</span>
-                        <select
-                          value={newUserAppRole}
-                          onChange={(event) => setNewUserAppRole(event.target.value as AppRole | '')}
-                          className={fieldClass}
-                        >
-                          <option value="">Seç…</option>
-                          <option value="coordinator">Koordinatör</option>
-                          <option value="super_admin">Süper Yönetici</option>
-                        </select>
-                      </label>
-                    </div>
-
-                    {createUserError && <p className="text-sm text-red-600">{createUserError}</p>}
-
-                    <div className="mt-4 flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleCreateUser}
-                        disabled={isCreatingUser}
-                        className="min-h-[44px] rounded-lg bg-accent px-4 text-sm font-semibold text-white disabled:opacity-60"
-                      >
-                        {isCreatingUser ? 'Oluşturuluyor…' : 'Oluştur'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleCloseCreateUserPanel}
-                        disabled={isCreatingUser}
-                        className="min-h-[44px] rounded-lg border border-canvas-border px-4 text-sm font-medium text-ink-soft disabled:opacity-60"
-                      >
-                        İptal
-                      </button>
-                    </div>
-                  </>
+                    {createUserError && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{createUserError}</p>}
+                  </div>
                 )}
               </div>
             )}
+            </div>
+            <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-canvas-border bg-canvas px-4 py-4 sm:flex-row sm:justify-end sm:px-6" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+              <button type="button" onClick={handleCloseCreateUserPanel} disabled={isCreatingUser} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-brand px-5 text-sm font-semibold text-brand-dark hover:bg-brand-soft disabled:opacity-60 sm:w-auto">İptal</button>
+              <button type="button" onClick={handleCreateUser} disabled={isCreatingUser || createUserState !== 'ready' || coordinatorRoleOptions.length === 0} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-6 text-sm font-semibold text-white shadow-card disabled:opacity-60 sm:w-auto">{isCreatingUser ? 'Oluşturuluyor…' : 'Kullanıcıyı oluştur'}</button>
+            </div>
           </section>
         )}
 
