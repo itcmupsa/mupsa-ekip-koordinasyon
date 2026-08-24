@@ -4546,88 +4546,157 @@ export default function EventDetail() {
             <span aria-hidden="true" className={`text-xl text-ink-soft transition-transform ${isSksSectionOpen ? 'rotate-180' : ''}`}>⌄</span>
           </button>
           <div className={isSksSectionOpen ? 'mt-4 flex flex-col gap-4 border-t border-canvas-border pt-4' : 'hidden'}>
-            <div>
-              <span className="text-sm font-medium text-ink-soft">SKS durumu</span>
-              <div className="mt-2 flex items-center gap-3">
-                {canChangeSksStatus ? (
-                  <select
-                    value={event.sksStatus ?? ''}
-                    onChange={(e) => void handleUpdateSksStatus(e.target.value)}
-                    disabled={isUpdatingSksStatus || availableSksStatuses.length === 0}
-                    className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink disabled:opacity-60"
-                  >
-                    <option value="" disabled>Durum seçin</option>
-                    {availableSksStatuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}
-                  </select>
-                ) : (
-                  <span className="rounded-full border border-canvas-border bg-canvas px-3 py-1 text-sm font-medium text-ink">
-                    {event.sksStatus ? (availableSksStatuses.find((status) => status.slug === event.sksStatus)?.label ?? event.sksStatus) : 'Belirtilmemiş'}
-                  </span>
-                )}
-                {isUpdatingSksStatus && <span className="text-xs text-ink-soft">Kaydediliyor…</span>}
-              </div>
-              {updateSksStatusError && <p className="mt-1 text-xs text-red-600">{updateSksStatusError}</p>}
-              {updateSksStatusSuccess && <p className="mt-1 text-xs text-green-600">{updateSksStatusSuccess}</p>}
-            </div>
-
-            <div className="border-t border-canvas-border pt-4">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-medium text-ink">SKS ekibi</h3>
-                {canManageSksTeam && (
-                  <button type="button" onClick={() => setIsSksPanelOpen((open) => !open)} className="text-xs font-medium text-ink hover:underline">
-                    {isSksPanelOpen ? 'Ekip yönetimini kapat' : 'Ekibi yönet'}
-                  </button>
-                )}
-              </div>
-              {processMembersLoadState === 'loading' && <p className="mt-3 text-sm text-ink-soft">SKS ekibi yükleniyor…</p>}
-              {processMembersLoadState === 'error' && <p className="mt-3 text-sm text-red-600">SKS ekibi yüklenirken bir hata oluştu.</p>}
-              {processMembersLoadState === 'ready' && (
-                <div className="mt-3 flex flex-col gap-3">
-                  {(['owner', 'supporting', 'informed'] as const).map((responsibilityType) => {
-                    const members = sksMembers.filter((member) => member.responsibilityType === responsibilityType)
-                    const label = responsibilityType === 'owner' ? 'Ana sorumlu' : responsibilityType === 'supporting' ? 'Destekleyen' : 'Bilgilendirilen'
-                    return (
-                      <div key={responsibilityType}>
-                        <span className="block text-xs font-medium text-ink-soft">{label}</span>
-                        {members.length > 0 ? <div className="mt-1 flex flex-wrap gap-2 text-sm text-ink">{members.map((member) => <span key={member.id}>{member.displayName}</span>)}</div> : <span className="mt-1 block text-sm italic text-ink-soft">Atanmamış</span>}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-
-              {isSksPanelOpen && canManageSksTeam && (
-                <div className="mt-4 rounded-md border border-canvas-border bg-canvas px-4 py-4">
-                  <h4 className="text-sm font-semibold text-ink">Ekip yönetimi</h4>
-                  <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
-                    <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-ink-soft">
-                      Üye
-                      <select value={sksSelectedProfileId} onChange={(e) => setSksSelectedProfileId(e.target.value)} disabled={isAssigningSks || periodMembersLoadState === 'loading'} className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink">
-                        <option value="">Üye seçin</option>
-                        {periodMembers.filter((member) => !sksMembers.some((assignedMember) => assignedMember.profileId === member.profileId)).map((member) => <option key={member.profileId} value={member.profileId}>{member.displayName}</option>)}
-                      </select>
-                    </label>
-                    <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-ink-soft">
-                      Sorumluluk türü
-                      <select value={sksSelectedResponsibility} onChange={(e) => setSksSelectedResponsibility(e.target.value)} disabled={isAssigningSks} className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink">
-                        <option value="owner">Ana sorumlu</option><option value="supporting">Destekleyen</option><option value="informed">Bilgilendirilen</option>
-                      </select>
-                    </label>
-                    <button type="button" onClick={() => void handleAssignSksMember()} disabled={isAssigningSks} className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60">{isAssigningSks ? 'Ekleniyor…' : 'Ekle'}</button>
-                  </div>
-                  {assignSksError && <p className="mt-2 text-xs text-red-600">{assignSksError}</p>}
-                  {removeSksError && <p className="mt-2 text-xs text-red-600">{removeSksError}</p>}
-                  <div className="mt-4 flex flex-col gap-2">
-                    {sksMembers.length === 0 ? <p className="text-xs text-ink-soft">Ekip üyesi yok.</p> : sksMembers.map((member) => (
-                      <div key={member.id} className="flex items-center justify-between gap-2 rounded-md border border-canvas-border bg-canvas-surface px-3 py-2">
-                        <span className="text-sm text-ink">{member.displayName}</span>
-                        <button type="button" onClick={() => void handleRemoveSksMember(member.id)} disabled={removingSksMemberId === member.id} className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50">{removingSksMemberId === member.id ? 'Kaldırılıyor…' : 'Kaldır'}</button>
-                      </div>
-                    ))}
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]">
+              <section className="rounded-xl border border-canvas-border bg-canvas p-4 sm:p-5">
+                <div className="flex items-center gap-3">
+                  <EventIconBadge name="sks" />
+                  <div>
+                    <h3 className="text-sm font-semibold text-ink">SKS durumu</h3>
+                    <p className="mt-0.5 text-xs text-ink-soft">Resmî süreçteki güncel aşama.</p>
                   </div>
                 </div>
-              )}
+
+                <div className="mt-5">
+                  {canChangeSksStatus ? (
+                    <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                      Güncel durum
+                      <select
+                        value={event.sksStatus ?? ''}
+                        onChange={(e) => void handleUpdateSksStatus(e.target.value)}
+                        disabled={isUpdatingSksStatus || availableSksStatuses.length === 0}
+                        className="min-h-11 w-full rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2.5 text-sm font-medium normal-case tracking-normal text-ink outline-none transition focus:border-brand disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <option value="" disabled>Durum seçin</option>
+                        {availableSksStatuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}
+                      </select>
+                    </label>
+                  ) : (
+                    <div className="rounded-xl border border-brand/15 bg-brand-soft/30 px-4 py-4">
+                      <p className="text-xs font-medium text-ink-soft">Güncel durum</p>
+                      <p className="mt-1 text-base font-semibold text-ink">
+                        {event.sksStatus ? (availableSksStatuses.find((status) => status.slug === event.sksStatus)?.label ?? event.sksStatus) : 'Belirtilmemiş'}
+                      </p>
+                    </div>
+                  )}
+                  {isUpdatingSksStatus && <p className="mt-3 text-xs text-ink-soft">Durum kaydediliyor…</p>}
+                  {updateSksStatusError && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{updateSksStatusError}</p>}
+                  {updateSksStatusSuccess && <p className="mt-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">{updateSksStatusSuccess}</p>}
+                </div>
+              </section>
+
+              <section className="rounded-xl border border-canvas-border bg-canvas p-4 sm:p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-ink">SKS ekibi</h3>
+                    <p className="mt-1 text-xs text-ink-soft">Süreçte görev alan ve bilgilendirilen üyeler.</p>
+                  </div>
+                  {canManageSksTeam && (
+                    <button
+                      type="button"
+                      onClick={() => setIsSksPanelOpen((open) => !open)}
+                      className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-brand/40 px-3 text-xs font-semibold text-brand-dark transition hover:bg-brand-soft sm:w-auto"
+                    >
+                      {isSksPanelOpen ? 'Yönetimi kapat' : 'Ekibi yönet'}
+                    </button>
+                  )}
+                </div>
+
+                {processMembersLoadState === 'loading' && <p className="mt-4 text-sm text-ink-soft">SKS ekibi yükleniyor…</p>}
+                {processMembersLoadState === 'error' && <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">SKS ekibi yüklenirken bir hata oluştu.</p>}
+                {processMembersLoadState === 'ready' && (
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    {(['owner', 'supporting', 'informed'] as const).map((responsibilityType) => {
+                      const members = sksMembers.filter((member) => member.responsibilityType === responsibilityType)
+                      const label = responsibilityType === 'owner' ? 'Ana sorumlu' : responsibilityType === 'supporting' ? 'Destekleyen' : 'Bilgilendirilen'
+                      return (
+                        <div key={responsibilityType} className="min-w-0 rounded-xl border border-canvas-border bg-canvas-surface p-3.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-semibold text-ink-soft">{label}</p>
+                            <span className="rounded-full bg-canvas px-2 py-0.5 text-[11px] font-semibold text-ink-soft">{members.length}</span>
+                          </div>
+                          {members.length > 0 ? (
+                            <div className="mt-3 flex flex-col gap-2">
+                              {members.map((member) => (
+                                <div key={member.id} className="flex min-w-0 items-center gap-2">
+                                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand-dark">
+                                    {member.displayName.trim().charAt(0).toLocaleUpperCase('tr-TR') || '?'}
+                                  </span>
+                                  <span className="truncate text-sm font-medium text-ink">{member.displayName}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="mt-3 text-xs italic text-ink-soft">Atanmamış</p>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </section>
             </div>
+
+            {isSksPanelOpen && canManageSksTeam && (
+              <section className="overflow-hidden rounded-xl border border-canvas-border bg-canvas shadow-card">
+                <div className="flex items-center justify-between gap-3 border-b border-canvas-border px-4 py-3 sm:px-5">
+                  <div className="flex items-center gap-3">
+                    <EventIconBadge name="person" />
+                    <div>
+                      <h4 className="text-sm font-semibold text-ink">SKS ekip yönetimi</h4>
+                      <p className="mt-0.5 text-xs text-ink-soft">Üye ekleyin veya mevcut üyeleri kaldırın.</p>
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => setIsSksPanelOpen(false)} aria-label="SKS ekip yönetimini kapat" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-canvas-border text-lg text-ink-soft hover:bg-canvas-surface">×</button>
+                </div>
+
+                <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+                  <div className="rounded-xl border border-canvas-border bg-canvas-surface p-4">
+                    <h5 className="text-sm font-semibold text-ink">Yeni ekip üyesi</h5>
+                    <p className="mt-1 text-xs text-ink-soft">Üyeyi ve süreçteki rolünü seçin.</p>
+                    <div className="mt-4 flex flex-col gap-3">
+                      <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                        Üye
+                        <select value={sksSelectedProfileId} onChange={(e) => setSksSelectedProfileId(e.target.value)} disabled={isAssigningSks || periodMembersLoadState === 'loading'} className="min-h-11 w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2.5 text-sm font-medium normal-case tracking-normal text-ink outline-none focus:border-brand disabled:opacity-60">
+                          <option value="">Üye seçin</option>
+                          {periodMembers.filter((member) => !sksMembers.some((assignedMember) => assignedMember.profileId === member.profileId)).map((member) => <option key={member.profileId} value={member.profileId}>{member.displayName}</option>)}
+                        </select>
+                      </label>
+                      <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                        Sorumluluk türü
+                        <select value={sksSelectedResponsibility} onChange={(e) => setSksSelectedResponsibility(e.target.value)} disabled={isAssigningSks} className="min-h-11 w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2.5 text-sm font-medium normal-case tracking-normal text-ink outline-none focus:border-brand disabled:opacity-60">
+                          <option value="owner">Ana sorumlu</option><option value="supporting">Destekleyen</option><option value="informed">Bilgilendirilen</option>
+                        </select>
+                      </label>
+                      <button type="button" onClick={() => void handleAssignSksMember()} disabled={isAssigningSks} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand-dark px-4 text-sm font-semibold text-white transition hover:bg-brand disabled:opacity-60">{isAssigningSks ? 'Ekleniyor…' : '+ Ekip üyesi ekle'}</button>
+                    </div>
+                    {assignSksError && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{assignSksError}</p>}
+                  </div>
+
+                  <div className="rounded-xl border border-canvas-border bg-canvas-surface p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div><h5 className="text-sm font-semibold text-ink">Eklenen üyeler</h5><p className="mt-1 text-xs text-ink-soft">SKS sürecindeki güncel ekip.</p></div>
+                      <span className="rounded-full bg-canvas px-2.5 py-1 text-xs font-semibold text-ink-soft">{sksMembers.length}</span>
+                    </div>
+                    {sksMembers.length === 0 ? (
+                      <div className="mt-4 rounded-xl border border-dashed border-canvas-border bg-canvas px-4 py-8 text-center"><p className="text-sm font-medium text-ink">Henüz ekip üyesi yok</p><p className="mt-1 text-xs text-ink-soft">Soldaki alandan ilk üyeyi ekleyebilirsiniz.</p></div>
+                    ) : (
+                      <div className="mt-4 flex flex-col gap-2">
+                        {sksMembers.map((member) => {
+                          const responsibilityLabel = member.responsibilityType === 'owner' ? 'Ana sorumlu' : member.responsibilityType === 'supporting' ? 'Destekleyen' : 'Bilgilendirilen'
+                          return (
+                            <div key={member.id} className="flex flex-col gap-3 rounded-xl border border-canvas-border bg-canvas p-3 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-semibold text-brand-dark">{member.displayName.trim().charAt(0).toLocaleUpperCase('tr-TR') || '?'}</span><div className="min-w-0"><p className="truncate text-sm font-semibold text-ink">{member.displayName}</p><p className="mt-0.5 text-xs text-ink-soft">{responsibilityLabel}</p></div></div>
+                              <button type="button" onClick={() => void handleRemoveSksMember(member.id)} disabled={removingSksMemberId === member.id} className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-red-200 px-3 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 sm:w-auto">{removingSksMemberId === member.id ? 'Kaldırılıyor…' : 'Kaldır'}</button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                    {removeSksError && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{removeSksError}</p>}
+                  </div>
+                </div>
+              </section>
+            )}
           </div>
         </section>
 
