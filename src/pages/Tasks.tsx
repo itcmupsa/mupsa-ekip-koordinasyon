@@ -564,8 +564,9 @@ export default function Tasks({ session }: { session: Session }) {
         </section>
 
         {visibleTasks.length === 0 ? (
-          <div className="rounded-xl border border-canvas-border bg-canvas-surface px-4 py-8 text-center shadow-card">
-            <p className="text-sm font-medium text-ink">Bu filtrelere uygun görev bulunmuyor.</p>
+          <div className="rounded-2xl border border-dashed border-canvas-border bg-canvas-surface px-4 py-10 text-center shadow-card">
+            <div className="mx-auto w-fit"><TaskKindIcon kind="standalone" /></div>
+            <p className="mt-4 text-sm font-semibold text-ink">Bu filtrelere uygun görev bulunmuyor.</p>
             <p className="mt-1 text-xs text-ink-soft">Arama metnini veya filtreleri değiştirebilirsin.</p>
           </div>
         ) : (
@@ -583,7 +584,7 @@ export default function Tasks({ session }: { session: Session }) {
                 task.deletedAt ? 'border-red-200 bg-red-50/40' : 'border-canvas-border bg-canvas-surface',
               ].join(' ')
               const controlClass = [
-                'min-h-[44px] max-w-[10rem] rounded-lg border px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                'min-h-[44px] w-full rounded-lg border px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand sm:w-auto sm:max-w-[11rem]',
                 statusControlClass(task.progressStatus),
               ].join(' ')
 
@@ -592,21 +593,21 @@ export default function Tasks({ session }: { session: Session }) {
                   <div className="flex items-start gap-3 sm:gap-4">
                     <TaskKindIcon kind={taskKind} />
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
                           <p className="text-xs text-ink-soft">{taskTypeLabel}</p>
                           <h2 className="mt-1 break-words text-base font-semibold text-ink">{task.title}</h2>
                         </div>
 
                         {canUpdate && !task.deletedAt ? (
-                          <label className="shrink-0">
+                          <label className="w-full shrink-0 sm:w-auto">
                             <span className="sr-only">{task.title} görev durumunu değiştir</span>
                             <select value={task.progressStatus} onChange={(event) => void updateStatus(task, event.target.value)} disabled={updatingTaskId === task.id} className={controlClass}>
                               {statuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}
                             </select>
                           </label>
                         ) : (
-                          <span className={`flex min-h-[44px] shrink-0 items-center rounded-md border px-3 py-2 text-sm font-medium ${statusControlClass(task.progressStatus)}`}>
+                          <span className={`flex min-h-[44px] w-full shrink-0 items-center justify-center rounded-lg border px-3 py-2 text-sm font-medium sm:w-auto ${statusControlClass(task.progressStatus)}`}>
                             {statusLabel}
                           </span>
                         )}
@@ -619,7 +620,7 @@ export default function Tasks({ session }: { session: Session }) {
                         </Link>
                       ) : null}
 
-                      {task.description ? <p className="mt-2 whitespace-pre-wrap break-words text-sm text-ink-soft">{task.description}</p> : null}
+                      {task.description ? <p className="mt-3 whitespace-pre-wrap break-words rounded-lg border border-canvas-border bg-canvas px-3 py-2.5 text-sm leading-6 text-ink-soft">{task.description}</p> : null}
 
                       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-ink-soft">
                         <span className="inline-flex items-center gap-1.5"><CalendarIcon />{canSeeDeadline(task) ? formatDeadline(task.deadlineAt) : 'Son tarih yalnızca görev sorumlularına açıktır'}</span>
@@ -631,11 +632,11 @@ export default function Tasks({ session }: { session: Session }) {
                       </div>
 
                       {task.assignments.length > 0 ? (
-                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-ink-soft">
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs text-ink-soft">
                           {task.assignments.map((assignment) => {
                             const fullLabel = `${ASSIGNMENT_LABELS[assignment.assignmentType]}: ${assignment.displayName}`
                             return (
-                              <span key={assignment.id} title={fullLabel} className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+                              <span key={assignment.id} title={fullLabel} className="inline-flex min-h-9 min-w-0 max-w-full items-center gap-1.5 rounded-full border border-canvas-border bg-canvas px-3">
                                 <PersonIcon />
                                 <span className="max-w-[15rem] truncate sm:max-w-[20rem]">{fullLabel}</span>
                               </span>
@@ -646,9 +647,9 @@ export default function Tasks({ session }: { session: Session }) {
                     </div>
                   </div>
                   {isSuperAdmin ? (
-                    <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-canvas-border pt-2">
-                      <button type="button" onClick={() => void toggleTaskActive(task)} disabled={updatingTaskId === task.id} className={`min-h-[44px] rounded-lg px-3 text-sm font-medium disabled:opacity-50 ${task.deletedAt ? 'text-brand-dark hover:bg-brand-soft' : 'text-danger hover:bg-danger-soft'}`}>{updatingTaskId === task.id ? 'İşleniyor…' : task.deletedAt ? 'Yeniden aktifleştir' : 'Pasifleştir'}</button>
-                      {task.deletedAt ? <button type="button" onClick={() => { setFormMessage(null); setDeleteError(null); setDeleteTarget(task) }} className="min-h-[44px] rounded-lg px-3 text-sm font-medium text-danger hover:bg-danger-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger">Kalıcı sil</button> : null}
+                    <div className="mt-4 grid grid-cols-1 gap-2 border-t border-canvas-border pt-3 sm:flex sm:justify-end">
+                      <button type="button" onClick={() => void toggleTaskActive(task)} disabled={updatingTaskId === task.id} className={`min-h-[44px] rounded-lg border px-3 text-sm font-semibold disabled:opacity-50 ${task.deletedAt ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100' : 'border-red-200 text-danger hover:bg-danger-soft'}`}>{updatingTaskId === task.id ? 'İşleniyor…' : task.deletedAt ? 'Yeniden aktifleştir' : 'Pasifleştir'}</button>
+                      {task.deletedAt ? <button type="button" onClick={() => { setFormMessage(null); setDeleteError(null); setDeleteTarget(task) }} className="min-h-[44px] rounded-lg border border-red-200 px-3 text-sm font-semibold text-danger hover:bg-danger-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger">Kalıcı sil</button> : null}
                     </div>
                   ) : null}
                 </article>
