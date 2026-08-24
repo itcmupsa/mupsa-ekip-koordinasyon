@@ -74,7 +74,7 @@ interface AwarenessPost {
 type FormMode = 'closed' | 'create' | 'edit'
 type ListFilter = 'all' | 'waiting' | 'shared' | 'delayed'
 
-const fieldClass = 'min-h-[44px] rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2.5 font-normal text-ink placeholder:text-ink-soft/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60'
+const fieldClass = 'min-h-[44px] rounded-lg border border-canvas-border bg-canvas px-3 py-2.5 font-normal text-ink placeholder:text-ink-soft/70 focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-60'
 const focusableSelector = 'button:not([disabled]), textarea:not([disabled]), select:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 function AwarenessIcon() {
@@ -684,24 +684,24 @@ export default function AwarenessPosts({ session }: { session: Session }) {
       {formMode !== 'closed' ? (
         <>
           <button type="button" aria-label="Formu kapat" tabIndex={-1} onClick={() => !isSaving && setFormMode('closed')} className="fixed inset-0 z-40 hidden bg-ink/45 backdrop-blur-[1px] lg:block" />
-          <section ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="awareness-form-title" className="fixed inset-0 z-50 flex flex-col bg-canvas-surface shadow-2xl lg:left-auto lg:w-[min(46rem,calc(100vw-15rem))]" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <section ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="awareness-form-title" className="fixed inset-0 z-50 flex flex-col bg-canvas-surface shadow-2xl lg:left-auto lg:w-[min(52rem,calc(100vw-15rem))]" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             <header className="flex shrink-0 items-center justify-between gap-3 border-b border-canvas-border px-4 py-4 sm:px-6">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-amber-800"><AwarenessIcon /></span>
                 <div className="min-w-0"><h2 id="awareness-form-title" className="truncate text-lg font-semibold text-ink">{formMode === 'create' ? 'Yeni farkındalık' : 'Farkındalığı düzenle'}</h2><p className="hidden text-xs text-ink-soft sm:block">Çalışmanın planlama ve paylaşım bilgilerini düzenle.</p></div>
               </div>
-              <button ref={closeButtonRef} type="button" onClick={() => setFormMode('closed')} disabled={isSaving} aria-label="Formu kapat" className="flex min-h-[44px] shrink-0 items-center gap-2 rounded-md px-2 text-sm font-medium text-ink-soft hover:bg-canvas hover:text-ink disabled:opacity-60"><span className="hidden sm:inline">Kapat</span><CloseIcon /></button>
+              <button ref={closeButtonRef} type="button" onClick={() => setFormMode('closed')} disabled={isSaving} aria-label="Formu kapat" className="flex min-h-[44px] shrink-0 items-center gap-2 rounded-lg border border-canvas-border px-3 text-sm font-medium text-ink-soft hover:bg-canvas hover:text-ink disabled:opacity-60"><span className="hidden sm:inline">Kapat</span><CloseIcon /></button>
             </header>
 
             <form onSubmit={(event) => { event.preventDefault(); void handleSave() }} className="flex min-h-0 flex-1 flex-col">
               <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
                 <div className="grid gap-6">
-                  <fieldset><legend className="text-sm font-semibold text-brand-dark">Temel bilgiler</legend><div className="mt-3 grid gap-4 sm:grid-cols-2">
+                  <fieldset className="rounded-xl border border-canvas-border bg-canvas-surface p-4 sm:p-5"><legend className="px-1"><span className="flex items-center gap-2 text-sm font-semibold text-brand-dark"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-amber-800"><AwarenessIcon /></span>Temel bilgiler</span></legend><div className="mt-3 grid gap-4 sm:grid-cols-2">
                     <label className="grid gap-1.5 text-sm font-medium text-ink sm:col-span-2">Farkındalık adı *<input value={awarenessName} onChange={(event) => setAwarenessName(event.target.value)} disabled={isSaving} placeholder="Örn. Sürdürülebilirlik Nedir?" className={fieldClass} /></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink sm:col-span-2">Kapsam<input value={scope} onChange={(event) => setScope(event.target.value)} disabled={isSaving} placeholder="Çalışmanın kısa kapsamı" className={fieldClass} /></label>
                   </div></fieldset>
 
-                  <fieldset className="border-t border-canvas-border pt-5"><legend className="text-sm font-semibold text-brand-dark">Tarihler</legend><div className="mt-3 grid gap-4 sm:grid-cols-2">
+                  <fieldset className="rounded-xl border border-canvas-border bg-canvas-surface p-4 sm:p-5"><legend className="px-1"><span className="flex items-center gap-2 text-sm font-semibold text-brand-dark"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft"><CalendarIcon /></span>Tarihler</span></legend><div className="mt-3 grid gap-4 sm:grid-cols-2">
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Başlangıç günü<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} disabled={isSaving} className={fieldClass} /></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Bitiş günü<input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} disabled={isSaving} className={fieldClass} /></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Tahmini paylaşım<input type="date" value={estimatedDate} onChange={(event) => setEstimatedDate(event.target.value)} disabled={isSaving} className={fieldClass} /></label>
@@ -710,21 +710,21 @@ export default function AwarenessPosts({ session }: { session: Session }) {
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Kapanış tarihi<input type="date" value={closingDate} onChange={(event) => setClosingDate(event.target.value)} disabled={isSaving} className={fieldClass} /></label>
                   </div></fieldset>
 
-                  <fieldset className="border-t border-canvas-border pt-5"><legend className="text-sm font-semibold text-brand-dark">Süreç durumları</legend><div className="mt-3 grid gap-4 sm:grid-cols-2">
+                  <fieldset className="rounded-xl border border-canvas-border bg-canvas-surface p-4 sm:p-5"><legend className="px-1"><span className="flex items-center gap-2 text-sm font-semibold text-brand-dark"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-amber-800"><AwarenessIcon /></span>Süreç durumları</span></legend><div className="mt-3 grid gap-4 sm:grid-cols-2">
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Tasarım durumu<select value={designStatus} onChange={(event) => setDesignStatus(event.target.value)} disabled={isSaving} className={fieldClass}>{designStatuses.map((option) => <option key={option.slug} value={option.slug}>{option.label}</option>)}</select></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Duyuru metni durumu<select value={announcementStatus} onChange={(event) => setAnnouncementStatus(event.target.value)} disabled={isSaving} className={fieldClass}>{announcementStatuses.map((option) => <option key={option.slug} value={option.slug}>{option.label}</option>)}</select></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Paylaşım durumu<select value={sharingStatus} onChange={(event) => setSharingStatus(event.target.value)} disabled={isSaving} className={fieldClass}>{sharingStatuses.map((option) => <option key={option.slug} value={option.slug}>{option.label}</option>)}</select></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Kayıt kontrolü<select value={recordCheckStatus} onChange={(event) => setRecordCheckStatus(event.target.value)} disabled={isSaving} className={fieldClass}>{recordCheckStatuses.map((option) => <option key={option.slug} value={option.slug}>{option.label}</option>)}</select></label>
                   </div></fieldset>
 
-                  <fieldset className="border-t border-canvas-border pt-5"><legend className="text-sm font-semibold text-brand-dark">Sorumlular ve takip</legend><div className="mt-3 grid gap-4 sm:grid-cols-2">
+                  <fieldset className="rounded-xl border border-canvas-border bg-canvas-surface p-4 sm:p-5"><legend className="px-1"><span className="flex items-center gap-2 text-sm font-semibold text-brand-dark"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft"><PersonIcon /></span>Sorumlular ve takip</span></legend><div className="mt-3 grid gap-4 sm:grid-cols-2">
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Tasarım sorumlusu<select value={designResponsibleId} onChange={(event) => setDesignResponsibleId(event.target.value)} disabled={isSaving} className={fieldClass}><option value="">Seçiniz</option>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Basın Yayın sorumlusu<select value={pressResponsibleId} onChange={(event) => setPressResponsibleId(event.target.value)} disabled={isSaving} className={fieldClass}><option value="">Seçiniz</option>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink sm:col-span-2">Sonraki aksiyon<input value={nextAction} onChange={(event) => setNextAction(event.target.value)} disabled={isSaving} placeholder="Sıradaki yapılacak işi yazın" className={fieldClass} /></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink sm:col-span-2">Not<textarea value={note} onChange={(event) => setNote(event.target.value)} disabled={isSaving} rows={3} className={`${fieldClass} resize-y`} /></label>
                   </div></fieldset>
 
-                  <fieldset className="border-t border-canvas-border pt-5"><legend className="text-sm font-semibold text-brand-dark">Bağlantılar</legend><div className="mt-3 grid gap-4 sm:grid-cols-2">
+                  <fieldset className="rounded-xl border border-canvas-border bg-canvas-surface p-4 sm:p-5"><legend className="px-1"><span className="flex items-center gap-2 text-sm font-semibold text-brand-dark"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft"><LinkIcon /></span>Bağlantılar</span></legend><div className="mt-3 grid gap-4 sm:grid-cols-2">
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Drive klasörü<input type="url" value={driveFolderUrl} onChange={(event) => setDriveFolderUrl(event.target.value)} disabled={isSaving} placeholder="https://" className={fieldClass} /></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Tasarım linki<input type="url" value={designUrl} onChange={(event) => setDesignUrl(event.target.value)} disabled={isSaving} placeholder="https://" className={fieldClass} /></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink sm:col-span-2">Paylaşım linki<input type="url" value={shareUrl} onChange={(event) => setShareUrl(event.target.value)} disabled={isSaving} placeholder="https://" className={fieldClass} /></label>
