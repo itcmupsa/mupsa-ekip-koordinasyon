@@ -574,72 +574,21 @@ function TaskCard({
   return (
     <div className={`rounded-xl border border-canvas-border px-3 py-3 transition-opacity sm:px-4 ${isDeactivated ? 'bg-canvas-surface opacity-80' : 'bg-canvas-surface'}`}>
       {isEditingTask ? (
-        <div className="mb-4 flex flex-col gap-4 border-b border-canvas-border pb-4">
-          <h4 className="text-sm font-semibold text-ink">Görevi düzenle</h4>
-          <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
-            Görev adı
-            <input
-              value={editTitle}
-              onChange={(event) => setEditTitle(event.target.value)}
-              disabled={isUpdatingTaskInfo}
-              className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-1.5 text-sm text-ink"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
-            Açıklama
-            <textarea
-              value={editDescription}
-              onChange={(event) => setEditDescription(event.target.value)}
-              disabled={isUpdatingTaskInfo}
-              rows={2}
-              className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-1.5 text-sm text-ink"
-            />
-          </label>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
-              Son tarih
-              <input
-                type="datetime-local"
-                value={editDeadline}
-                onChange={(event) => setEditDeadline(event.target.value)}
-                disabled={isUpdatingTaskInfo}
-                className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-1.5 text-sm text-ink"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
-              Öncelik
-              <select
-                value={editPriority}
-                onChange={(event) => setEditPriority(event.target.value)}
-                disabled={isUpdatingTaskInfo}
-                className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-1.5 text-sm text-ink"
-              >
-                {TASK_PRIORITY_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+        <div className="mb-4 overflow-hidden rounded-xl border border-canvas-border bg-canvas shadow-card">
+          <div className="flex items-center justify-between gap-3 border-b border-canvas-border bg-canvas-surface px-4 py-3">
+            <div className="flex items-center gap-3"><EventIconBadge name="task" /><div><h4 className="text-sm font-semibold text-ink">Görevi düzenle</h4><p className="mt-0.5 text-xs text-ink-soft">Görev bilgilerini ve zamanlamasını güncelleyin.</p></div></div>
+            <button type="button" onClick={() => setIsEditingTask(false)} disabled={isUpdatingTaskInfo} aria-label="Görev düzenlemeyi kapat" className="flex h-9 w-9 items-center justify-center rounded-full text-xl text-ink-soft hover:bg-canvas disabled:opacity-60">×</button>
           </div>
-          {updateTaskInfoError && <p className="text-xs text-red-600">{updateTaskInfoError}</p>}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => void handleSaveTaskInfo()}
-              disabled={isUpdatingTaskInfo}
-              className="rounded-md bg-ink px-4 py-2 text-xs font-medium text-canvas-surface disabled:opacity-60"
-            >
-              {isUpdatingTaskInfo ? 'Kaydediliyor…' : 'Kaydet'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsEditingTask(false)}
-              disabled={isUpdatingTaskInfo}
-              className="rounded-md border border-canvas-border px-4 py-2 text-xs font-medium text-ink-soft disabled:opacity-60"
-            >
-              İptal
-            </button>
+          <div className="grid gap-4 p-4 sm:grid-cols-2">
+            <label className="grid gap-1.5 text-xs font-medium text-ink-soft sm:col-span-2">Görev adı<input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} disabled={isUpdatingTaskInfo} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm font-normal text-ink" /></label>
+            <label className="grid gap-1.5 text-xs font-medium text-ink-soft sm:col-span-2">Açıklama<textarea value={editDescription} onChange={(event) => setEditDescription(event.target.value)} disabled={isUpdatingTaskInfo} rows={3} className="resize-y rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm font-normal text-ink" /></label>
+            <label className="grid gap-1.5 text-xs font-medium text-ink-soft">Son tarih<input type="datetime-local" value={editDeadline} onChange={(event) => setEditDeadline(event.target.value)} disabled={isUpdatingTaskInfo} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm font-normal text-ink" /></label>
+            <label className="grid gap-1.5 text-xs font-medium text-ink-soft">Öncelik<select value={editPriority} onChange={(event) => setEditPriority(event.target.value)} disabled={isUpdatingTaskInfo} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm font-normal text-ink">{TASK_PRIORITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+            {updateTaskInfoError ? <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 sm:col-span-2">{updateTaskInfoError}</p> : null}
+          </div>
+          <div className="flex flex-col gap-2 border-t border-canvas-border bg-canvas-surface px-4 py-3 sm:flex-row sm:justify-end">
+            <button type="button" onClick={() => setIsEditingTask(false)} disabled={isUpdatingTaskInfo} className="min-h-[42px] rounded-md border border-canvas-border px-4 text-xs font-medium text-ink-soft disabled:opacity-60">İptal</button>
+            <button type="button" onClick={() => void handleSaveTaskInfo()} disabled={isUpdatingTaskInfo} className="min-h-[42px] rounded-md bg-brand-dark px-5 text-xs font-medium text-white disabled:opacity-60">{isUpdatingTaskInfo ? 'Kaydediliyor…' : 'Kaydet'}</button>
           </div>
         </div>
       ) : (
@@ -4969,118 +4918,34 @@ export default function EventDetail() {
           )}
 
           {isTaskFormOpen && (
-            <div className="mt-4 rounded-md border border-canvas-border bg-canvas px-4 py-4">
-              <h3 className="text-sm font-semibold text-ink">Yeni görev</h3>
-              <div className="mt-3 flex flex-col gap-4">
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="task-title" className="text-sm font-medium text-ink-soft">
-                    Görev adı
-                  </label>
-                  <input
-                    id="task-title"
-                    type="text"
-                    value={newTaskTitle}
-                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                    disabled={isCreatingTask}
-                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="task-description" className="text-sm font-medium text-ink-soft">
-                    Açıklama
-                  </label>
-                  <textarea
-                    id="task-description"
-                    value={newTaskDescription}
-                    onChange={(e) => setNewTaskDescription(e.target.value)}
-                    disabled={isCreatingTask}
-                    rows={3}
-                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
-                  />
-                </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="task-deadline" className="text-sm font-medium text-ink-soft">
-                      Son tarih
-                    </label>
-                    <input
-                      id="task-deadline"
-                      type="datetime-local"
-                      value={newTaskDeadline}
-                      onChange={(e) => setNewTaskDeadline(e.target.value)}
-                      disabled={isCreatingTask}
-                      className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
-                    />
+            <div className="mt-4 overflow-hidden rounded-xl border border-canvas-border bg-canvas shadow-card">
+              <div className="flex items-center justify-between gap-3 border-b border-canvas-border bg-canvas-surface px-4 py-3 sm:px-5">
+                <div className="flex items-center gap-3"><EventIconBadge name="task" /><div><h3 className="text-sm font-semibold text-ink">Yeni görev oluştur</h3><p className="mt-0.5 text-xs text-ink-soft">Görevin kapsamını, zamanını ve ana sorumlusunu belirleyin.</p></div></div>
+                <button type="button" onClick={cancelTaskForm} disabled={isCreatingTask} aria-label="Görev formunu kapat" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xl text-ink-soft hover:bg-canvas disabled:opacity-60">×</button>
+              </div>
+              <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(16rem,0.55fr)] lg:p-5">
+                <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4">
+                  <div className="flex items-center gap-2"><EventIconBadge name="content" /><h4 className="text-sm font-semibold text-ink">Görev bilgileri</h4></div>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <label className="grid gap-1.5 text-xs font-medium text-ink-soft sm:col-span-2">Görev adı<input id="task-title" type="text" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} disabled={isCreatingTask} placeholder="Yapılacak işi kısa ve net yazın" className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /></label>
+                    <label className="grid gap-1.5 text-xs font-medium text-ink-soft sm:col-span-2">Açıklama<textarea id="task-description" value={newTaskDescription} onChange={(e) => setNewTaskDescription(e.target.value)} disabled={isCreatingTask} rows={4} placeholder="Görevin kapsamını ve beklenen sonucu açıklayın" className="resize-y rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /></label>
+                    <label className="grid gap-1.5 text-xs font-medium text-ink-soft">Son tarih<input id="task-deadline" type="datetime-local" value={newTaskDeadline} onChange={(e) => setNewTaskDeadline(e.target.value)} disabled={isCreatingTask} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /></label>
+                    <label className="grid gap-1.5 text-xs font-medium text-ink-soft">Öncelik<select id="task-priority" value={newTaskPriority} onChange={(e) => setNewTaskPriority(e.target.value)} disabled={isCreatingTask} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink">{TASK_PRIORITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="task-priority" className="text-sm font-medium text-ink-soft">
-                      Öncelik
-                    </label>
-                    <select
-                      id="task-priority"
-                      value={newTaskPriority}
-                      onChange={(e) => setNewTaskPriority(e.target.value)}
-                      disabled={isCreatingTask}
-                      className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
-                    >
-                      {TASK_PRIORITY_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="task-primary-assignee" className="text-sm font-medium text-ink-soft">
-                    Koordinatör / ana sorumlu <span className="font-normal text-ink-soft">(isteğe bağlı)</span>
-                  </label>
-                  <select
-                    id="task-primary-assignee"
-                    value={newTaskPrimaryProfileId}
-                    onChange={(e) => setNewTaskPrimaryProfileId(e.target.value)}
-                    disabled={isCreatingTask || periodMembersLoadState === 'loading'}
-                    className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink disabled:opacity-60"
-                  >
-                    <option value="">
-                      {periodMembersLoadState === 'loading' ? 'Koordinatörler yükleniyor…' : 'Atanmamış bırak'}
-                    </option>
-                    {periodMembers.map((member) => (
-                      <option key={member.profileId} value={member.profileId}>
-                        {member.displayName}{member.coordinatorRoleName ? ` — ${member.coordinatorRoleName}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-ink-soft">
-                    Seçilen kişi görevin ana sorumlusu olur. Destekleyen ve bilgilendirilen kişiler görev oluşturulduktan sonra Atama yönetimi alanından eklenebilir.
-                  </p>
-                  {periodMembersLoadState === 'error' && (
-                    <p className="text-xs text-danger">Koordinatör listesi yüklenemedi. Görevi atanmamış oluşturup daha sonra atama yapabilirsiniz.</p>
-                  )}
-                </div>
-                {createTaskError && (
-                  <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    {createTaskError}
-                  </p>
-                )}
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleCreateTask}
-                    disabled={isCreatingTask}
-                    className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
-                  >
-                    {isCreatingTask ? 'Oluşturuluyor…' : 'Görevi oluştur'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={cancelTaskForm}
-                    disabled={isCreatingTask}
-                    className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
-                  >
-                    İptal
-                  </button>
-                </div>
+                </section>
+
+                <aside className="rounded-xl border border-canvas-border bg-canvas-surface p-4">
+                  <div className="flex items-center gap-2"><EventIconBadge name="person" /><h4 className="text-sm font-semibold text-ink">Sorumluluk</h4></div>
+                  <label className="mt-4 grid gap-1.5 text-xs font-medium text-ink-soft">Ana sorumlu <span className="sr-only">isteğe bağlı</span><select id="task-primary-assignee" value={newTaskPrimaryProfileId} onChange={(e) => setNewTaskPrimaryProfileId(e.target.value)} disabled={isCreatingTask || periodMembersLoadState === 'loading'} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink disabled:opacity-60"><option value="">{periodMembersLoadState === 'loading' ? 'Koordinatörler yükleniyor…' : 'Atanmamış bırak'}</option>{periodMembers.map((member) => <option key={member.profileId} value={member.profileId}>{member.displayName}{member.coordinatorRoleName ? ` — ${member.coordinatorRoleName}` : ''}</option>)}</select></label>
+                  <p className="mt-3 rounded-lg border border-brand/15 bg-brand-soft/40 p-3 text-xs leading-5 text-ink-soft">Destekleyen ve bilgilendirilen kişiler görev oluşturulduktan sonra Atama yönetiminden eklenebilir.</p>
+                  {periodMembersLoadState === 'error' ? <p className="mt-3 text-xs text-danger">Koordinatör listesi yüklenemedi. Görevi atanmamış oluşturabilirsiniz.</p> : null}
+                  <div className="mt-4 grid grid-cols-2 gap-2 text-xs"><div className="rounded-lg border border-canvas-border bg-canvas p-3"><p className="text-ink-soft">Öncelik</p><p className="mt-1 font-semibold text-ink">{TASK_PRIORITY_LABELS[newTaskPriority] ?? newTaskPriority}</p></div><div className="rounded-lg border border-canvas-border bg-canvas p-3"><p className="text-ink-soft">Ana sorumlu</p><p className="mt-1 truncate font-semibold text-ink">{periodMembers.find((member) => member.profileId === newTaskPrimaryProfileId)?.displayName ?? 'Atanmamış'}</p></div></div>
+                </aside>
+                {createTaskError ? <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 lg:col-span-2">{createTaskError}</p> : null}
+              </div>
+              <div className="flex flex-col gap-2 border-t border-canvas-border bg-canvas-surface px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
+                <button type="button" onClick={cancelTaskForm} disabled={isCreatingTask} className="min-h-[44px] rounded-md border border-canvas-border px-5 text-sm font-medium text-ink-soft disabled:opacity-60">İptal</button>
+                <button type="button" onClick={handleCreateTask} disabled={isCreatingTask} className="min-h-[44px] rounded-md bg-brand-dark px-6 text-sm font-medium text-white disabled:opacity-60">{isCreatingTask ? 'Oluşturuluyor…' : 'Görevi oluştur'}</button>
               </div>
             </div>
           )}
