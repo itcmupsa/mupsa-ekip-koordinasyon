@@ -4047,9 +4047,9 @@ export default function EventDetail() {
               <button
                 type="button"
                 onClick={openCreateReportForm}
-                className="shrink-0 rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-sm font-medium text-ink hover:bg-canvas-surface"
+                className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-lg bg-brand-dark px-4 text-sm font-semibold text-white transition hover:bg-brand sm:w-auto"
               >
-                Rapor ekle
+                + Rapor ekle
               </button>
             )}
           </div>
@@ -4118,19 +4118,25 @@ export default function EventDetail() {
             </p>
           )}
           {reportsLoadState === 'ready' && reports.length === 0 && (
-            <p className="mt-3 text-sm italic text-ink-soft">Bu etkinlik için henüz rapor eklenmemiş.</p>
+            <div className="mt-4 rounded-xl border border-dashed border-canvas-border bg-canvas px-4 py-9 text-center">
+              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-sky-50 text-sky-700"><EventIcon name="report" className="h-5 w-5" /></span>
+              <p className="mt-3 text-sm font-semibold text-ink">Henüz rapor eklenmedi</p>
+              <p className="mt-1 text-xs text-ink-soft">Etkinlik değerlendirmeleri burada listelenecek.</p>
+            </div>
           )}
           {reportsLoadState === 'ready' && reports.length > 0 && (
             <div className="mt-4 flex flex-col gap-4">
               {reports.map((report) => (
                 <div
                   key={report.id}
-                  className={`rounded-md border px-4 py-3 ${
+                  className={`rounded-xl border p-4 ${
                     report.deletedAt ? 'border-red-200 bg-red-50/40' : 'border-canvas-border bg-canvas'
                   }`}
                 >
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-700"><EventIcon name="report" className="h-4.5 w-4.5" /></span>
+                      <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <h4 className="text-sm font-semibold text-ink">{report.title}</h4>
                         {report.deletedAt && (
@@ -4144,13 +4150,14 @@ export default function EventDetail() {
                         <span>{formatDate(report.reportDate)}</span>
                         <span>{report.creatorName}</span>
                       </div>
+                      </div>
                     </div>
                     {canEdit && !report.deletedAt && (
-                      <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end sm:gap-2">
+                      <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex sm:items-center">
                         <button
                           type="button"
                           onClick={() => openEditReportForm(report)}
-                          className="text-xs font-medium text-ink-soft underline decoration-dotted"
+                          className="inline-flex min-h-10 items-center justify-center rounded-lg border border-brand/40 px-3 text-xs font-semibold text-brand-dark hover:bg-brand-soft"
                         >
                           Düzenle
                         </button>
@@ -4158,7 +4165,7 @@ export default function EventDetail() {
                           type="button"
                           onClick={() => void handleDeactivateReport(report.id)}
                           disabled={deactivatingReportId === report.id}
-                          className="text-xs font-medium text-red-600 underline decoration-dotted disabled:opacity-50"
+                          className="inline-flex min-h-10 items-center justify-center rounded-lg border border-red-200 px-3 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
                         >
                           {deactivatingReportId === report.id ? 'İşleniyor…' : 'Pasifleştir'}
                         </button>
@@ -4169,7 +4176,7 @@ export default function EventDetail() {
                         type="button"
                         onClick={() => void handleReactivateReport(report.id)}
                         disabled={deactivatingReportId === report.id}
-                        className="shrink-0 rounded border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-700 disabled:opacity-50"
+                        className="inline-flex min-h-10 w-full shrink-0 items-center justify-center rounded-lg border border-green-200 bg-green-50 px-3 text-xs font-semibold text-green-700 disabled:opacity-50 sm:w-auto"
                       >
                         {deactivatingReportId === report.id ? 'İşleniyor…' : 'Yeniden aktifleştir'}
                       </button>
@@ -4202,9 +4209,9 @@ export default function EventDetail() {
               <button
                 type="button"
                 onClick={openCreateLinkForm}
-                className="shrink-0 rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-sm font-medium text-ink hover:bg-canvas-surface"
+                className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-lg bg-brand-dark px-4 text-sm font-semibold text-white transition hover:bg-brand sm:w-auto"
               >
-                Bağlantı ekle
+                + Bağlantı ekle
               </button>
             )}
           </div>
@@ -4267,19 +4274,25 @@ export default function EventDetail() {
             </p>
           )}
           {linksLoadState === 'ready' && links.length === 0 && (
-            <p className="mt-3 text-sm italic text-ink-soft">Bu etkinlik için henüz bağlantı eklenmemiş.</p>
+            <div className="mt-4 rounded-xl border border-dashed border-canvas-border bg-canvas px-4 py-9 text-center">
+              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft text-brand-dark"><EventIcon name="link" className="h-5 w-5" /></span>
+              <p className="mt-3 text-sm font-semibold text-ink">Henüz bağlantı eklenmedi</p>
+              <p className="mt-1 text-xs text-ink-soft">Formlar ve dış kaynaklar burada listelenecek.</p>
+            </div>
           )}
           {linksLoadState === 'ready' && links.length > 0 && (
             <div className="mt-4 flex flex-col gap-4">
               {links.map((link) => (
                 <div
                   key={link.id}
-                  className={`rounded-md border px-4 py-3 ${
+                  className={`rounded-xl border p-4 ${
                     link.deletedAt ? 'border-red-200 bg-red-50/40' : 'border-canvas-border bg-canvas'
                   }`}
                 >
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0 overflow-hidden">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex min-w-0 items-start gap-3 overflow-hidden">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-dark"><EventIcon name="link" className="h-4.5 w-4.5" /></span>
+                      <div className="min-w-0 overflow-hidden">
                       <div className="flex flex-wrap items-center gap-2">
                         <h4 className="text-sm font-semibold text-ink">{link.title}</h4>
                         {link.deletedAt && (
@@ -4300,13 +4313,14 @@ export default function EventDetail() {
                         <span>{formatDate(link.createdAt)}</span>
                         <span>{link.creatorName}</span>
                       </div>
+                      </div>
                     </div>
                     {canEdit && !link.deletedAt && (
-                      <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end sm:gap-2">
+                      <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex sm:items-center">
                         <button
                           type="button"
                           onClick={() => openEditLinkForm(link)}
-                          className="text-xs font-medium text-ink-soft underline decoration-dotted"
+                          className="inline-flex min-h-10 items-center justify-center rounded-lg border border-brand/40 px-3 text-xs font-semibold text-brand-dark hover:bg-brand-soft"
                         >
                           Düzenle
                         </button>
@@ -4314,7 +4328,7 @@ export default function EventDetail() {
                           type="button"
                           onClick={() => void handleDeactivateLink(link.id)}
                           disabled={deactivatingLinkId === link.id}
-                          className="text-xs font-medium text-red-600 underline decoration-dotted disabled:opacity-50"
+                          className="inline-flex min-h-10 items-center justify-center rounded-lg border border-red-200 px-3 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
                         >
                           {deactivatingLinkId === link.id ? 'İşleniyor…' : 'Pasifleştir'}
                         </button>
@@ -4325,7 +4339,7 @@ export default function EventDetail() {
                         type="button"
                         onClick={() => void handleReactivateLink(link.id)}
                         disabled={deactivatingLinkId === link.id}
-                        className="shrink-0 rounded border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-700 disabled:opacity-50"
+                        className="inline-flex min-h-10 w-full shrink-0 items-center justify-center rounded-lg border border-green-200 bg-green-50 px-3 text-xs font-semibold text-green-700 disabled:opacity-50 sm:w-auto"
                       >
                         {deactivatingLinkId === link.id ? 'İşleniyor…' : 'Yeniden aktifleştir'}
                       </button>
@@ -4358,9 +4372,9 @@ export default function EventDetail() {
               <button
                 type="button"
                 onClick={openFileUploadForm}
-                className="shrink-0 rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-sm font-medium text-ink hover:bg-canvas-surface"
+                className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-lg bg-brand-dark px-4 text-sm font-semibold text-white transition hover:bg-brand sm:w-auto"
               >
-                Dosya ekle
+                + Dosya ekle
               </button>
             )}
           </div>
@@ -4433,19 +4447,25 @@ export default function EventDetail() {
             </p>
           )}
           {filesLoadState === 'ready' && files.length === 0 && (
-            <p className="mt-3 text-sm italic text-ink-soft">Bu etkinlik için henüz dosya eklenmemiş.</p>
+            <div className="mt-4 rounded-xl border border-dashed border-canvas-border bg-canvas px-4 py-9 text-center">
+              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-violet-50 text-violet-700"><EventIcon name="file" className="h-5 w-5" /></span>
+              <p className="mt-3 text-sm font-semibold text-ink">Henüz dosya eklenmedi</p>
+              <p className="mt-1 text-xs text-ink-soft">Etkinlik belgeleri burada listelenecek.</p>
+            </div>
           )}
           {filesLoadState === 'ready' && files.length > 0 && (
             <div className="mt-4 flex flex-col gap-4">
               {files.map((file) => (
                 <div
                   key={file.id}
-                  className={`rounded-md border px-4 py-3 ${
+                  className={`rounded-xl border p-4 ${
                     file.deletedAt ? 'border-red-200 bg-red-50/40' : 'border-canvas-border bg-canvas'
                   }`}
                 >
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0 overflow-hidden">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex min-w-0 items-start gap-3 overflow-hidden">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700"><EventIcon name="file" className="h-4.5 w-4.5" /></span>
+                      <div className="min-w-0 overflow-hidden">
                       <div className="flex flex-wrap items-center gap-2">
                         <h4 className="break-words text-sm font-semibold text-ink">{file.originalFileName}</h4>
                         {file.deletedAt && (
@@ -4460,12 +4480,12 @@ export default function EventDetail() {
                         <span>{file.uploaderName}</span>
                         <span>{formatDate(file.createdAt)}</span>
                       </div>
-                      <div className="mt-2 flex items-center gap-3">
+                      <div className="mt-3 flex items-center gap-3">
                         <button
                           type="button"
                           onClick={() => void handleDownloadFile(file)}
                           disabled={downloadingFileId === file.id}
-                          className="rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-xs font-medium text-ink hover:bg-canvas-surface disabled:opacity-60"
+                          className="inline-flex min-h-10 items-center justify-center rounded-lg border border-brand/40 bg-canvas px-3 text-xs font-semibold text-brand-dark hover:bg-brand-soft disabled:opacity-60"
                         >
                           {downloadingFileId === file.id ? 'İndiriliyor…' : 'Aç / İndir'}
                         </button>
@@ -4475,14 +4495,15 @@ export default function EventDetail() {
                           {downloadErrorMap[file.id]}
                         </p>
                       )}
+                      </div>
                     </div>
                     {canEdit && !file.deletedAt && (
-                      <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end sm:gap-2">
+                      <div className="flex shrink-0 items-center">
                         <button
                           type="button"
                           onClick={() => void handleDeactivateFile(file.id)}
                           disabled={deactivatingFileId === file.id}
-                          className="text-xs font-medium text-red-600 underline decoration-dotted disabled:opacity-50"
+                          className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-red-200 px-3 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 sm:w-auto"
                         >
                           {deactivatingFileId === file.id ? 'İşleniyor…' : 'Pasifleştir'}
                         </button>
@@ -4493,7 +4514,7 @@ export default function EventDetail() {
                         type="button"
                         onClick={() => void handleReactivateFile(file.id)}
                         disabled={deactivatingFileId === file.id}
-                        className="shrink-0 rounded border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-700 disabled:opacity-50"
+                        className="inline-flex min-h-10 w-full shrink-0 items-center justify-center rounded-lg border border-green-200 bg-green-50 px-3 text-xs font-semibold text-green-700 disabled:opacity-50 sm:w-auto"
                       >
                         {deactivatingFileId === file.id ? 'İşleniyor…' : 'Yeniden aktifleştir'}
                       </button>
