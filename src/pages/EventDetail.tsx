@@ -4372,53 +4372,54 @@ export default function EventDetail() {
           )}
 
           {isFileFormOpen && (
-            <div className="mt-4 rounded-md border border-canvas-border bg-canvas px-4 py-4">
-              <h3 className="text-sm font-semibold text-ink">Yeni dosya</h3>
-              <div className="mt-3 flex flex-col gap-4">
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="file-upload-input" className="text-sm font-medium text-ink-soft">
-                    Dosya seç (en fazla 5 MB)
+            <div className="mt-4 overflow-hidden rounded-xl border border-canvas-border bg-canvas shadow-card">
+              <div className="flex items-center justify-between gap-3 border-b border-canvas-border bg-canvas-surface px-4 py-3 sm:px-5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <EventIconBadge name="file" tone="violet" />
+                  <div className="min-w-0"><h3 className="text-sm font-semibold text-ink sm:text-base">Yeni dosya ekle</h3><p className="mt-0.5 text-xs text-ink-soft">Etkinlikle ilgili belge ve dosyaları yükleyin.</p></div>
+                </div>
+                <button type="button" onClick={closeFileUploadForm} disabled={isUploadingFile} aria-label="Dosya formunu kapat" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-canvas-border text-lg text-ink-soft transition hover:bg-canvas hover:text-ink disabled:opacity-60">×</button>
+              </div>
+
+              <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
+                <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4">
+                  <div className="flex items-center gap-2"><EventIconBadge name="file" tone="violet" /><div><h4 className="text-sm font-semibold text-ink">Dosya seçimi</h4><p className="mt-0.5 text-xs text-ink-soft">Yüklenecek dosyanın boyutu en fazla 5 MB olabilir.</p></div></div>
+                  <label htmlFor="file-upload-input" className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-violet-200 bg-violet-50/40 px-4 py-8 text-center transition hover:bg-violet-50">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-100 text-violet-700"><EventIcon name="file" className="h-5 w-5" /></span>
+                    <span className="mt-3 text-sm font-semibold text-ink">Dosya seçmek için dokunun</span>
+                    <span className="mt-1 text-xs text-ink-soft">Bilgisayarınızdan veya cihazınızdan bir dosya seçin</span>
+                    <input
+                      id="file-upload-input"
+                      type="file"
+                      onChange={(e) => {
+                        const chosen = e.target.files && e.target.files[0] ? e.target.files[0] : null
+                        setSelectedUploadFile(chosen)
+                        setFileFormError(null)
+                      }}
+                      disabled={isUploadingFile}
+                      className="sr-only"
+                    />
                   </label>
-                  <input
-                    id="file-upload-input"
-                    type="file"
-                    onChange={(e) => {
-                      const chosen = e.target.files && e.target.files[0] ? e.target.files[0] : null
-                      setSelectedUploadFile(chosen)
-                      setFileFormError(null)
-                    }}
-                    disabled={isUploadingFile}
-                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
-                  />
-                  {selectedUploadFile && (
-                    <p className="mt-1 break-words text-xs text-ink-soft">
-                      Seçilen dosya: {selectedUploadFile.name} ({formatFileSize(selectedUploadFile.size)})
-                    </p>
+                </section>
+
+                <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4">
+                  <div className="flex items-center gap-2"><EventIconBadge name="content" /><div><h4 className="text-sm font-semibold text-ink">Seçilen dosya</h4><p className="mt-0.5 text-xs text-ink-soft">Yüklemeden önce dosyayı kontrol edin.</p></div></div>
+                  {selectedUploadFile ? (
+                    <div className="mt-4 rounded-xl border border-brand/15 bg-brand-soft/30 p-4">
+                      <div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-canvas text-brand-dark"><EventIcon name="file" className="h-5 w-5" /></span><div className="min-w-0"><p className="break-words text-sm font-semibold text-ink">{selectedUploadFile.name}</p><p className="mt-1 text-xs text-ink-soft">{formatFileSize(selectedUploadFile.size)}</p></div></div>
+                    </div>
+                  ) : (
+                    <div className="mt-4 rounded-xl border border-dashed border-canvas-border bg-canvas px-4 py-7 text-center"><p className="text-sm font-medium text-ink">Henüz dosya seçilmedi</p><p className="mt-1 text-xs text-ink-soft">Soldaki alandan bir dosya seçin.</p></div>
                   )}
-                </div>
-                {fileFormError && (
-                  <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    {fileFormError}
-                  </p>
-                )}
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => void handleUploadFile()}
-                    disabled={isUploadingFile || !selectedUploadFile}
-                    className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
-                  >
-                    {isUploadingFile ? 'Yükleniyor…' : 'Yükle'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={closeFileUploadForm}
-                    disabled={isUploadingFile}
-                    className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
-                  >
-                    İptal
-                  </button>
-                </div>
+                  <div className="mt-4 rounded-xl border border-violet-100 bg-violet-50/50 px-4 py-3"><p className="text-xs leading-5 text-ink-soft">Dosya etkinliğin içerik bölümünde saklanır ve yetkili ekip üyeleri tarafından açılabilir.</p></div>
+                </section>
+
+                {fileFormError && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 lg:col-span-2">{fileFormError}</p>}
+              </div>
+
+              <div className="flex flex-col-reverse gap-2 border-t border-canvas-border bg-canvas-surface px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
+                <button type="button" onClick={closeFileUploadForm} disabled={isUploadingFile} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-brand px-5 text-sm font-semibold text-brand-dark transition hover:bg-brand-soft disabled:opacity-60 sm:w-auto">İptal</button>
+                <button type="button" onClick={() => void handleUploadFile()} disabled={isUploadingFile || !selectedUploadFile} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand-dark px-6 text-sm font-semibold text-white transition hover:bg-brand disabled:opacity-60 sm:w-auto">{isUploadingFile ? 'Yükleniyor…' : 'Dosyayı yükle'}</button>
               </div>
             </div>
           )}
