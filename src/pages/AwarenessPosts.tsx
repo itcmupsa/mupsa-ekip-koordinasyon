@@ -598,7 +598,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
             ].filter((item): item is { label: string; url: string } => Boolean(item.url))
 
             return (
-              <article key={post.id} className={`overflow-hidden rounded-xl border bg-canvas-surface shadow-card ${post.deletedAt ? 'border-danger/25 opacity-75' : 'border-canvas-border'}`}>
+              <article key={post.id} className={`overflow-hidden rounded-2xl border bg-canvas-surface shadow-card ${post.deletedAt ? 'border-danger/25 opacity-75' : 'border-canvas-border'}`}>
                 <div className="p-4 sm:p-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex min-w-0 gap-3">
@@ -613,7 +613,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
                         {post.scope ? <p className="mt-1 break-words text-sm text-ink-soft">{post.scope}</p> : null}
                       </div>
                     </div>
-                    <span className={`inline-flex w-fit shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${getStatusTone(post.sharingStatus)}`}>{getStatusLabel(post.sharingStatus, sharingStatuses)}</span>
+                    <span className={`inline-flex min-h-9 w-full shrink-0 items-center justify-center rounded-lg border px-3 py-1 text-xs font-semibold sm:w-fit ${getStatusTone(post.sharingStatus)}`}>{getStatusLabel(post.sharingStatus, sharingStatuses)}</span>
                   </div>
 
                   <dl className="mt-5 grid gap-3 border-y border-canvas-border py-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -631,7 +631,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
                   </dl>
 
                   <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,.7fr)]">
-                    <div>
+                    <div className="rounded-xl border border-canvas-border bg-canvas p-3.5">
                       <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">Süreç durumları</p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {[
@@ -644,7 +644,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
                         ))}
                       </div>
                     </div>
-                    <div>
+                    <div className="rounded-xl border border-canvas-border bg-canvas p-3.5">
                       <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">Sorumlular</p>
                       <div className="mt-2 grid gap-2 text-sm text-ink-soft">
                         <span className="flex items-center gap-2"><PersonIcon /><span><span className="font-medium text-ink">Tasarım:</span> {getProfileName(post.designResponsibleId)}</span></span>
@@ -654,7 +654,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
                   </div>
 
                   {post.nextAction || post.note ? (
-                    <div className="mt-4 grid gap-3 rounded-lg bg-canvas p-3 text-sm sm:grid-cols-2">
+                    <div className="mt-4 grid gap-3 rounded-xl border border-canvas-border bg-canvas p-3.5 text-sm sm:grid-cols-2">
                       {post.nextAction ? <p className="text-ink-soft"><span className="font-medium text-ink">Sonraki aksiyon:</span> {post.nextAction}</p> : null}
                       {post.note ? <p className="whitespace-pre-wrap text-ink-soft"><span className="font-medium text-ink">Not:</span> {post.note}</p> : null}
                     </div>
@@ -663,14 +663,14 @@ export default function AwarenessPosts({ session }: { session: Session }) {
 
                 {links.length > 0 || canEdit ? (
                   <footer className="flex flex-col gap-3 border-t border-canvas-border bg-canvas/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-                    <div className="flex flex-wrap gap-2">
-                      {links.map((item) => <a key={item.label} href={item.url} target="_blank" rel="noreferrer" className="flex min-h-[44px] items-center gap-1.5 rounded-md px-2 text-sm font-medium text-brand-dark hover:bg-brand-soft"><LinkIcon />{item.label}</a>)}
+                    <div className="grid grid-cols-1 gap-2 min-[390px]:grid-cols-2 sm:flex sm:flex-wrap">
+                      {links.map((item) => <a key={item.label} href={item.url} target="_blank" rel="noreferrer" className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-canvas-border bg-canvas-surface px-3 text-sm font-semibold text-brand-dark hover:bg-brand-soft"><LinkIcon />{item.label}</a>)}
                     </div>
                     {canEdit ? (
-                      <div className="flex flex-wrap justify-end gap-2">
-                        {!post.deletedAt ? <button type="button" onClick={() => openEdit(post)} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-4 text-sm font-medium text-ink hover:border-brand">Düzenle</button> : null}
-                        <button type="button" onClick={() => void toggleActive(post)} className={`min-h-[44px] rounded-md px-3 text-sm font-medium ${post.deletedAt ? 'text-brand-dark hover:bg-brand-soft' : 'text-danger hover:bg-danger-soft'}`}>{post.deletedAt ? 'Yeniden aktifleştir' : 'Pasifleştir'}</button>
-                        {isSuperAdmin && post.deletedAt ? <button type="button" onClick={() => { setSuccessMessage(null); setDeleteError(null); setDeleteTarget(post) }} className="min-h-[44px] rounded-md border border-danger/25 px-3 text-sm font-medium text-danger hover:bg-danger-soft">Kalıcı sil</button> : null}
+                      <div className="grid grid-cols-1 gap-2 min-[390px]:grid-cols-2 sm:flex sm:flex-wrap sm:justify-end">
+                        {!post.deletedAt ? <button type="button" onClick={() => openEdit(post)} className="min-h-[44px] rounded-lg border border-brand/40 bg-canvas-surface px-4 text-sm font-semibold text-brand-dark hover:bg-brand-soft">Düzenle</button> : null}
+                        <button type="button" onClick={() => void toggleActive(post)} className={`min-h-[44px] rounded-lg border px-3 text-sm font-semibold ${post.deletedAt ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100' : 'border-red-200 text-danger hover:bg-danger-soft'}`}>{post.deletedAt ? 'Yeniden aktifleştir' : 'Pasifleştir'}</button>
+                        {isSuperAdmin && post.deletedAt ? <button type="button" onClick={() => { setSuccessMessage(null); setDeleteError(null); setDeleteTarget(post) }} className="min-h-[44px] rounded-lg border border-danger/25 px-3 text-sm font-semibold text-danger hover:bg-danger-soft">Kalıcı sil</button> : null}
                       </div>
                     ) : null}
                   </footer>
