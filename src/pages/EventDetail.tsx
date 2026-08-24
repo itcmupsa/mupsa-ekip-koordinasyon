@@ -3979,26 +3979,47 @@ export default function EventDetail() {
             </div>
 
             {isDecisionFormOpen ? (
-              <div className="rounded-xl border border-brand/15 bg-brand-soft/20 p-4 sm:p-5">
-                <h3 className="text-base font-semibold text-ink">{decisionFormMode === 'create' ? 'Yeni karar ekle' : 'Kararı düzenle'}</h3>
-                <div className="mt-4 flex flex-col gap-4">
-                  <label htmlFor="decision-title" className="flex flex-col gap-2 text-sm font-medium text-ink">
-                    Karar başlığı
-                    <input id="decision-title" type="text" value={decisionTitle} onChange={(e) => setDecisionTitle(e.target.value)} disabled={isSavingDecision} placeholder="Karar başlığını giriniz" className="min-h-[48px] rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm font-normal text-ink focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand" />
-                  </label>
-                  <label htmlFor="decision-text" className="flex flex-col gap-2 text-sm font-medium text-ink">
-                    Karar açıklaması
-                    <textarea id="decision-text" value={decisionText} onChange={(e) => setDecisionText(e.target.value)} disabled={isSavingDecision} rows={4} placeholder="Karar açıklamasını giriniz" className="resize-y rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm font-normal leading-6 text-ink focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand" />
-                  </label>
-                  <label htmlFor="decision-date" className="flex max-w-sm flex-col gap-2 text-sm font-medium text-ink">
-                    Karar tarihi
-                    <input id="decision-date" type="date" value={decisionDate} onChange={(e) => setDecisionDate(e.target.value)} disabled={isSavingDecision} className="min-h-[48px] rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm font-normal text-ink focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand" />
-                  </label>
-                  {decisionFormError ? <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{decisionFormError}</p> : null}
-                  <div className="flex flex-col-reverse gap-2 sm:flex-row">
-                    <button type="button" onClick={closeDecisionForm} disabled={isSavingDecision} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-4 text-sm font-semibold text-ink-soft disabled:opacity-60">İptal</button>
-                    <button type="button" onClick={() => void handleSaveDecision()} disabled={isSavingDecision} className="min-h-[44px] rounded-md bg-brand-dark px-5 text-sm font-semibold text-white disabled:opacity-60">{isSavingDecision ? 'Kaydediliyor…' : 'Kaydet'}</button>
+              <div className="overflow-hidden rounded-xl border border-canvas-border bg-canvas shadow-card">
+                <div className="flex items-center justify-between gap-3 border-b border-canvas-border bg-canvas-surface px-4 py-3 sm:px-5">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <EventIconBadge name="decision" />
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-semibold text-ink sm:text-base">{decisionFormMode === 'create' ? 'Yeni karar ekle' : 'Kararı düzenle'}</h3>
+                      <p className="mt-0.5 text-xs text-ink-soft">Alınan kararı ve karar tarihini kaydedin.</p>
+                    </div>
                   </div>
+                  <button type="button" onClick={closeDecisionForm} disabled={isSavingDecision} aria-label="Karar formunu kapat" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-canvas-border text-lg text-ink-soft transition hover:bg-canvas hover:text-ink disabled:opacity-60">×</button>
+                </div>
+
+                <div className="p-4 sm:p-5">
+                  <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4">
+                    <div className="flex items-center gap-2"><EventIconBadge name="content" /><div><h4 className="text-sm font-semibold text-ink">Karar bilgileri</h4><p className="mt-0.5 text-xs text-ink-soft">Başlık ve kararın ayrıntılı açıklaması.</p></div></div>
+                    <div className="mt-4 flex flex-col gap-4">
+                      <label htmlFor="decision-title" className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                        Karar başlığı
+                        <input id="decision-title" type="text" value={decisionTitle} onChange={(e) => setDecisionTitle(e.target.value)} disabled={isSavingDecision} placeholder="Karar başlığını giriniz" className="min-h-11 rounded-lg border border-canvas-border bg-canvas px-3 py-2.5 text-sm font-normal normal-case tracking-normal text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60" />
+                      </label>
+                      <label htmlFor="decision-text" className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                        Karar açıklaması
+                        <textarea id="decision-text" value={decisionText} onChange={(e) => setDecisionText(e.target.value)} disabled={isSavingDecision} rows={6} placeholder="Kararın içeriğini ve gerekçesini yazınız" className="min-h-36 resize-y rounded-lg border border-canvas-border bg-canvas px-3 py-3 text-sm font-normal normal-case leading-6 tracking-normal text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60" />
+                      </label>
+                    </div>
+                  </section>
+
+                  <section className="mt-4 rounded-xl border border-canvas-border bg-canvas-surface p-4">
+                    <div className="flex items-center gap-2"><EventIconBadge name="calendar" /><div><h4 className="text-sm font-semibold text-ink">Karar tarihi</h4><p className="mt-0.5 text-xs text-ink-soft">Kararın ekip tarafından alındığı gün.</p></div></div>
+                    <label htmlFor="decision-date" className="mt-4 flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                      Tarih
+                      <input id="decision-date" type="date" value={decisionDate} onChange={(e) => setDecisionDate(e.target.value)} disabled={isSavingDecision} className="min-h-11 w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2.5 text-sm font-normal normal-case tracking-normal text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60 sm:max-w-sm" />
+                    </label>
+                  </section>
+
+                  {decisionFormError ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{decisionFormError}</p> : null}
+                </div>
+
+                <div className="flex flex-col-reverse gap-2 border-t border-canvas-border bg-canvas-surface px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
+                  <button type="button" onClick={closeDecisionForm} disabled={isSavingDecision} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-brand px-5 text-sm font-semibold text-brand-dark transition hover:bg-brand-soft disabled:opacity-60 sm:w-auto">İptal</button>
+                  <button type="button" onClick={() => void handleSaveDecision()} disabled={isSavingDecision} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand-dark px-6 text-sm font-semibold text-white transition hover:bg-brand disabled:opacity-60 sm:w-auto">{isSavingDecision ? 'Kaydediliyor…' : decisionFormMode === 'create' ? 'Kararı kaydet' : 'Değişiklikleri kaydet'}</button>
                 </div>
               </div>
             ) : null}
