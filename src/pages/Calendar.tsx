@@ -606,36 +606,37 @@ export default function Calendar({ session }: { session: Session }) {
         ) : null}
 
         {formMode !== 'closed' ? (
-          <section className="mt-5 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-base font-semibold text-ink">{formMode === 'create' ? 'Yeni manuel takvim kaydı' : 'Takvim kaydını düzenle'}</h2>
-              <button type="button" onClick={() => setFormMode('closed')} className="min-h-[44px] rounded-md px-2 text-sm font-medium text-ink-soft hover:bg-canvas hover:text-ink">Kapat</button>
+          <section className="mt-5 overflow-hidden rounded-xl border border-canvas-border bg-canvas-surface shadow-card">
+            <div className="flex items-center justify-between gap-3 border-b border-canvas-border px-4 py-4 sm:px-5">
+              <div className="flex min-w-0 items-center gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-700"><TodayIcon /></span><div className="min-w-0"><h2 className="truncate text-base font-semibold text-ink">{formMode === 'create' ? 'Yeni manuel takvim kaydı' : 'Takvim kaydını düzenle'}</h2><p className="mt-0.5 text-xs text-ink-soft">Takvime ekip için özel bir kayıt ekleyin.</p></div></div>
+              <button type="button" onClick={() => setFormMode('closed')} disabled={saving} className="min-h-[44px] shrink-0 rounded-lg border border-canvas-border px-3 text-sm font-medium text-ink-soft hover:bg-canvas disabled:opacity-60">Kapat</button>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="grid gap-1.5 text-sm font-medium text-ink">Başlık
-                <input value={title} onChange={(event) => setTitle(event.target.value)} disabled={saving} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 font-normal" />
-              </label>
-              <label className="grid gap-1.5 text-sm font-medium text-ink">Kategori
-                <select value={entryType} onChange={(event) => setEntryType(event.target.value as EntryType)} disabled={saving} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 font-normal">
-                  {ENTRY_TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
-              </label>
-              <label className="grid gap-1.5 text-sm font-medium text-ink">Başlangıç tarihi
-                <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} disabled={saving} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 font-normal" />
-              </label>
-              <label className="grid gap-1.5 text-sm font-medium text-ink">Bitiş tarihi <span className="sr-only">isteğe bağlı</span>
-                <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} disabled={saving} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 font-normal" />
-              </label>
-              <label className="grid gap-1.5 text-sm font-medium text-ink sm:col-span-2">Not <span className="sr-only">isteğe bağlı</span>
-                <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={3} disabled={saving} className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 font-normal" />
-              </label>
+
+            <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-2">
+              <section className="rounded-xl border border-canvas-border bg-canvas p-4">
+                <div><h3 className="text-sm font-semibold text-ink">Kayıt bilgileri</h3><p className="mt-1 text-xs text-ink-soft">Başlık, kategori ve isteğe bağlı not.</p></div>
+                <div className="mt-4 grid gap-4">
+                  <label className="grid gap-1.5 text-sm font-medium text-ink">Başlık<input value={title} onChange={(event) => setTitle(event.target.value)} disabled={saving} placeholder="Örn. Değerlendirme toplantısı" className="min-h-[44px] rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2 font-normal outline-none focus:border-brand focus:ring-2 focus:ring-brand/10" /></label>
+                  <label className="grid gap-1.5 text-sm font-medium text-ink">Kategori<select value={entryType} onChange={(event) => setEntryType(event.target.value as EntryType)} disabled={saving} className="min-h-[44px] rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2 font-normal outline-none focus:border-brand focus:ring-2 focus:ring-brand/10">{ENTRY_TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+                  <label className="grid gap-1.5 text-sm font-medium text-ink"><span>Not <span className="text-xs font-normal text-ink-soft">(isteğe bağlı)</span></span><textarea value={note} onChange={(event) => setNote(event.target.value)} rows={4} disabled={saving} placeholder="Kayıtla ilgili kısa bir not yazın" className="min-h-28 resize-y rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2 font-normal outline-none focus:border-brand focus:ring-2 focus:ring-brand/10" /></label>
+                </div>
+              </section>
+
+              <section className="rounded-xl border border-canvas-border bg-canvas p-4">
+                <div><h3 className="text-sm font-semibold text-ink">Tarih aralığı</h3><p className="mt-1 text-xs text-ink-soft">Kaydın başlangıç ve varsa bitiş günü.</p></div>
+                <div className="mt-4 grid gap-4">
+                  <label className="grid gap-1.5 text-sm font-medium text-ink">Başlangıç tarihi<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} disabled={saving} className="min-h-[44px] rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2 font-normal outline-none focus:border-brand focus:ring-2 focus:ring-brand/10" /></label>
+                  <label className="grid gap-1.5 text-sm font-medium text-ink"><span>Bitiş tarihi <span className="text-xs font-normal text-ink-soft">(isteğe bağlı)</span></span><input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} disabled={saving} className="min-h-[44px] rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2 font-normal outline-none focus:border-brand focus:ring-2 focus:ring-brand/10" /></label>
+                </div>
+                <p className="mt-4 rounded-lg border border-purple-100 bg-purple-50/60 px-3 py-2 text-xs leading-5 text-ink-soft">Bitiş tarihi girilmezse kayıt yalnızca başlangıç gününde gösterilir.</p>
+              </section>
+
+              {formError ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 lg:col-span-2">{formError}</p> : null}
             </div>
-            {formError ? <p role="alert" className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</p> : null}
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-              <button type="button" disabled={saving} onClick={() => void saveEntry()} className="min-h-[44px] rounded-md bg-brand-dark px-5 text-sm font-medium text-white disabled:opacity-60">
-                {saving ? 'Kaydediliyor…' : 'Kaydet'}
-              </button>
-              <button type="button" disabled={saving} onClick={() => setFormMode('closed')} className="min-h-[44px] rounded-md border border-canvas-border px-5 text-sm font-medium text-ink-soft disabled:opacity-60">İptal</button>
+
+            <div className="flex flex-col-reverse gap-2 border-t border-canvas-border bg-canvas px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
+              <button type="button" disabled={saving} onClick={() => setFormMode('closed')} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-brand px-5 text-sm font-semibold text-brand-dark hover:bg-brand-soft disabled:opacity-60 sm:w-auto">İptal</button>
+              <button type="button" disabled={saving} onClick={() => void saveEntry()} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand-dark px-6 text-sm font-semibold text-white hover:bg-brand disabled:opacity-60 sm:w-auto">{saving ? 'Kaydediliyor…' : formMode === 'create' ? 'Kaydı oluştur' : 'Değişiklikleri kaydet'}</button>
             </div>
           </section>
         ) : null}
