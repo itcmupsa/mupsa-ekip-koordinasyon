@@ -272,15 +272,6 @@ function parseNullableNumber(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-function DetailRow({ label, value, isMultiline = false }: { label: string; value: string; isMultiline?: boolean }) {
-  return (
-    <div className={`flex flex-col gap-1 py-2 ${isMultiline ? '' : 'sm:flex-row sm:items-center sm:justify-between'}`}>
-      <span className="text-sm font-medium text-ink-soft">{label}</span>
-      <span className={`text-sm text-ink ${isMultiline ? 'whitespace-pre-wrap mt-1' : ''}`}>{value}</span>
-    </div>
-  )
-}
-
 type EventVisualIcon = 'status' | 'person' | 'building' | 'calendar' | 'check' | 'overview' | 'content' | 'operations' | 'note' | 'task' | 'sks' | 'budget' | 'decision' | 'report' | 'link' | 'file' | 'pin' | 'edit'
 
 function EventIcon({ name, className = 'h-5 w-5' }: { name: EventVisualIcon; className?: string }) {
@@ -1195,14 +1186,6 @@ export default function EventDetail() {
   const [designAnnouncementStatusSuccess, setDesignAnnouncementStatusSuccess] = useState<string | null>(null)
 
   // Budget State
-  const [isBudgetPanelOpen, setIsBudgetPanelOpen] = useState(false)
-  const [budgetSelectedProfileId, setBudgetSelectedProfileId] = useState('')
-  const [budgetSelectedResponsibility, setBudgetSelectedResponsibility] = useState('supporting')
-  const [isAssigningBudget, setIsAssigningBudget] = useState(false)
-  const [assignBudgetError, setAssignBudgetError] = useState<string | null>(null)
-  const [removingBudgetMemberId, setRemovingBudgetMemberId] = useState<string | null>(null)
-  const [removeBudgetError, setRemoveBudgetError] = useState<string | null>(null)
-
   const [isEditingBudget, setIsEditingBudget] = useState(false)
   const [editBudgetStatus, setEditBudgetStatus] = useState('')
   const [editEstimatedBudget, setEditEstimatedBudget] = useState<string>('')
@@ -3034,82 +3017,6 @@ export default function EventDetail() {
     setEvent((previous) => (previous ? { ...previous, designAnnouncementStatus: newSlug } : previous))
   }
 
-  async function handleAssignBudgetMember() {
-    if (!profileId || !eventId || !budgetSelectedProfileId) {
-      setAssignBudgetError('Lütfen bir üye seçin.')
-      return
-    }
-
-    const budgetMembersOnly = processMembers.filter(m => m.processType === 'budget')
-    if (budgetMembersOnly.some((member) => member.profileId === budgetSelectedProfileId)) {
-      setAssignBudgetError('Bu kişi bütçe ekibinde zaten bir sorumluluğa atanmış.')
-      return
-    }
-
-    setIsAssigningBudget(true)
-    setAssignBudgetError(null)
-
-    if (budgetSelectedResponsibility === 'owner') {
-      const existingOwner = budgetMembersOnly.find((member) => member.responsibilityType === 'owner')
-      if (existingOwner) {
-        const { error: updateError } = await supabase
-          .from('event_process_members')
-          .update({ profile_id: budgetSelectedProfileId, assigned_by: profileId })
-          .eq('id', existingOwner.id)
-        if (updateError) {
-          setIsAssigningBudget(false)
-          setAssignBudgetError(updateError.message.includes('kilitli')
-            ? 'Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.'
-            : 'Mevcut Bütçe sorumlusu kaldırılamadı.')
-          return
-        }
-        setIsAssigningBudget(false)
-        setBudgetSelectedProfileId('')
-        setProcessMembersRefreshKey((current) => current + 1)
-        return
-      }
-    }
-
-    const { error } = await supabase.from('event_process_members').insert({
-      event_id: eventId,
-      process_type: 'budget',
-      profile_id: budgetSelectedProfileId,
-      responsibility_type: budgetSelectedResponsibility,
-      assigned_by: profileId,
-    })
-
-    setIsAssigningBudget(false)
-    if (error) {
-      setAssignBudgetError(error.message.includes('kilitli')
-        ? 'Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.'
-        : error.code === '42501'
-          ? 'Bütçe ekibini yönetme yetkiniz bulunmuyor.'
-          : 'Bütçe üyesi atanırken bir hata oluştu.')
-      return
-    }
-
-    setBudgetSelectedProfileId('')
-    setProcessMembersRefreshKey((current) => current + 1)
-  }
-
-  async function handleRemoveBudgetMember(memberId: string) {
-    if (!profileId) return
-    setRemovingBudgetMemberId(memberId)
-    setRemoveBudgetError(null)
-    const { error } = await supabase.from('event_process_members').delete().eq('id', memberId)
-    setRemovingBudgetMemberId(null)
-
-    if (error) {
-      setRemoveBudgetError(error.message.includes('kilitli')
-        ? 'Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.'
-        : error.code === '42501'
-          ? 'Bu kişiyi kaldırma yetkiniz bulunmuyor.'
-          : 'Atama kaldırılırken bir hata oluştu.')
-      return
-    }
-    setProcessMembersRefreshKey((current) => current + 1)
-  }
-
   async function handleSaveBudget() {
     if (!eventId || !profileId) return
     setBudgetSaveError(null)
@@ -3338,12 +3245,10 @@ export default function EventDetail() {
   )
   const canChangeDesignAnnouncementStatus = isSuperAdmin || isDesignOwner
 
-  const budgetMembers = processMembers.filter(m => m.processType === 'budget')
   const canChangeBudgetFields = hasBudgetAccess
-  const canManageBudgetTeam = hasBudgetAccess
 
   useEffect(() => {
-    if (!canEdit || !periodId) {
+    if ((!canEdit && !hasBudgetAccess) || !periodId) {
       setPeriodMembers([])
       setPeriodMembersLoadState('idle')
       return
@@ -3397,7 +3302,7 @@ export default function EventDetail() {
     return () => {
       isMounted = false
     }
-  }, [canEdit, periodId])
+  }, [canEdit, hasBudgetAccess, periodId])
 
   useEffect(() => {
     if (sksMembers.some((member) => member.responsibilityType === 'owner')) return
@@ -3407,15 +3312,6 @@ export default function EventDetail() {
       setSksSelectedResponsibility('owner')
     }
   }, [periodMembers, sksMembers])
-
-  useEffect(() => {
-    if (budgetMembers.some((member) => member.responsibilityType === 'owner')) return
-    const treasurer = periodMembers.find((member) => member.coordinatorRoleSlug === 'treasurer')
-    if (treasurer) {
-      setBudgetSelectedProfileId(treasurer.profileId)
-      setBudgetSelectedResponsibility('owner')
-    }
-  }, [periodMembers, budgetMembers])
 
   function toggleAssignmentPanel(taskId: string) {
     if (openAssignmentTaskId === taskId) {
@@ -3683,9 +3579,10 @@ export default function EventDetail() {
     (task) => !task.deletedAt && task.progressStatusSlug !== 'completed' && task.progressStatusSlug !== 'cancelled',
   ).length
 
-  const assignableBudgetMembers = periodMembers.filter((member) => !budgetMembers.some((assignedMember) => assignedMember.profileId === member.profileId))
-  const budgetOwnerCandidates = assignableBudgetMembers.filter(m => m.coordinatorRoleSlug === 'treasurer')
-  const displayBudgetMembers = budgetSelectedResponsibility === 'owner' ? budgetOwnerCandidates : assignableBudgetMembers
+  const treasurerMember = periodMembers.find((member) => member.coordinatorRoleSlug === 'treasurer')
+  const remainingBudget = event.approvedBudget === null ? null : event.approvedBudget - (event.actualExpense ?? 0)
+  const activeSponsors = sponsors.filter((sponsor) => !sponsor.deletedAt)
+  const sponsorTotal = activeSponsors.reduce((total, sponsor) => total + sponsor.amount, 0)
   const roleLabel = coordinatorRoleName ?? (isSuperAdmin ? 'Süper Yönetici' : 'Koordinatör')
   const primaryDate = event.confirmedDate ?? event.estimatedDate
 
@@ -4818,7 +4715,7 @@ export default function EventDetail() {
           </button>
           <div className={isBudgetSectionOpen ? 'mt-4 border-t border-canvas-border pt-4' : 'hidden'}>
           <div className="flex items-start justify-between gap-4">
-            <h3 className="text-sm font-semibold text-ink">Bütçe</h3>
+            <div><h3 className="text-sm font-semibold uppercase tracking-wide text-ink">Bütçe özeti</h3><p className="mt-1 text-xs text-ink-soft">Bütçe durumunu ve harcamaları tek yerden yönetin.</p></div>
             {canChangeBudgetFields && !isEditingBudget && (
               <button
                 type="button"
@@ -4901,105 +4798,56 @@ export default function EventDetail() {
 
                 {budgetSaveError && <p className="text-xs text-red-600">{budgetSaveError}</p>}
 
-                <div className="flex items-center gap-3 mt-1">
-                  <button
-                    type="button"
-                    onClick={() => void handleSaveBudget()}
-                    disabled={isSavingBudget}
-                    className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
-                  >
-                    {isSavingBudget ? 'Kaydediliyor…' : 'Kaydet'}
-                  </button>
+                <div className="mt-1 flex flex-col gap-3 sm:flex-row sm:justify-end">
                   <button
                     type="button"
                     onClick={() => { setIsEditingBudget(false); setBudgetSaveError(null); }}
                     disabled={isSavingBudget}
-                    className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
+                    className="min-h-[44px] rounded-md border border-canvas-border px-5 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
                   >
                     İptal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleSaveBudget()}
+                    disabled={isSavingBudget}
+                    className="min-h-[44px] rounded-md bg-brand-dark px-5 py-2 text-sm font-medium text-white disabled:opacity-60"
+                  >
+                    {isSavingBudget ? 'Kaydediliyor…' : 'Kaydet'}
                   </button>
                 </div>
              </div>
           ) : (
-             <div className="mt-3 divide-y divide-canvas-border">
-                <DetailRow
-                   label="Durum"
-                   value={event.budgetStatus ? (availableBudgetStatuses.find(s => s.slug === event.budgetStatus)?.label ?? event.budgetStatus) : NOT_SPECIFIED}
-                />
-                <DetailRow label="Tahmini Bütçe" value={formatCurrency(event.estimatedBudget)} />
-                <DetailRow label="Onaylanan Bütçe" value={formatCurrency(event.approvedBudget)} />
-                <DetailRow label="Gerçekleşen Harcama" value={formatCurrency(event.actualExpense)} />
-                <DetailRow label="Bütçe Notu" value={event.budgetNote || NOT_SPECIFIED} isMultiline />
+             <div className="mt-4">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4"><p className="text-xs font-medium text-ink-soft">Tahmini bütçe</p><p className="mt-2 text-lg font-semibold text-ink">{formatCurrency(event.estimatedBudget)}</p></div>
+                  <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-4"><p className="text-xs font-medium text-ink-soft">Onaylanan bütçe</p><p className="mt-2 text-lg font-semibold text-ink">{formatCurrency(event.approvedBudget)}</p></div>
+                  <div className="rounded-xl border border-red-200 bg-red-50/60 p-4"><p className="text-xs font-medium text-ink-soft">Gerçekleşen harcama</p><p className="mt-2 text-lg font-semibold text-ink">{formatCurrency(event.actualExpense)}</p></div>
+                  <div className={`rounded-xl border p-4 ${remainingBudget !== null && remainingBudget < 0 ? 'border-red-200 bg-red-50/60' : 'border-amber-200 bg-amber-50/60'}`}><p className="text-xs font-medium text-ink-soft">Kalan bütçe</p><p className={`mt-2 text-lg font-semibold ${remainingBudget !== null && remainingBudget < 0 ? 'text-danger' : 'text-brand-dark'}`}>{formatCurrency(remainingBudget)}</p></div>
+                </div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
+                  <div className="rounded-xl border border-canvas-border bg-canvas p-4"><p className="text-xs font-medium text-ink-soft">Bütçe durumu</p><p className="mt-2 text-sm font-semibold text-ink">{event.budgetStatus ? (availableBudgetStatuses.find(s => s.slug === event.budgetStatus)?.label ?? event.budgetStatus) : NOT_SPECIFIED}</p></div>
+                  <div className="rounded-xl border border-canvas-border bg-canvas p-4"><p className="text-xs font-medium text-ink-soft">Bütçe notu</p><p className="mt-2 whitespace-pre-wrap text-sm text-ink">{event.budgetNote || NOT_SPECIFIED}</p></div>
+                </div>
              </div>
           )}
 
-          <div className="border-t border-canvas-border pt-4 mt-4">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-sm font-medium text-ink">Bütçe ekibi</h3>
-              {canManageBudgetTeam && (
-                <button type="button" onClick={() => setIsBudgetPanelOpen((open) => !open)} className="text-xs font-medium text-ink hover:underline">
-                  {isBudgetPanelOpen ? 'Ekip yönetimini kapat' : 'Ekibi yönet'}
-                </button>
-              )}
-            </div>
-            {processMembersLoadState === 'loading' && <p className="mt-3 text-sm text-ink-soft">Bütçe ekibi yükleniyor…</p>}
-            {processMembersLoadState === 'error' && <p className="mt-3 text-sm text-red-600">Bütçe ekibi yüklenirken bir hata oluştu.</p>}
-            {processMembersLoadState === 'ready' && (
-              <div className="mt-3 flex flex-col gap-3">
-                {(['owner', 'supporting', 'informed'] as const).map((responsibilityType) => {
-                  const members = budgetMembers.filter((member) => member.responsibilityType === responsibilityType)
-                  const label = responsibilityType === 'owner' ? 'Ana sorumlu' : responsibilityType === 'supporting' ? 'Destekleyen' : 'Bilgilendirilen'
-                  return (
-                    <div key={responsibilityType}>
-                      <span className="block text-xs font-medium text-ink-soft">{label}</span>
-                      {members.length > 0 ? <div className="mt-1 flex flex-wrap gap-2 text-sm text-ink">{members.map((member) => <span key={member.id}>{member.displayName}</span>)}</div> : <span className="mt-1 block text-sm italic text-ink-soft">Atanmamış</span>}
-                    </div>
-                  )
-                })}
+          <div className="mt-5 rounded-xl border border-brand/15 bg-brand-soft/35 p-4 sm:p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-brand-dark">Ana sorumlu</p>
+            {periodMembersLoadState === 'loading' ? <p className="mt-2 text-sm text-ink-soft">Sayman bilgisi yükleniyor…</p> : treasurerMember ? (
+              <div className="mt-2 flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-dark font-semibold text-white">{treasurerMember.displayName.slice(0, 1).toLocaleUpperCase('tr-TR')}</span>
+                <div><p className="font-semibold text-ink">{treasurerMember.displayName}</p><p className="text-xs text-ink-soft">Sayman · Bütçe ana sorumlusu</p></div>
               </div>
-            )}
-
-            {isBudgetPanelOpen && canManageBudgetTeam && (
-              <div className="mt-4 rounded-md border border-canvas-border bg-canvas px-4 py-4">
-                <h4 className="text-sm font-semibold text-ink">Ekip yönetimi</h4>
-                <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
-                  <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-ink-soft">
-                    Üye
-                    <select value={budgetSelectedProfileId} onChange={(e) => setBudgetSelectedProfileId(e.target.value)} disabled={isAssigningBudget || periodMembersLoadState === 'loading'} className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink">
-                      <option value="">Üye seçin</option>
-                      {displayBudgetMembers.map((member) => <option key={member.profileId} value={member.profileId}>{member.displayName}</option>)}
-                    </select>
-                  </label>
-                  <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-ink-soft">
-                    Sorumluluk türü
-                    <select value={budgetSelectedResponsibility} onChange={(e) => setBudgetSelectedResponsibility(e.target.value)} disabled={isAssigningBudget} className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink">
-                      <option value="owner">Ana sorumlu</option><option value="supporting">Destekleyen</option><option value="informed">Bilgilendirilen</option>
-                    </select>
-                  </label>
-                  <button type="button" onClick={() => void handleAssignBudgetMember()} disabled={isAssigningBudget || (budgetSelectedResponsibility === 'owner' && budgetOwnerCandidates.length === 0)} className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60">{isAssigningBudget ? 'Ekleniyor…' : 'Ekle'}</button>
-                </div>
-                {budgetSelectedResponsibility === 'owner' && budgetOwnerCandidates.length === 0 && (
-                  <p className="mt-1 text-xs text-amber-600">Aktif dönemde atanabilecek Sayman bulunamadı.</p>
-                )}
-                {assignBudgetError && <p className="mt-2 text-xs text-red-600">{assignBudgetError}</p>}
-                {removeBudgetError && <p className="mt-2 text-xs text-red-600">{removeBudgetError}</p>}
-                <div className="mt-4 flex flex-col gap-2">
-                  {budgetMembers.length === 0 ? <p className="text-xs text-ink-soft">Ekip üyesi yok.</p> : budgetMembers.map((member) => (
-                    <div key={member.id} className="flex items-center justify-between gap-2 rounded-md border border-canvas-border bg-canvas-surface px-3 py-2">
-                      <span className="text-sm text-ink">{member.displayName}</span>
-                      <button type="button" onClick={() => void handleRemoveBudgetMember(member.id)} disabled={removingBudgetMemberId === member.id} className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50">{removingBudgetMemberId === member.id ? 'Kaldırılıyor…' : 'Kaldır'}</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            ) : <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">Aktif dönemde Sayman ataması bulunmuyor.</p>}
+            <p className="mt-3 text-xs text-ink-soft">Bütçe sorumluluğu aktif dönemin Saymanına otomatik olarak verilir; ayrıca ekip üyesi eklenmez.</p>
           </div>
 
           {/* Sponsorlar Bölümü */}
-          <div className="mt-6 border-t border-canvas-border pt-4">
+          <div className="mt-5 rounded-xl border border-canvas-border bg-canvas p-4 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-4">
-              <h2 className="text-sm font-semibold text-ink">Sponsorlar</h2>
+              <div><h2 className="text-sm font-semibold uppercase tracking-wide text-ink">Sponsorlar</h2><p className="mt-1 text-xs text-ink-soft">{activeSponsors.length} aktif sponsor · Toplam {formatCurrency(sponsorTotal)}</p></div>
               {canChangeBudgetFields && (
                 <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
                   <input
@@ -5016,7 +4864,7 @@ export default function EventDetail() {
               <button
                 type="button"
                 onClick={openCreateSponsorForm}
-                className="shrink-0 rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-sm font-medium text-ink hover:bg-canvas-surface"
+                className="flex min-h-[42px] shrink-0 items-center justify-center rounded-md bg-brand-dark px-4 text-sm font-medium text-white hover:brightness-95"
               >
                 Sponsor ekle
               </button>
@@ -5030,11 +4878,11 @@ export default function EventDetail() {
           )}
 
           {isSponsorFormOpen && (
-            <div className="mt-4 rounded-md border border-canvas-border bg-canvas px-4 py-4">
+            <div className="mt-4 rounded-xl border border-canvas-border bg-canvas-surface px-4 py-4">
               <h3 className="text-sm font-semibold text-ink">
                 {sponsorFormMode === 'create' ? 'Yeni Sponsor' : 'Sponsoru Düzenle'}
               </h3>
-              <div className="mt-3 flex flex-col gap-4">
+              <div className="mt-3 grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <label htmlFor="sponsor-name" className="text-sm font-medium text-ink-soft">
                     Sponsor Adı
@@ -5063,7 +4911,7 @@ export default function EventDetail() {
                     className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
                   />
                 </div>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1 sm:col-span-2">
                   <label htmlFor="sponsor-note" className="text-sm font-medium text-ink-soft">
                     Not (İsteğe bağlı)
                   </label>
@@ -5077,26 +4925,26 @@ export default function EventDetail() {
                   />
                 </div>
                 {sponsorFormError && (
-                  <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 sm:col-span-2">
                     {sponsorFormError}
                   </p>
                 )}
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => void handleSaveSponsor()}
-                    disabled={isSavingSponsor}
-                    className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
-                  >
-                    {isSavingSponsor ? 'Kaydediliyor…' : 'Kaydet'}
-                  </button>
+                <div className="flex flex-col gap-3 sm:col-span-2 sm:flex-row sm:justify-end">
                   <button
                     type="button"
                     onClick={closeSponsorForm}
                     disabled={isSavingSponsor}
-                    className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
+                    className="min-h-[44px] rounded-md border border-canvas-border px-5 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
                   >
                     İptal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleSaveSponsor()}
+                    disabled={isSavingSponsor}
+                    className="min-h-[44px] rounded-md bg-brand-dark px-5 py-2 text-sm font-medium text-white disabled:opacity-60"
+                  >
+                    {isSavingSponsor ? 'Kaydediliyor…' : 'Kaydet'}
                   </button>
                 </div>
               </div>
@@ -5115,7 +4963,7 @@ export default function EventDetail() {
             <p className="mt-3 text-sm italic text-ink-soft">Bu etkinlik için henüz sponsor eklenmemiş.</p>
           )}
           {sponsorsLoadState === 'ready' && sponsors.length > 0 && (
-            <div className="mt-4 flex flex-col gap-4">
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
               {sponsors.map((sponsor) => (
                 <div
                   key={sponsor.id}
