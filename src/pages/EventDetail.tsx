@@ -4622,55 +4622,74 @@ export default function EventDetail() {
 
           {isEditingBudget ? (
              <div className="mt-4 border-t border-canvas-border pt-4 flex flex-col gap-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                   <div className="flex flex-col gap-1">
-                      <label className="text-xs font-medium text-ink-soft">Bütçe Durumu</label>
+                <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
+                   <label className="grid gap-2 text-sm font-medium text-ink">
+                      Bütçe durumu
+                      <span className="relative block">
+                      <span className="pointer-events-none absolute inset-y-0 left-4 z-10 flex items-center"><span className="h-3 w-3 rounded-full bg-emerald-500 ring-8 ring-emerald-100" /></span>
                       <select
                          value={editBudgetStatus}
                          onChange={(e) => setEditBudgetStatus(e.target.value)}
                          disabled={isSavingBudget || availableBudgetStatuses.length === 0}
-                         className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink disabled:opacity-60"
+                         className="min-h-[54px] w-full appearance-none rounded-xl border border-canvas-border bg-canvas-surface py-3 pl-12 pr-11 text-sm font-normal text-ink transition focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-60"
                       >
                          <option value="">Durum seçin</option>
                          {availableBudgetStatuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}
                       </select>
-                   </div>
-                   <div className="flex flex-col gap-1">
-                      <label className="text-xs font-medium text-ink-soft">Tahmini Bütçe (₺)</label>
+                      <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-brand-dark">⌄</span>
+                      </span>
+                   </label>
+                   <label className="grid gap-2 text-sm font-medium text-ink">
+                      Tahmini bütçe (₺)
+                      <span className="flex min-h-[54px] overflow-hidden rounded-xl border border-canvas-border bg-canvas-surface transition focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20">
+                      <span className="flex w-12 shrink-0 items-center justify-center border-r border-canvas-border bg-brand-soft/60 text-base font-semibold text-brand-dark">₺</span>
                       <input
                          type="number"
+                         inputMode="decimal"
                          step="0.01"
                          min="0"
                          value={editEstimatedBudget}
                          onChange={(e) => setEditEstimatedBudget(e.target.value)}
                          disabled={isSavingBudget}
-                         className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink disabled:opacity-60"
+                         placeholder="0,00"
+                         className="min-w-0 flex-1 bg-transparent px-4 py-3 text-sm font-normal text-ink outline-none disabled:opacity-60"
                       />
-                   </div>
-                   <div className="flex flex-col gap-1">
-                      <label className="text-xs font-medium text-ink-soft">Onaylanan Bütçe (₺)</label>
+                      </span>
+                   </label>
+                   <label className="grid gap-2 text-sm font-medium text-ink">
+                      Onaylanan bütçe (₺)
+                      <span className="flex min-h-[54px] overflow-hidden rounded-xl border border-canvas-border bg-canvas-surface transition focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20">
+                      <span className="flex w-12 shrink-0 items-center justify-center border-r border-canvas-border bg-brand-soft/60 text-base font-semibold text-brand-dark">₺</span>
                       <input
                          type="number"
+                         inputMode="decimal"
                          step="0.01"
                          min="0"
                          value={editApprovedBudget}
                          onChange={(e) => setEditApprovedBudget(e.target.value)}
                          disabled={isSavingBudget}
-                         className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink disabled:opacity-60"
+                         placeholder="0,00"
+                         className="min-w-0 flex-1 bg-transparent px-4 py-3 text-sm font-normal text-ink outline-none disabled:opacity-60"
                       />
-                   </div>
-                   <div className="flex flex-col gap-1">
-                      <label className="text-xs font-medium text-ink-soft">Gerçekleşen Harcama (₺)</label>
+                      </span>
+                   </label>
+                   <label className="grid gap-2 text-sm font-medium text-ink">
+                      Gerçekleşen harcama (₺)
+                      <span className="flex min-h-[54px] overflow-hidden rounded-xl border border-canvas-border bg-canvas-surface transition focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20">
+                      <span className="flex w-12 shrink-0 items-center justify-center border-r border-canvas-border bg-brand-soft/60 text-base font-semibold text-brand-dark">₺</span>
                       <input
                          type="number"
+                         inputMode="decimal"
                          step="0.01"
                          min="0"
                          value={editActualExpense}
                          onChange={(e) => setEditActualExpense(e.target.value)}
                          disabled={isSavingBudget}
-                         className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm text-ink disabled:opacity-60"
+                         placeholder="0,00"
+                         className="min-w-0 flex-1 bg-transparent px-4 py-3 text-sm font-normal text-ink outline-none disabled:opacity-60"
                       />
-                   </div>
+                      </span>
+                   </label>
                 </div>
                 <div className="flex flex-col gap-1">
                    <label className="text-xs font-medium text-ink-soft">Bütçe Notu</label>
