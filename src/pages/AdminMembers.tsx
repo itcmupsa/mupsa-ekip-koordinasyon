@@ -488,30 +488,35 @@ export default function AdminMembers({ session }: { session: Session }) {
         {(isAddOpen || isCreateUserOpen || editingMemberId) ? <button type="button" aria-label="Yönetim panelini kapat" onClick={() => { if (!isSubmitting && !isCreatingUser && !isEditSubmitting) { handleCloseAddPanel(); handleCloseCreateUserPanel(); handleCloseEditPanel() } }} className="fixed inset-0 z-40 hidden bg-ink/45 backdrop-blur-[1px] lg:block" /> : null}
 
         {isAddOpen && (
-          <section role="dialog" aria-modal="true" aria-labelledby="add-member-title" className="fixed inset-0 z-50 overflow-y-auto bg-canvas-surface p-4 shadow-2xl sm:p-6 lg:left-auto lg:w-[min(32rem,calc(100vw-15rem))]" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
-            <div className="flex items-center justify-between border-b border-canvas-border pb-4">
-              <div><h2 id="add-member-title" className="text-lg font-semibold text-ink">Döneme üye ekle</h2><p className="mt-1 text-xs text-ink-soft">Mevcut bir kullanıcıyı aktif döneme dahil et.</p></div>
+          <section role="dialog" aria-modal="true" aria-labelledby="add-member-title" className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-canvas-surface shadow-2xl lg:left-auto lg:w-[min(36rem,calc(100vw-15rem))]" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-canvas-border px-4 py-4 sm:px-6">
+              <div className="flex min-w-0 items-center gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-amber-800"><TeamIcon /></span><div className="min-w-0"><h2 id="add-member-title" className="truncate text-lg font-semibold text-ink">Döneme üye ekle</h2><p className="mt-1 text-xs text-ink-soft">Mevcut bir kullanıcıyı aktif döneme dahil et.</p></div></div>
               <button
                 type="button"
                 onClick={handleCloseAddPanel}
-                className="min-h-[44px] rounded-md px-2 text-sm font-medium text-ink-soft"
+                disabled={isSubmitting}
+                className="min-h-[44px] shrink-0 rounded-lg border border-canvas-border px-3 text-sm font-medium text-ink-soft hover:bg-canvas disabled:opacity-60"
               >
                 Kapat
               </button>
             </div>
+
+            <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6" style={{ paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}>
 
             {addPanelState === 'loading' && (
               <p className="mt-3 text-sm text-ink-soft">Yükleniyor…</p>
             )}
 
             {addPanelState === 'error' && (
-              <p className="mt-3 text-sm text-ink-soft">
+              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 Bilgiler yüklenirken bir hata oluştu. Lütfen paneli kapatıp tekrar dene.
               </p>
             )}
 
             {addPanelState === 'ready' && (
-              <div className="mt-3 space-y-3">
+              <div className="rounded-xl border border-canvas-border bg-canvas p-4 sm:p-5">
+                <div className="mb-4"><h3 className="text-sm font-semibold text-ink">Üyelik bilgileri</h3><p className="mt-1 text-xs text-ink-soft">Kullanıcı, görünen ad ve dönem içindeki yetkileri.</p></div>
+                <div className="space-y-4">
                 {invitableProfiles.length === 0 ? (
                   <p className="text-sm text-ink-soft">
                     Eklenebilecek kullanıcı bulunamadı. Bu dönemdeki tüm kullanıcılar zaten kayıtlı olabilir.
@@ -583,20 +588,22 @@ export default function AdminMembers({ session }: { session: Session }) {
                       </select>
                     </label>
 
-                    {formError && <p className="text-sm text-red-600">{formError}</p>}
+                    {formError && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</p>}
 
                     <button
                       type="button"
                       onClick={handleAddMember}
                       disabled={isSubmitting}
-                      className="min-h-[44px] w-full rounded-lg bg-accent px-3 text-sm font-semibold text-white disabled:opacity-60"
+                      className="min-h-[44px] w-full rounded-lg bg-brand-dark px-3 text-sm font-semibold text-white transition hover:bg-brand disabled:opacity-60"
                     >
                       {isSubmitting ? 'Ekleniyor…' : 'Döneme ekle'}
                     </button>
                   </>
                 )}
+                </div>
               </div>
             )}
+            </div>
           </section>
         )}
 
@@ -715,30 +722,35 @@ export default function AdminMembers({ session }: { session: Session }) {
                   </div>
 
                   {isEditingThisMember && (
-                    <section role="dialog" aria-modal="true" aria-labelledby={`edit-member-${member.id}`} className="fixed inset-0 z-50 overflow-y-auto bg-canvas-surface p-4 shadow-2xl sm:p-6 lg:left-auto lg:w-[min(32rem,calc(100vw-15rem))]" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
-                      <div className="flex items-center justify-between border-b border-canvas-border pb-4">
-                        <div><h2 id={`edit-member-${member.id}`} className="text-lg font-semibold text-ink">Üyeyi düzenle</h2><p className="mt-1 text-xs text-ink-soft">{member.displayName} için dönem ve yetki bilgileri.</p></div>
+                    <section role="dialog" aria-modal="true" aria-labelledby={`edit-member-${member.id}`} className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-canvas-surface shadow-2xl lg:left-auto lg:w-[min(36rem,calc(100vw-15rem))]" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+                      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-canvas-border px-4 py-4 sm:px-6">
+                        <div className="flex min-w-0 items-center gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-semibold text-brand-dark">{member.displayName.split(' ').map((part) => part[0]).join('').slice(0, 2).toLocaleUpperCase('tr-TR')}</span><div className="min-w-0"><h2 id={`edit-member-${member.id}`} className="truncate text-lg font-semibold text-ink">Üyeyi düzenle</h2><p className="mt-1 truncate text-xs text-ink-soft">{member.displayName} için dönem ve yetki bilgileri.</p></div></div>
                         <button
                           type="button"
                           onClick={handleCloseEditPanel}
-                          className="min-h-[44px] rounded-md px-2 text-sm font-medium text-ink-soft"
+                          disabled={isEditSubmitting}
+                          className="min-h-[44px] shrink-0 rounded-lg border border-canvas-border px-3 text-sm font-medium text-ink-soft hover:bg-canvas disabled:opacity-60"
                         >
                           Kapat
                         </button>
                       </div>
+
+                      <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6" style={{ paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}>
 
                       {editPanelState === 'loading' && (
                         <p className="mt-3 text-sm text-ink-soft">Yükleniyor…</p>
                       )}
 
                       {editPanelState === 'error' && (
-                        <p className="mt-3 text-sm text-ink-soft">
+                        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                           Bilgiler yüklenirken bir hata oluştu. Lütfen paneli kapatıp tekrar dene.
                         </p>
                       )}
 
                       {editPanelState === 'ready' && (
-                        <div className="mt-3 space-y-3">
+                        <div className="rounded-xl border border-canvas-border bg-canvas p-4 sm:p-5">
+                          <div className="mb-4"><h3 className="text-sm font-semibold text-ink">Dönem ve yetki bilgileri</h3><p className="mt-1 text-xs text-ink-soft">Görünen ad, koordinatörlük, rol ve üyelik durumu.</p></div>
+                          <div className="space-y-4">
                           {coordinatorRoleOptions.length === 0 ? (
                             <p className="text-sm text-ink-soft">
                               Aktif koordinatörlük bulunamadı. Önce koordinatörlük tanımlarını kontrol et.
@@ -797,20 +809,22 @@ export default function AdminMembers({ session }: { session: Session }) {
                                 </select>
                               </label>
 
-                              {editError && <p className="text-sm text-red-600">{editError}</p>}
+                              {editError && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{editError}</p>}
 
                               <button
                                 type="button"
                                 onClick={() => handleSaveEdit(member)}
                                 disabled={isEditSubmitting}
-                                className="min-h-[44px] w-full rounded-lg bg-accent px-3 text-sm font-semibold text-white disabled:opacity-60"
+                                className="min-h-[44px] w-full rounded-lg bg-brand-dark px-3 text-sm font-semibold text-white transition hover:bg-brand disabled:opacity-60"
                               >
                                 {isEditSubmitting ? 'Kaydediliyor…' : 'Kaydet'}
                               </button>
                             </>
                           )}
+                          </div>
                         </div>
                       )}
+                      </div>
                     </section>
                   )}
                 </li>
