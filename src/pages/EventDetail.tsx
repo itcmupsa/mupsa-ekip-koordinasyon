@@ -4061,75 +4061,50 @@ export default function EventDetail() {
           )}
 
           {isReportFormOpen && (
-            <div className="mt-4 rounded-md border border-canvas-border bg-canvas px-4 py-4">
-              <h3 className="text-sm font-semibold text-ink">
-                {reportFormMode === 'create' ? 'Yeni rapor' : 'Raporu düzenle'}
-              </h3>
-              <div className="mt-3 flex flex-col gap-4">
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="report-title" className="text-sm font-medium text-ink-soft">
-                    Rapor başlığı
-                  </label>
-                  <input
-                    id="report-title"
-                    type="text"
-                    value={reportTitle}
-                    onChange={(e) => setReportTitle(e.target.value)}
-                    disabled={isSavingReport}
-                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="report-text" className="text-sm font-medium text-ink-soft">
-                    Rapor metni
-                  </label>
-                  <textarea
-                    id="report-text"
-                    value={reportText}
-                    onChange={(e) => setReportText(e.target.value)}
-                    disabled={isSavingReport}
-                    rows={4}
-                    className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
-                  />
-                </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="report-date" className="text-sm font-medium text-ink-soft">
-                      Rapor tarihi
-                    </label>
-                    <input
-                      id="report-date"
-                      type="date"
-                      value={reportDate}
-                      onChange={(e) => setReportDate(e.target.value)}
-                      disabled={isSavingReport}
-                      className="rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink"
-                    />
+            <div className="mt-4 overflow-hidden rounded-xl border border-canvas-border bg-canvas shadow-card">
+              <div className="flex items-center justify-between gap-3 border-b border-canvas-border bg-canvas-surface px-4 py-3 sm:px-5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <EventIconBadge name="report" tone="sky" />
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-ink sm:text-base">{reportFormMode === 'create' ? 'Yeni rapor' : 'Raporu düzenle'}</h3>
+                    <p className="mt-0.5 text-xs text-ink-soft">Etkinlik sonucunu ve rapor tarihini kaydedin.</p>
                   </div>
                 </div>
-                {reportFormError && (
-                  <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    {reportFormError}
-                  </p>
-                )}
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => void handleSaveReport()}
-                    disabled={isSavingReport}
-                    className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-canvas-surface disabled:opacity-60"
-                  >
-                    {isSavingReport ? 'Kaydediliyor…' : 'Kaydet'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={closeReportForm}
-                    disabled={isSavingReport}
-                    className="rounded-md border border-canvas-border px-4 py-2 text-sm font-medium text-ink-soft disabled:opacity-60"
-                  >
-                    İptal
-                  </button>
-                </div>
+                <button type="button" onClick={closeReportForm} disabled={isSavingReport} aria-label="Rapor formunu kapat" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-canvas-border text-lg text-ink-soft transition hover:bg-canvas hover:text-ink disabled:opacity-60">×</button>
+              </div>
+
+              <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
+                <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4">
+                  <div className="flex items-center gap-2"><EventIconBadge name="content" /><div><h4 className="text-sm font-semibold text-ink">Rapor içeriği</h4><p className="mt-0.5 text-xs text-ink-soft">Başlık ve etkinlik değerlendirmesi.</p></div></div>
+                  <div className="mt-4 flex flex-col gap-4">
+                    <label htmlFor="report-title" className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                      Rapor başlığı
+                      <input id="report-title" type="text" value={reportTitle} onChange={(e) => setReportTitle(e.target.value)} disabled={isSavingReport} placeholder="Rapor başlığını giriniz" className="min-h-11 rounded-lg border border-canvas-border bg-canvas px-3 py-2.5 text-sm font-normal normal-case tracking-normal text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60" />
+                    </label>
+                    <label htmlFor="report-text" className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                      Rapor metni
+                      <textarea id="report-text" value={reportText} onChange={(e) => setReportText(e.target.value)} disabled={isSavingReport} rows={7} placeholder="Etkinliğin sonucunu ve önemli notları yazınız" className="min-h-40 resize-y rounded-lg border border-canvas-border bg-canvas px-3 py-3 text-sm font-normal normal-case leading-6 tracking-normal text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60" />
+                    </label>
+                  </div>
+                </section>
+
+                <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4">
+                  <div className="flex items-center gap-2"><EventIconBadge name="calendar" /><div><h4 className="text-sm font-semibold text-ink">Rapor tarihi</h4><p className="mt-0.5 text-xs text-ink-soft">Raporun tamamlandığı tarih.</p></div></div>
+                  <label htmlFor="report-date" className="mt-4 flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                    Tarih
+                    <input id="report-date" type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} disabled={isSavingReport} className="min-h-11 w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2.5 text-sm font-normal normal-case tracking-normal text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60" />
+                  </label>
+                  <div className="mt-4 rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-3">
+                    <p className="text-xs leading-5 text-ink-soft">Rapor geçmişteki etkinlik değerlendirmelerinin kaybolmaması için kayıt altında tutulur.</p>
+                  </div>
+                </section>
+
+                {reportFormError && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 lg:col-span-2">{reportFormError}</p>}
+              </div>
+
+              <div className="flex flex-col-reverse gap-2 border-t border-canvas-border bg-canvas-surface px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
+                <button type="button" onClick={closeReportForm} disabled={isSavingReport} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-brand px-5 text-sm font-semibold text-brand-dark transition hover:bg-brand-soft disabled:opacity-60 sm:w-auto">İptal</button>
+                <button type="button" onClick={() => void handleSaveReport()} disabled={isSavingReport} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand-dark px-6 text-sm font-semibold text-white transition hover:bg-brand disabled:opacity-60 sm:w-auto">{isSavingReport ? 'Kaydediliyor…' : reportFormMode === 'create' ? 'Raporu kaydet' : 'Değişiklikleri kaydet'}</button>
               </div>
             </div>
           )}
