@@ -120,6 +120,12 @@ function numberValue(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
+function dateHasStarted(value: unknown): boolean {
+  if (typeof value !== 'string') return false
+  const date = Date.parse(value)
+  return Number.isFinite(date) && date <= Date.now()
+}
+
 function allowedReasons(item: HomeContextItem): HomeSummaryReasonCode[] {
   const reasons: HomeSummaryReasonCode[] = []
   if (item.source_type === 'task') {
@@ -135,18 +141,30 @@ function allowedReasons(item: HomeContextItem): HomeSummaryReasonCode[] {
     reasons.push('open_task')
   }
   if (item.source_type === 'event') {
-    if (Array.isArray(item.missing_fields) && item.missing_fields.length > 0) reasons.push('missing_event_field')
+    const activePreparationPhase = item.lifecycle_phase === 'preparation'
+      || item.lifecycle_phase === 'final_days'
+      || item.lifecycle_phase === 'event_day'
+    if (activePreparationPhase && Array.isArray(item.missing_fields) && item.missing_fields.length > 0) {
+      reasons.push('missing_event_field')
+    }
     if (item.lifecycle_phase === 'preparation') reasons.push('event_preparation_active')
     if (item.lifecycle_phase === 'final_days') reasons.push('event_final_days')
     if (item.lifecycle_phase === 'event_day') reasons.push('event_day')
     if (item.lifecycle_phase === 'report_due') reasons.push('event_report_due')
   }
   if (item.source_type === 'awareness') {
-    if (Array.isArray(item.missing_fields) && item.missing_fields.length > 0) reasons.push('missing_awareness_field')
     const daysUntilShare = numberValue(item.days_until_share)
+    const preparationStarted = dateHasStarted(item.preparation_start_date)
+    if (
+      preparationStarted
+      && daysUntilShare !== null
+      && daysUntilShare >= 0
+      && Array.isArray(item.missing_fields)
+      && item.missing_fields.length > 0
+    ) reasons.push('missing_awareness_field')
     if (daysUntilShare !== null && daysUntilShare >= 0 && daysUntilShare <= 7) {
       reasons.push('awareness_share_due_soon')
-    } else if (item.preparation_start_date && daysUntilShare !== null && daysUntilShare > 7) {
+    } else if (preparationStarted && daysUntilShare !== null && daysUntilShare > 7) {
       reasons.push('awareness_preparation_active')
     }
   }
@@ -155,6 +173,32 @@ function allowedReasons(item: HomeContextItem): HomeSummaryReasonCode[] {
     if (daysUntil !== null && daysUntil >= 0 && daysUntil <= 14) reasons.push('upcoming_calendar_entry')
   }
   return [...new Set(reasons)]
+}
+
+const REASON_PRIORITY: Record<HomeSummaryReasonCode, number> = {
+  overdue_task: 100,
+  event_day: 98,
+  due_soon_task: 95,
+  awareness_share_due_soon: 92,
+  upcoming_calendar_entry: 90,
+  event_final_days: 88,
+  high_priority_task: 85,
+  missing_event_field: 80,
+  missing_awareness_field: 78,
+  assigned_open_task: 70,
+  event_report_due: 68,
+  event_preparation_active: 60,
+  awareness_preparation_active: 58,
+  open_task: 50,
+}
+
+function sourcePriority(source: PreparedHomeSource): number {
+  const reasonScore = Math.max(...source.allowedReasonCodes.map((reason) => REASON_PRIORITY[reason]), 0)
+  const daysUntil = numberValue(source.facts.days_until)
+    ?? numberValue(source.facts.days_until_event)
+    ?? numberValue(source.facts.days_until_share)
+  const proximityBonus = daysUntil !== null && daysUntil >= 0 ? Math.max(0, 14 - Math.min(daysUntil, 14)) : 0
+  return reasonScore + proximityBonus
 }
 
 function prepareHomeSources(context: HomeContext): PreparedHomeSource[] {
@@ -177,7 +221,16 @@ function prepareHomeSources(context: HomeContext): PreparedHomeSource[] {
       ),
     }))
     .filter((source) => source.allowedReasonCodes.length > 0)
+    .sort((left, right) => sourcePriority(right) - sourcePriority(left))
+    .slice(0, 18)
     .map((source, index) => ({ ...source, alias: `S${index + 1}` }))
+}
+
+function buildDailyIntro(items: Array<{ title: string }>): string {
+  if (items.length === 0) return 'Bugün için acil müdahale gerektiren bir kayıt görünmüyor.'
+  if (items.length === 1) return `Bugün için öne çıkan konu: ${items[0].title}.`
+  const firstTitles = items.slice(0, 2).map((item) => item.title).join(' ve ')
+  return `Bugün ${items.length} öncelik öne çıkıyor; ilk olarak ${firstTitles} kayıtlarına bakabilirsiniz.`
 }
 
 function parseGeminiJson(parts: Array<{ text?: string; thought?: boolean }>): unknown {
@@ -227,8 +280,9 @@ async function callGemini(
               'Her maddede tam bir source_ref, o kaynak için allowed_reason_codes içinden bir reason_code ve kaynak türüne uygun action kullan.',
               'Recommendation yalnızca kısa bir öneridir; kayıt oluşturma, silme, atama, bildirim gönderme veya durum değiştirme talimatı verme.',
               'Etkinlik raporunu yalnızca event_report_due nedeni sunulmuşsa öner.',
-              'Intro genel ve kısa olsun; doğrulanmamış sayı veya iddia içermesin.',
-              'En yararlı en fazla 6 maddeyi seç.',
+              'Yalnızca gerçekten bugün veya yakın zamanda işlem gerektiren kaynakları seç; sırf alanı boş diye uzak tarihli kaydı seçme.',
+              'Intro kısa olsun; uygulama tarafından ayrıca kesin verilerle yeniden oluşturulacaktır.',
+              'En yararlı en fazla 3 maddeyi seç. Aynı türden benzer uyarılarla listeyi doldurma.',
             ].join('\n'),
           }],
         },
@@ -251,7 +305,7 @@ async function callGemini(
           }],
         }],
         generationConfig: {
-          maxOutputTokens: 900,
+          maxOutputTokens: 600,
           thinkingConfig: { thinkingLevel: 'LOW' },
           responseFormat: {
             text: {
@@ -263,7 +317,7 @@ async function callGemini(
                   intro: { type: 'string', maxLength: 240 },
                   items: {
                     type: 'array',
-                    maxItems: 6,
+                    maxItems: 3,
                     items: {
                       type: 'object',
                       required: ['source_ref', 'reason_code', 'recommendation', 'action'],
@@ -384,7 +438,7 @@ serve(async (request: Request) => {
       && Date.parse(latestOutput.expires_at) > Date.now()
     const forceRefreshIsTooSoon = body.force === true
       && latestOutput?.created_at
-      && Date.parse(latestOutput.created_at) > Date.now() - 15 * 60 * 1000
+      && Date.parse(latestOutput.created_at) > Date.now() - 6 * 60 * 60 * 1000
     if (latestOutput && cacheIsFresh && (body.force !== true || forceRefreshIsTooSoon)) {
       return jsonResponse({
         success: true,
@@ -468,7 +522,7 @@ serve(async (request: Request) => {
           route: source.route,
         }
       })
-      const payload = { intro: validation.plan.intro, items: resolvedItems }
+      const payload = { intro: buildDailyIntro(resolvedItems), items: resolvedItems }
       const contextHash = await sha256(JSON.stringify({ context, sources }))
 
       await adminClient

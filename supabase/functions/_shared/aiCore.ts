@@ -223,8 +223,8 @@ export function validateHomeSummaryPlan(
   if (typeof intro !== 'string' || intro.trim().length === 0 || intro.length > 240) {
     errors.push('Ana sayfa özetinde geçerli intro alanı yok.')
   }
-  if (!Array.isArray(rawItems) || rawItems.length > 6) {
-    errors.push('Ana sayfa özeti en fazla 6 maddelik items dizisi taşımalıdır.')
+  if (!Array.isArray(rawItems) || rawItems.length > 3) {
+    errors.push('Ana sayfa özeti en fazla 3 maddelik items dizisi taşımalıdır.')
   }
   if (errors.length > 0) return { plan: null, errors }
 
