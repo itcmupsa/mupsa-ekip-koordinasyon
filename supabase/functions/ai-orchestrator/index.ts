@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
 import {
   modelForOperation,
   validateHomeSummaryPlan,
+  type HomeSummaryAction,
   type HomeSummaryReasonCode,
   type HomeSummarySource,
   type HomeSummarySourceType,
@@ -231,6 +232,74 @@ function buildDailyIntro(items: Array<{ title: string }>): string {
   if (items.length === 1) return `Bugün için öne çıkan konu: ${items[0].title}.`
   const firstTitles = items.slice(0, 2).map((item) => item.title).join(' ve ')
   return `Bugün ${items.length} öncelik öne çıkıyor; ilk olarak ${firstTitles} kayıtlarına bakabilirsiniz.`
+}
+
+const SOURCE_ACTIONS: Record<HomeSummarySourceType, HomeSummaryAction> = {
+  task: 'open_task',
+  event: 'open_event',
+  awareness: 'open_awareness',
+  calendar_entry: 'open_calendar',
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  venue: 'mekân',
+  sks_status: 'SKS durumu',
+  share_date: 'paylaşım tarihi',
+  design_responsible: 'tasarım sorumlusu',
+  publication_responsible: 'basın-yayın sorumlusu',
+}
+
+function primaryReason(source: PreparedHomeSource): HomeSummaryReasonCode {
+  return [...source.allowedReasonCodes]
+    .sort((left, right) => REASON_PRIORITY[right] - REASON_PRIORITY[left])[0]
+}
+
+function missingFieldText(source: PreparedHomeSource): string {
+  const fields = Array.isArray(source.facts.missing_fields)
+    ? source.facts.missing_fields.filter((field): field is string => typeof field === 'string')
+    : []
+  return fields.map((field) => FIELD_LABELS[field] ?? field).join(', ')
+}
+
+function ruleBasedRecommendation(source: PreparedHomeSource, reason: HomeSummaryReasonCode): string {
+  const missingFields = missingFieldText(source)
+  switch (reason) {
+    case 'overdue_task': return 'Son tarihi geçen görevin güncel durumunu kontrol edin.'
+    case 'due_soon_task': return 'Son tarihi yaklaşan görevin güncel durumunu kontrol edin.'
+    case 'high_priority_task': return 'Yüksek öncelikli görevin güncel durumunu kontrol edin.'
+    case 'assigned_open_task': return 'Size atanmış açık görevin durumunu kontrol edin.'
+    case 'open_task': return 'Açık görevin durumunu kontrol edin.'
+    case 'missing_event_field': return missingFields
+      ? `Hazırlık dönemi başlayan etkinlikte eksik görünen alanları kontrol edin: ${missingFields}.`
+      : 'Hazırlık dönemi başlayan etkinliğin eksik bilgilerini kontrol edin.'
+    case 'event_preparation_active': return 'Hazırlık dönemi başlayan etkinliğin güncel bilgilerini kontrol edin.'
+    case 'event_final_days': return 'Etkinliğe az kaldığı için güncel bilgileri kontrol edin.'
+    case 'event_day': return 'Bugünkü etkinlik kaydını kontrol edin.'
+    case 'event_report_due': return 'Etkinlik sonrasındaki rapor durumunu kontrol edin.'
+    case 'missing_awareness_field': return missingFields
+      ? `Hazırlık dönemi başlayan farkındalık kaydında eksik görünen alanları kontrol edin: ${missingFields}.`
+      : 'Hazırlık dönemi başlayan farkındalık kaydının eksik bilgilerini kontrol edin.'
+    case 'awareness_preparation_active': return 'Paylaşım hazırlığı başlayan farkındalık kaydını kontrol edin.'
+    case 'awareness_share_due_soon': return 'Paylaşım tarihi yaklaşan farkındalık kaydını kontrol edin.'
+    case 'upcoming_calendar_entry': return 'Yaklaşan takvim kaydının tarih ve açıklama bilgilerini kontrol edin.'
+  }
+}
+
+function buildRuleBasedPayload(sources: PreparedHomeSource[]) {
+  const resolvedItems = sources.slice(0, 3).map((source) => {
+    const reason = primaryReason(source)
+    return {
+      source_ref: source.alias,
+      source_type: source.entityType,
+      source_id: source.entityId,
+      title: source.title,
+      reason_code: reason,
+      recommendation: ruleBasedRecommendation(source, reason),
+      action: SOURCE_ACTIONS[source.entityType],
+      route: source.route,
+    }
+  })
+  return { intro: buildDailyIntro(resolvedItems), items: resolvedItems }
 }
 
 function parseGeminiJson(parts: Array<{ text?: string; thought?: boolean }>): unknown {
@@ -491,7 +560,35 @@ serve(async (request: Request) => {
           warning: 'Yeni özet üretilemedi; son doğrulanmış özet gösteriliyor.',
         })
       }
-      throw new HttpError(429, 'AI günlük kullanım sınırı dolu; son geçerli özet kullanılmalı.')
+      const payload = buildRuleBasedPayload(sources)
+      const contextHash = await sha256(JSON.stringify({ context, sources, mode: 'rule_based_fallback' }))
+      const generatedAt = new Date().toISOString()
+      const { error: fallbackOutputError } = await adminClient.from('ai_outputs').insert({
+        period_id: membership.period_id,
+        recipient_id: userData.user.id,
+        output_type: 'home_summary',
+        payload,
+        source_manifest: sources.slice(0, 3).map((source) => ({
+          alias: source.alias,
+          entity_type: source.entityType,
+          entity_id: source.entityId,
+        })),
+        context_hash: contextHash,
+        model_id: 'rule-based-fallback',
+        validation_status: 'valid',
+        validation_errors: [],
+        is_current: true,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      })
+      if (fallbackOutputError) console.error('Rule-based fallback could not be stored', fallbackOutputError)
+      return jsonResponse({
+        success: true,
+        output: payload,
+        generatedAt,
+        model: 'rule-based-fallback',
+        cached: false,
+        warning: 'Google günlük kotası dolduğu için özet, doğrulanmış uygulama kayıtlarından hazırlandı.',
+      })
     }
 
     const usageId = reservation.usage_id
@@ -577,7 +674,17 @@ serve(async (request: Request) => {
           warning: 'Yeni özet üretilemedi; son doğrulanmış özet gösteriliyor.',
         })
       }
-      throw error
+      const payload = buildRuleBasedPayload(sources)
+      return jsonResponse({
+        success: true,
+        output: payload,
+        generatedAt: new Date().toISOString(),
+        model: 'rule-based-fallback',
+        cached: false,
+        warning: error instanceof HttpError && error.status === 429
+          ? 'Google günlük kotası dolduğu için özet, doğrulanmış uygulama kayıtlarından hazırlandı.'
+          : 'AI servisine ulaşılamadığı için özet, doğrulanmış uygulama kayıtlarından hazırlandı.',
+      })
     }
   } catch (error) {
     const status = error instanceof HttpError ? error.status : 500
