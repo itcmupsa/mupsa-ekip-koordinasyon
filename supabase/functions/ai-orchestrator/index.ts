@@ -11,11 +11,11 @@ import {
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-push-dispatch-secret',
 }
 
 interface AiRequest {
-  operation?: 'status' | 'home_summary' | 'calendar_classification' | 'awareness_suggestion'
+  operation?: 'status' | 'home_summary' | 'calendar_classification' | 'awareness_suggestion' | 'scheduled_daily_summary'
   force?: boolean
   calendar_entry_id?: string
 }
@@ -886,37 +886,61 @@ serve(async (request: Request) => {
   if (request.method !== 'POST') return jsonResponse({ success: false, error: 'Yalnızca POST desteklenir.' }, 405)
 
   try {
-    const authHeader = request.headers.get('Authorization')
-    if (!authHeader) throw new HttpError(401, 'Yetkilendirme başlığı eksik.')
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
     if (!supabaseUrl || !serviceRoleKey || !anonKey) throw new HttpError(500, 'Sunucu yapılandırması eksik.')
 
-    const accessToken = authHeader.replace(/^Bearer\s+/i, '').trim()
-    if (!accessToken) throw new HttpError(401, 'Oturum belirteci eksik.')
-
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     })
-    const { data: userData, error: userError } = await adminClient.auth.getUser(accessToken)
-    if (userError || !userData.user) throw new HttpError(401, 'Geçersiz oturum.')
-
     const body = (await request.json()) as AiRequest
-    if (body.operation !== 'status' && body.operation !== 'home_summary' && body.operation !== 'calendar_classification' && body.operation !== 'awareness_suggestion') {
+    if (body.operation !== 'status' && body.operation !== 'home_summary' && body.operation !== 'calendar_classification' && body.operation !== 'awareness_suggestion' && body.operation !== 'scheduled_daily_summary') {
       throw new HttpError(400, 'Desteklenmeyen AI işlemi.')
     }
 
-    const { data: membershipData, error: membershipError } = await adminClient
+    const isScheduledDailySummary = body.operation === 'scheduled_daily_summary'
+    const authHeader = request.headers.get('Authorization')
+    let requesterId = ''
+    if (isScheduledDailySummary) {
+      const dispatchSecret = Deno.env.get('PUSH_DISPATCH_SECRET')
+      if (!dispatchSecret || request.headers.get('x-push-dispatch-secret') !== dispatchSecret) {
+        throw new HttpError(401, 'Geçersiz zamanlanmış AI isteği.')
+      }
+    } else {
+      if (!authHeader) throw new HttpError(401, 'Yetkilendirme başlığı eksik.')
+      const accessToken = authHeader.replace(/^Bearer\s+/i, '').trim()
+      if (!accessToken) throw new HttpError(401, 'Oturum belirteci eksik.')
+      const { data: userData, error: userError } = await adminClient.auth.getUser(accessToken)
+      if (userError || !userData.user) throw new HttpError(401, 'Geçersiz oturum.')
+      requesterId = userData.user.id
+    }
+
+    let membershipQuery = adminClient
       .from('period_memberships')
       .select('period_id, app_role, coordinator_role_id, periods!inner(is_active), coordinator_roles(slug)')
-      .eq('profile_id', userData.user.id)
       .eq('is_active', true)
       .eq('periods.is_active', true)
+      .limit(1)
+    membershipQuery = isScheduledDailySummary
+      ? membershipQuery.eq('app_role', 'super_admin')
+      : membershipQuery.eq('profile_id', requesterId)
+    const { data: membershipData, error: membershipError } = await membershipQuery
       .maybeSingle()
     if (membershipError || !membershipData) throw new HttpError(403, 'Aktif dönem üyeliği bulunamadı.')
     const membership = membershipData as unknown as MembershipRecord
+    if (isScheduledDailySummary) {
+      const { data: scheduledMembership } = await adminClient
+        .from('period_memberships')
+        .select('profile_id')
+        .eq('period_id', membership.period_id)
+        .eq('app_role', 'super_admin')
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle()
+      if (!scheduledMembership?.profile_id) throw new HttpError(403, 'Aktif Süper Yönetici bulunamadı.')
+      requesterId = scheduledMembership.profile_id as string
+    }
 
     const { data: settingData, error: settingError } = await adminClient
       .from('ai_feature_settings')
@@ -992,7 +1016,7 @@ serve(async (request: Request) => {
       }, 'calendar_classification')
       const { data: reservation, error: reservationError } = await adminClient.rpc('reserve_ai_quota', {
         target_period_id: membership.period_id,
-        target_requester_id: userData.user.id,
+        target_requester_id: requesterId,
         target_operation_type: 'calendar_classification',
         target_model_id: model,
       })
@@ -1076,7 +1100,7 @@ serve(async (request: Request) => {
         const model = modelForOperation({ flashModel: setting.flash_model, flashLiteModel: setting.flash_lite_model, embeddingModel: setting.embedding_model }, 'awareness_suggestion')
         const { data: reservation, error: reservationError } = await adminClient.rpc('reserve_ai_quota', {
           target_period_id: membership.period_id,
-          target_requester_id: userData.user.id,
+          target_requester_id: requesterId,
           target_operation_type: 'awareness_suggestion',
           target_model_id: model,
         })
@@ -1194,7 +1218,7 @@ serve(async (request: Request) => {
       return jsonResponse({ success: true, generated, notified })
     }
 
-    if (body.force) {
+    if (body.force || isScheduledDailySummary) {
       const { error: forceRefreshError } = await adminClient
         .from('ai_outputs')
         .update({ is_current: false })
@@ -1213,7 +1237,7 @@ serve(async (request: Request) => {
       .from('ai_outputs')
       .select('payload, model_id, created_at, expires_at')
       .eq('period_id', membership.period_id)
-      .eq('recipient_id', userData.user.id)
+      .eq('recipient_id', requesterId)
       .eq('output_type', 'home_summary')
       .eq('is_current', true)
       .eq('validation_status', 'valid')
@@ -1245,31 +1269,42 @@ serve(async (request: Request) => {
       })
     }
 
-    const userClient = createClient(supabaseUrl, anonKey, {
+    const userClient = isScheduledDailySummary ? null : createClient(supabaseUrl, anonKey, {
       auth: { autoRefreshToken: false, persistSession: false },
-      global: { headers: { Authorization: authHeader } },
+      global: { headers: { Authorization: authHeader! } },
     })
-    const { data: contextData, error: contextError } = await userClient.rpc('get_my_ai_home_context', {
-      target_period_id: membership.period_id,
-    })
+    const { data: contextData, error: contextError } = isScheduledDailySummary
+      ? await adminClient.rpc('get_ai_home_context_for_member', {
+          target_period_id: membership.period_id,
+          target_profile_id: requesterId,
+        })
+      : await userClient!.rpc('get_my_ai_home_context', { target_period_id: membership.period_id })
     if (contextError) throw new HttpError(500, 'AI ana sayfa bağlamı hazırlanamadı.')
     const context = normalizeHomeContext(contextData)
-    const historyOutput = latestOutput ?? (await adminClient
-      .from('ai_outputs')
-      .select('payload, model_id, created_at, expires_at')
-      .eq('period_id', membership.period_id)
-      .eq('recipient_id', userData.user.id)
-      .eq('output_type', 'home_summary')
-      .eq('validation_status', 'valid')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()).data
+    const historyOutput = isScheduledDailySummary
+      ? null
+      : latestOutput ?? (await adminClient
+        .from('ai_outputs')
+        .select('payload, model_id, created_at, expires_at')
+        .eq('period_id', membership.period_id)
+        .eq('recipient_id', requesterId)
+        .eq('output_type', 'home_summary')
+        .eq('validation_status', 'valid')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()).data
     const startOfToday = new Date()
     startOfToday.setHours(0, 0, 0, 0)
-    const { data: activityData, error: activityError } = await userClient.rpc('get_my_ai_home_activity', {
-      target_period_id: membership.period_id,
-      target_changed_since: historyOutput?.created_at ?? startOfToday.toISOString(),
-    })
+    const { data: activityData, error: activityError } = isScheduledDailySummary
+      ? await adminClient.rpc('get_ai_home_activity_for_member', {
+          target_period_id: membership.period_id,
+          target_profile_id: requesterId,
+          target_changed_since: historyOutput?.created_at ?? startOfToday.toISOString(),
+        })
+      : await userClient!.rpc('get_my_ai_home_activity', {
+          target_period_id: membership.period_id,
+          target_changed_since: historyOutput?.created_at ?? startOfToday.toISOString(),
+        })
     if (activityError) console.error('AI home activity delta could not be loaded', activityError)
     context.activity = isRecord(activityData) ? asItems(activityData.items) : []
     const preparedSources = prepareHomeSources(context, historyOutput?.payload)
@@ -1283,12 +1318,12 @@ serve(async (request: Request) => {
         .from('ai_outputs')
         .update({ is_current: false })
         .eq('period_id', membership.period_id)
-        .eq('recipient_id', userData.user.id)
+        .eq('recipient_id', requesterId)
         .eq('output_type', 'home_summary')
         .eq('is_current', true)
       const { error: emptyOutputError } = await adminClient.from('ai_outputs').insert({
         period_id: membership.period_id,
-        recipient_id: userData.user.id,
+        recipient_id: requesterId,
         output_type: 'home_summary',
         payload: emptyPayload,
         source_manifest: [],
@@ -1315,7 +1350,7 @@ serve(async (request: Request) => {
     }, 'home_summary')
     const { data: reservation, error: reservationError } = await adminClient.rpc('reserve_ai_quota', {
       target_period_id: membership.period_id,
-      target_requester_id: userData.user.id,
+      target_requester_id: requesterId,
       target_operation_type: 'home_summary',
       target_model_id: model,
     })
@@ -1336,7 +1371,7 @@ serve(async (request: Request) => {
       const generatedAt = new Date().toISOString()
       const { error: fallbackOutputError } = await adminClient.from('ai_outputs').insert({
         period_id: membership.period_id,
-        recipient_id: userData.user.id,
+        recipient_id: requesterId,
         output_type: 'home_summary',
         payload,
         source_manifest: sources.slice(0, 3).map((source) => ({
@@ -1397,13 +1432,13 @@ serve(async (request: Request) => {
         .from('ai_outputs')
         .update({ is_current: false })
         .eq('period_id', membership.period_id)
-        .eq('recipient_id', userData.user.id)
+        .eq('recipient_id', requesterId)
         .eq('output_type', 'home_summary')
         .eq('is_current', true)
 
       const { error: outputError } = await adminClient.from('ai_outputs').insert({
         period_id: membership.period_id,
-        recipient_id: userData.user.id,
+        recipient_id: requesterId,
         output_type: 'home_summary',
         payload,
         source_manifest: sources.map((source) => ({
