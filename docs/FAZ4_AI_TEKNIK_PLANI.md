@@ -2,7 +2,7 @@
 
 **Durum:** Altyapı hazırlığı başladı, kullanıcıya açık AI özelliği yok.  
 **Sağlayıcı:** Google Gemini API ücretsiz kota.  
-**Modeller:** `gemini-2.5-flash`, `gemini-2.5-flash-lite`, `gemini-embedding-001`.  
+**Modeller:** `gemini-3.7-flash`, `gemini-3.5-flash-lite`, `gemini-embedding-001`.  
 **Temel ilke:** AI danışmandır; uygulama kaydı oluşturamaz, değiştiremez, silemez ve bildirim gönderemez.
 
 ## 1. Amaç
@@ -154,16 +154,18 @@ Sohbet tabloları, kullanıcıya açık pilot başlamadan önce ayrı migration 
 
 | İşlem | Model |
 | --- | --- |
-| Manuel takvim sınıflandırma | Flash-Lite |
-| Önemli gün uygunluk kontrolü | Flash-Lite |
-| Kullanıcı sorusunu bağlama yönlendirme | Flash-Lite |
-| Kısa bildirim/taslak sınıflandırma | Flash-Lite |
-| Ana sayfa özeti | Flash |
-| Etkinlik/farkındalık değerlendirmesi | Flash |
-| MUPSA Asistan cevabı | Flash |
-| Uzun duyuru/rapor/içerik taslağı | Flash |
-| Kurumsal hafıza sentezi | Flash |
+| Manuel takvim sınıflandırma | Gemini 3.5 Flash-Lite |
+| Önemli gün uygunluk kontrolü | Gemini 3.5 Flash-Lite |
+| Normal MUPSA Asistan sohbeti | Gemini 3.5 Flash-Lite |
+| Günlük ana sayfa özeti | Gemini 3.5 Flash-Lite |
+| Kısa duyuru/içerik/rapor taslağı | Gemini 3.5 Flash-Lite |
+| Hızlı etkinlik/farkındalık değerlendirmesi | Gemini 3.5 Flash-Lite |
+| Takvim dahil derin dönem analizi | Gemini 3.7 Flash |
+| Haftalık Süper Yönetici analizi | Gemini 3.7 Flash |
+| Çok kaynaklı kurumsal hafıza sentezi | Gemini 3.7 Flash |
 | Onaylı metin indeksleme | Embedding-001 |
+
+Gemini 3.7 Flash normal sohbet için kullanılmaz. Sunucu yalnızca açıkça tanımlanmış derin analiz işlemlerini 3.7'ye yönlendirir; günlük ve kullanıcı mesajı başına çalışan yüksek hacimli işlemler Flash-Lite kullanır.
 
 ## 10. Ana sayfa özeti
 
@@ -266,4 +268,3 @@ Bu sonuç doğrudan bildirim göndermez. İlk pilotta yalnızca Süper Yönetici
 9. **Kurumsal hafıza:** Yeterli onaylı kaynak sonrasında.
 
 Her aşama ayrı migration/Edge Function/UI değişikliği olarak teslim edilir. Bir aşama doğrulanmadan sonraki özellik genel kullanıma açılmaz.
-

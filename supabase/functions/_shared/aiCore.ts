@@ -5,6 +5,10 @@ export type AiOperation =
   | 'draft'
   | 'calendar_classification'
   | 'awareness_suggestion'
+  | 'deep_analysis'
+  | 'calendar_deep_analysis'
+  | 'weekly_management_analysis'
+  | 'institutional_memory'
   | 'embedding'
 
 export type AiClaimType = 'fact' | 'inference' | 'recommendation' | 'draft'
@@ -87,13 +91,17 @@ export interface HomeSummaryValidationResult {
 }
 
 const FLASH_OPERATIONS: ReadonlySet<AiOperation> = new Set([
-  'home_summary',
   'page_analysis',
-  'chat',
-  'draft',
+  'deep_analysis',
+  'calendar_deep_analysis',
+  'weekly_management_analysis',
+  'institutional_memory',
 ])
 
 const FLASH_LITE_OPERATIONS: ReadonlySet<AiOperation> = new Set([
+  'home_summary',
+  'chat',
+  'draft',
   'calendar_classification',
   'awareness_suggestion',
 ])
