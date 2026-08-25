@@ -240,6 +240,7 @@ export default function AppHome({ session }: { session: Session }) {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
   const [aiWarning, setAiWarning] = useState<string | null>(null)
+  const [aiRefreshKey, setAiRefreshKey] = useState(0)
 
   useEffect(() => {
     if (membershipLoading || !hasActiveMembership || appRole !== 'super_admin') {
@@ -282,7 +283,15 @@ export default function AppHome({ session }: { session: Session }) {
 
     void loadAiPilot()
     return () => { isMounted = false }
-  }, [appRole, hasActiveMembership, membershipLoading])
+  }, [aiRefreshKey, appRole, hasActiveMembership, membershipLoading])
+
+  useEffect(() => {
+    if (!aiEnabled || appRole !== 'super_admin') return
+    const refreshTimer = window.setInterval(() => {
+      setAiRefreshKey((value) => value + 1)
+    }, 5 * 60 * 1000)
+    return () => window.clearInterval(refreshTimer)
+  }, [aiEnabled, appRole])
 
   useEffect(() => {
     if (membershipLoading || !hasActiveMembership || !periodId || !profileId) return

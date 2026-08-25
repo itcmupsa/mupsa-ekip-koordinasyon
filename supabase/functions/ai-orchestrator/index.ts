@@ -510,6 +510,21 @@ serve(async (request: Request) => {
     ].filter((key): key is string => Boolean(key)))]
     if (geminiApiKeys.length === 0) throw new HttpError(503, 'Gemini API anahtarı yapılandırılmadı.')
 
+    if (body.force) {
+      const { error: forceRefreshError } = await adminClient
+        .from('ai_outputs')
+        .update({ is_current: false })
+        .eq('period_id', membership.period_id)
+        .eq('output_type', 'home_summary')
+        .eq('is_current', true)
+      if (forceRefreshError) console.error('AI home summary force refresh failed', forceRefreshError)
+    } else {
+      const { error: dueRefreshError } = await adminClient.rpc('apply_due_ai_home_summary_refresh', {
+        target_period_id: membership.period_id,
+      })
+      if (dueRefreshError) console.error('Due AI home summary refresh could not be applied', dueRefreshError)
+    }
+
     const { data: userLatestOutput } = await adminClient
       .from('ai_outputs')
       .select('payload, model_id, created_at, expires_at')
