@@ -8,10 +8,12 @@ Bu dosya, proje bağlamının güncel durum kaydıdır. Bir görev tamamlandığ
 
 - Ayrıntılı ve ücretsiz-kota odaklı teknik plan `docs/FAZ4_AI_TEKNIK_PLANI.md` dosyasına eklendi.
 - `20260825090000_add_ai_foundation.sql` migration'ı kapalı feature flag, yönetim onaylı kaynak sınıflandırması, asenkron iş kuyruğu, kota sayacı, embedding parçaları ve doğrulanmış çıktı deposunu hazırlar.
+- `20260825100000_add_ai_home_context.sql` ana sayfa özeti için çağrı öncesi yetki filtreli kesin veri bağlamını hazırlar. Bütçe, sponsor, kişi adı/e-posta, açıklama, not, rapor ve karar metinleri bu bağlama alınmaz.
+- Ana sayfa bağlamı kesin tarihi, yoksa tahmini tarihi kullanır; rapor önerisi yönetimce gün sayısı belirlenmedikçe `report_due` aşamasına geçmez ve kayıtlı bağımlılık olmadan neden-sonuç üretimine izin vermez.
 - AI varsayılan olarak kapalıdır; mevcut kullanıcı arayüzünde AI bileşeni gösterilmez.
 - `ai-orchestrator` Edge Function iskeleti yalnızca yetkili kullanıcının AI durumunu döndürür; üretim çağrıları özellikle kapalıdır.
 - Google API anahtarı repoya eklenmedi. `GEMINI_API_KEY` yalnızca Supabase Edge Function secret olarak tanımlanacaktır.
-- Yeni migration henüz uzak Supabase'e uygulanmadı. `supabase db push --dry-run` denemesi yerel CLI oturum anahtarı bulunmadığı için canlı veritabanına dokunmadan durdu.
+- İki yeni AI migration'ı henüz uzak Supabase'e uygulanmadı. `supabase db push --dry-run` denemesi yerel CLI oturum anahtarı bulunmadığı için canlı veritabanına dokunmadan durdu.
 
 ## Canlı sistem
 

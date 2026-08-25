@@ -64,3 +64,15 @@ Bu senaryolar `20260825090000_add_ai_foundation.sql` migration'ı uygulandıktan
 3. `429` sonrasında işin güvenli hata koduyla tekrar kuyruğuna alınacağı Edge Function testinde doğrulanır.
 4. Yeni çıktı üretilemezse son geçerli ve süresi dolmamış çıktı kullanılabilir.
 
+## 9. Ana sayfa bağlamı
+
+1. AI kapalıyken `get_my_ai_home_context(period_id)` çağrısı hata vermelidir.
+2. Aktif dönem üyeliği olmayan kullanıcı bağlam alamamalıdır.
+3. Koordinatör yalnızca atandığı açık görevleri görmelidir; başka üyelerin bağımsız görevleri görünmemelidir.
+4. Koordinatör yalnızca sorumlusu/üyesi olduğu ya da atanmış görevi bulunan etkinlikleri görmelidir.
+5. Halkla ilişkiler koordinatörü aktif farkındalık kayıtlarını görebilmeli; diğer koordinatörler yalnızca sorumlusu oldukları kayıtları görmelidir.
+6. Süper Yönetici tüm açık görevlerin ve ilgili kayıtların özetini görebilmelidir.
+7. Dönen JSON içinde e-posta, kişi adı, açıklama, not, rapor, karar, bütçe veya sponsor alanı bulunmamalıdır.
+8. Kesin tarih varsa `effective_date` kesin tarih, yoksa tahmini tarih olmalıdır.
+9. `report_reminder_offset_days` boşsa geçmiş etkinlik için `report_due` üretilmemelidir.
+10. Bağlam çıktısında silme, güncelleme, oluşturma veya bildirim gönderme komutu bulunmamalıdır.
