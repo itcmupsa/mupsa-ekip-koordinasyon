@@ -91,6 +91,7 @@ export interface HomeSummaryValidationResult {
 }
 
 const FLASH_OPERATIONS: ReadonlySet<AiOperation> = new Set([
+  'home_summary',
   'page_analysis',
   'deep_analysis',
   'calendar_deep_analysis',
@@ -99,7 +100,6 @@ const FLASH_OPERATIONS: ReadonlySet<AiOperation> = new Set([
 ])
 
 const FLASH_LITE_OPERATIONS: ReadonlySet<AiOperation> = new Set([
-  'home_summary',
   'chat',
   'draft',
   'calendar_classification',

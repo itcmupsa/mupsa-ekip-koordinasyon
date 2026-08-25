@@ -510,7 +510,7 @@ serve(async (request: Request) => {
     ].filter((key): key is string => Boolean(key)))]
     if (geminiApiKeys.length === 0) throw new HttpError(503, 'Gemini API anahtarı yapılandırılmadı.')
 
-    const { data: latestOutput } = await adminClient
+    const { data: userLatestOutput } = await adminClient
       .from('ai_outputs')
       .select('payload, model_id, created_at, expires_at')
       .eq('period_id', membership.period_id)
@@ -521,12 +521,22 @@ serve(async (request: Request) => {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
+    const { data: periodLatestOutput } = userLatestOutput
+      ? { data: null }
+      : await adminClient
+        .from('ai_outputs')
+        .select('payload, model_id, created_at, expires_at')
+        .eq('period_id', membership.period_id)
+        .eq('output_type', 'home_summary')
+        .eq('is_current', true)
+        .eq('validation_status', 'valid')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    const latestOutput = userLatestOutput ?? periodLatestOutput
     const cacheIsFresh = latestOutput?.expires_at
       && Date.parse(latestOutput.expires_at) > Date.now()
-    const forceRefreshIsTooSoon = body.force === true
-      && latestOutput?.created_at
-      && Date.parse(latestOutput.created_at) > Date.now() - 6 * 60 * 60 * 1000
-    if (latestOutput && cacheIsFresh && (body.force !== true || forceRefreshIsTooSoon)) {
+    if (latestOutput && cacheIsFresh) {
       return jsonResponse({
         success: true,
         output: latestOutput.payload,

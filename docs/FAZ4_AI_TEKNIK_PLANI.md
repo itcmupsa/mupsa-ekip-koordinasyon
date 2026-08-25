@@ -157,7 +157,7 @@ Sohbet tabloları, kullanıcıya açık pilot başlamadan önce ayrı migration 
 | Manuel takvim sınıflandırma | Gemini 3.5 Flash-Lite |
 | Önemli gün uygunluk kontrolü | Gemini 3.5 Flash-Lite |
 | Normal MUPSA Asistan sohbeti | Gemini 3.5 Flash-Lite |
-| Günlük ana sayfa özeti | Gemini 3.5 Flash-Lite |
+| Günlük ortak ana sayfa özeti (dönem başına 1 çağrı) | Gemini 3.7 Flash |
 | Kısa duyuru/içerik/rapor taslağı | Gemini 3.5 Flash-Lite |
 | Hızlı etkinlik/farkındalık değerlendirmesi | Gemini 3.5 Flash-Lite |
 | Takvim dahil derin dönem analizi | Gemini 3.7 Flash |
@@ -165,7 +165,7 @@ Sohbet tabloları, kullanıcıya açık pilot başlamadan önce ayrı migration 
 | Çok kaynaklı kurumsal hafıza sentezi | Gemini 3.7 Flash |
 | Onaylı metin indeksleme | Embedding-001 |
 
-Gemini 3.7 Flash normal sohbet için kullanılmaz. Sunucu yalnızca açıkça tanımlanmış derin analiz işlemlerini 3.7'ye yönlendirir; günlük ve kullanıcı mesajı başına çalışan yüksek hacimli işlemler Flash-Lite kullanır.
+Gemini 3.7 Flash normal sohbet için kullanılmaz. Sunucu günlük ortak özeti dönem başına en fazla bir kez ve açıkça tanımlanmış derin analiz işlemlerini 3.7'ye yönlendirir; kullanıcı mesajı başına çalışan yüksek hacimli işlemler Flash-Lite kullanır.
 
 ## 10. Ana sayfa özeti
 
