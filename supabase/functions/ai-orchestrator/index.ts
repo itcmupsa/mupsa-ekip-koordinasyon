@@ -332,6 +332,19 @@ function previousReasonMap(payload: unknown): Map<string, string> {
   return result
 }
 
+function hasSummaryItems(payload: unknown): boolean {
+  return isRecord(payload) && Array.isArray(payload.items) && payload.items.length > 0
+}
+
+const PERSISTENT_DAILY_REASONS = new Set<HomeSummaryReasonCode>([
+  'overdue_task',
+  'due_soon_task',
+  'event_day',
+  'event_final_days',
+  'awareness_share_due_soon',
+  'upcoming_calendar_entry',
+])
+
 function prepareHomeSources(context: HomeContext, previousPayload?: unknown): PreparedHomeSource[] {
   const currentCandidates = [
     ...context.tasks.slice(0, 12),
@@ -362,7 +375,9 @@ function prepareHomeSources(context: HomeContext, previousPayload?: unknown): Pr
     .sort((left, right) => sourcePriority(right) - sourcePriority(left))
     .filter((source) => {
       if (typeof source.facts.activity_kind === 'string') return true
-      return previousReasons.get(`${source.entityType}:${source.entityId}`) !== primaryReason(source)
+      const reason = primaryReason(source)
+      if (PERSISTENT_DAILY_REASONS.has(reason)) return true
+      return previousReasons.get(`${source.entityType}:${source.entityId}`) !== reason
     })
     .slice(0, 18)
     .map((source, index) => ({ ...source, alias: `S${index + 1}` }))
@@ -1264,7 +1279,9 @@ serve(async (request: Request) => {
     const latestOutput = userLatestOutput ?? periodLatestOutput
     const cacheIsFresh = latestOutput?.expires_at
       && Date.parse(latestOutput.expires_at) > Date.now()
-    if (latestOutput && cacheIsFresh && !refreshRequested) {
+    // Boş bir AI yanıtını 24 saat boyunca körlemesine kullanma. Böyle bir çıktı varsa
+    // güncel kesin bağlam yeniden okunur; gerçekten kaynak yoksa aşağıda yine korunur.
+    if (latestOutput && cacheIsFresh && !refreshRequested && hasSummaryItems(latestOutput.payload)) {
       return jsonResponse({
         success: true,
         output: latestOutput.payload,
@@ -1370,7 +1387,7 @@ serve(async (request: Request) => {
     })
     if (reservationError || !isRecord(reservation) || reservation.allowed !== true || typeof reservation.usage_id !== 'string') {
       const preservedOutput = historyOutput ?? latestOutput
-      if (preservedOutput) {
+      if (preservedOutput && hasSummaryItems(preservedOutput.payload)) {
         return jsonResponse({
           success: true,
           output: preservedOutput.payload,
@@ -1440,7 +1457,11 @@ serve(async (request: Request) => {
           route: source.route,
         }
       })
-      const payload = { intro: buildDailyIntro(resolvedItems), items: resolvedItems }
+      // Model, doğrulanmış ve işlem gerektiren kaynaklar varken boş liste seçerse
+      // “bir şey yok” sonucu üretme; aynı kaynaklardan deterministik özeti kullan.
+      const payload = resolvedItems.length > 0
+        ? { intro: buildDailyIntro(resolvedItems), items: resolvedItems }
+        : buildRuleBasedPayload(sources)
       const contextHash = await sha256(JSON.stringify({ context, sources }))
 
       const { data: newOutputId, error: outputError } = await adminClient.rpc('replace_ai_home_output', {
@@ -1473,7 +1494,7 @@ serve(async (request: Request) => {
         target_succeeded: false,
       })
       const preservedOutput = historyOutput ?? latestOutput
-      if (preservedOutput) {
+      if (preservedOutput && hasSummaryItems(preservedOutput.payload)) {
         return jsonResponse({
           success: true,
           output: preservedOutput.payload,
