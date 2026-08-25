@@ -412,7 +412,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
       if (!isMounted) return
       setSuggestionsLoading(false)
       if (error) {
-        setSuggestionError('AI içerik fırsatları şu anda yüklenemedi.')
+        setSuggestionError('Mupi içerik fırsatları şu anda yüklenemedi.')
         return
       }
       const nextSuggestions = (data ?? []).map((row) => ({
@@ -501,7 +501,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
     setEstimatedDate(payload.suggested_share_date || suggestion.targetDate)
     setShareDate(payload.suggested_share_date || suggestion.targetDate)
     setNextAction('İçerik kapsamını ekipçe doğrula ve tasarım planını oluştur.')
-    setNote(`AI içerik taslağı (yayınlamadan önce doğrulayın):\n${payload.draft_text}\n\nGörsel fikri:\n${payload.visual_idea}\n\nEczacılık bağlantısı:\n${payload.pharmacy_relevance}\n\nKaynak: ${payload.source_name} — ${payload.source_url}`)
+    setNote(`Mupi içerik taslağı (yayınlamadan önce doğrulayın):\n${payload.draft_text}\n\nGörsel fikri:\n${payload.visual_idea}\n\nEczacılık bağlantısı:\n${payload.pharmacy_relevance}\n\nKaynak: ${payload.source_name} — ${payload.source_url}`)
     setSuggestionTransferId(suggestion.id)
     setSuccessMessage(null)
     setFormMode('create')
@@ -666,7 +666,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
             <div className="flex items-start gap-3 border-b border-brand/10 px-4 py-4 sm:px-5">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand text-white"><AwarenessIcon /></span>
               <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold text-ink">Eczacılık odaklı içerik fırsatları</h2><span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-brand-dark">AI taslağı</span></div>
+                <div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold text-ink">Eczacılık odaklı içerik fırsatları</h2><span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-brand-dark">Mupi taslağı</span></div>
                 <p className="mt-1 text-xs leading-5 text-ink-soft">Kaynaklı önemli günler 60–120 gün önceden değerlendirilir. Taslaklar otomatik yayımlanmaz veya kaydedilmez.</p>
               </div>
             </div>

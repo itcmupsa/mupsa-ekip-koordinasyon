@@ -53,16 +53,6 @@ const reasonLabels: Record<string, string> = {
   upcoming_calendar_entry: 'Yaklaşan takvim kaydı',
 }
 
-function SparkleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
-      <path d="M12 3l1.3 4.1L17 9l-3.7 1.9L12 15l-1.3-4.1L7 9l3.7-1.9z" />
-      <path d="M18.5 14.5l.7 2.1 1.8.9-1.8.9-.7 2.1-.7-2.1-1.8-.9 1.8-.9z" />
-      <path d="M5 3.5l.7 2.1 1.8.9-1.8.9L5 9.5l-.7-2.1-1.8-.9 1.8-.9z" />
-    </svg>
-  )
-}
-
 function formatGeneratedAt(value: string | null): string | null {
   if (!value) return null
   const date = new Date(value)
@@ -96,19 +86,19 @@ export default function AiHomeSummaryCard({
   error,
   warning,
   onRefresh,
-  audienceLabel = 'AI · Günlük',
+  audienceLabel = 'Mupi · Günlük',
 }: AiHomeSummaryCardProps) {
   const generatedLabel = formatGeneratedAt(generatedAt)
 
   return (
     <section className="mb-4 overflow-hidden rounded-xl border border-brand/15 bg-white shadow-card sm:mb-5">
       <div className="flex items-center gap-3 border-b border-canvas-border px-4 py-3 sm:px-5">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand text-white shadow-sm">
-          <SparkleIcon />
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-brand shadow-sm">
+          <img src="/mupi.png" alt="Mupi" className="h-full w-full object-cover" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h2 className="text-base font-semibold text-ink">Günlük özet</h2>
+            <h2 className="text-base font-semibold text-ink">Mupi günlük özeti</h2>
             <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold text-brand-dark">{audienceLabel}</span>
           </div>
           <p className="mt-0.5 text-xs text-ink-soft">

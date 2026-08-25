@@ -113,6 +113,18 @@ interface AiHomeSummaryResponse {
   error?: string
 }
 
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timeoutId: number | undefined
+  const timeout = new Promise<T>((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error('Mupi isteği zaman aşımına uğradı.')), timeoutMs)
+  })
+  try {
+    return await Promise.race([promise, timeout])
+  } finally {
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId)
+  }
+}
+
 async function getAiFunctionErrorMessage(error: unknown, fallback: string): Promise<string> {
   if (!error || typeof error !== 'object' || !('context' in error)) return fallback
   const context = (error as { context?: unknown }).context
@@ -267,14 +279,23 @@ export default function AppHome({ session }: { session: Session }) {
 
       setAiLoading(true)
       setAiError(null)
-      const { data: summaryData, error: summaryError } = await supabase.functions.invoke<AiHomeSummaryResponse>(
-        'ai-orchestrator',
-        { body: { operation: 'home_summary' } },
-      )
+      let summaryResult
+      try {
+        summaryResult = await withTimeout(supabase.functions.invoke<AiHomeSummaryResponse>(
+          'ai-orchestrator',
+          { body: { operation: 'home_summary' } },
+        ), 20_000)
+      } catch {
+        if (!isMounted) return
+        setAiLoading(false)
+        setAiError('Mupi özeti zamanında hazırlanamadı. Son geçerli özet varsa korunur; kısa süre sonra yeniden deneyin.')
+        return
+      }
+      const { data: summaryData, error: summaryError } = summaryResult
       if (!isMounted) return
       setAiLoading(false)
       if (summaryError || summaryData?.success !== true || !summaryData.output) {
-        const fallback = 'AI özeti şu anda hazırlanamadı. Mevcut ana sayfa verileri kullanılmaya devam ediyor.'
+        const fallback = 'Mupi özeti şu anda hazırlanamadı. Mevcut ana sayfa verileri kullanılmaya devam ediyor.'
         setAiError(summaryData?.error ?? await getAiFunctionErrorMessage(summaryError, fallback))
         return
       }
@@ -713,13 +734,21 @@ export default function AppHome({ session }: { session: Session }) {
     setAiLoading(true)
     setAiError(null)
     setAiWarning(null)
-    const { data: summaryData, error: summaryError } = await supabase.functions.invoke<AiHomeSummaryResponse>(
-      'ai-orchestrator',
-      { body: { operation: 'home_summary', force: true } },
-    )
+    let summaryResult
+    try {
+      summaryResult = await withTimeout(supabase.functions.invoke<AiHomeSummaryResponse>(
+        'ai-orchestrator',
+        { body: { operation: 'home_summary', force: true } },
+      ), 20_000)
+    } catch {
+      setAiLoading(false)
+      setAiError('Mupi özeti zamanında yenilenemedi. Son geçerli özet korunuyor.')
+      return
+    }
+    const { data: summaryData, error: summaryError } = summaryResult
     setAiLoading(false)
     if (summaryError || summaryData?.success !== true || !summaryData.output) {
-      const fallback = 'AI özeti şu anda yenilenemedi. Son geçerli özet korunuyor.'
+      const fallback = 'Mupi özeti şu anda yenilenemedi. Son geçerli özet korunuyor.'
       setAiError(summaryData?.error ?? await getAiFunctionErrorMessage(summaryError, fallback))
       return
     }
@@ -857,7 +886,7 @@ export default function AppHome({ session }: { session: Session }) {
         aiLoading={aiLoading}
         aiError={aiError}
         aiWarning={aiWarning}
-        aiAudienceLabel={personalSummaryItems.length > 0 ? 'AI · Sana özel' : 'AI · Kulüp özeti'}
+        aiAudienceLabel={personalSummaryItems.length > 0 ? 'Mupi · Sana özel' : 'Mupi · Kulüp özeti'}
       />
     )
   }

@@ -397,7 +397,7 @@ export default function SuperAdminDashboardView({
           error={aiError}
           warning={aiWarning}
           onRefresh={onRefreshAiSummary}
-          audienceLabel="AI · Süper Yönetici"
+          audienceLabel="Mupi · Süper Yönetici"
         />
       ) : null}
 

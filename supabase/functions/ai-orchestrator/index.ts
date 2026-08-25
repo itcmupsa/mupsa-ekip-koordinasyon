@@ -206,7 +206,7 @@ function asItems(value: unknown): HomeContextItem[] {
 }
 
 function normalizeHomeContext(value: unknown): HomeContext {
-  if (!isRecord(value)) throw new HttpError(500, 'AI bağlamı geçerli biçimde üretilemedi.')
+  if (!isRecord(value)) throw new HttpError(500, 'Mupi bağlamı geçerli biçimde üretilemedi.')
   return {
     schema_version: String(value.schema_version ?? ''),
     generated_at: String(value.generated_at ?? ''),
@@ -557,14 +557,22 @@ async function callGemini(
       })
 
   for (const [keyIndex, apiKey] of apiKeys.entries()) {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: requestBody,
-      },
-    )
+    let response: Response
+    try {
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          body: requestBody,
+          signal: AbortSignal.timeout(8_000),
+        },
+      )
+    } catch (error) {
+      if (keyIndex < apiKeys.length - 1) continue
+      console.error('Gemini request timed out', error)
+      throw new HttpError(504, 'Gemini isteği zaman aşımına uğradı.')
+    }
 
     if (response.ok) {
       const data = await response.json() as GeminiResponse
@@ -896,7 +904,7 @@ serve(async (request: Request) => {
     })
     const body = (await request.json()) as AiRequest
     if (body.operation !== 'status' && body.operation !== 'home_summary' && body.operation !== 'calendar_classification' && body.operation !== 'awareness_suggestion' && body.operation !== 'scheduled_daily_summary') {
-      throw new HttpError(400, 'Desteklenmeyen AI işlemi.')
+      throw new HttpError(400, 'Desteklenmeyen Mupi işlemi.')
     }
 
     const isScheduledDailySummary = body.operation === 'scheduled_daily_summary'
@@ -905,7 +913,7 @@ serve(async (request: Request) => {
     if (isScheduledDailySummary) {
       const dispatchSecret = Deno.env.get('PUSH_DISPATCH_SECRET')
       if (!dispatchSecret || request.headers.get('x-push-dispatch-secret') !== dispatchSecret) {
-        throw new HttpError(401, 'Geçersiz zamanlanmış AI isteği.')
+        throw new HttpError(401, 'Geçersiz zamanlanmış Mupi isteği.')
       }
     } else {
       if (!authHeader) throw new HttpError(401, 'Yetkilendirme başlığı eksik.')
@@ -947,7 +955,7 @@ serve(async (request: Request) => {
       .select('is_enabled, free_tier_only, flash_model, flash_lite_model, embedding_model, policy_version')
       .eq('period_id', membership.period_id)
       .maybeSingle()
-    if (settingError) throw new HttpError(500, 'AI ayarı okunamadı.')
+    if (settingError) throw new HttpError(500, 'Mupi ayarı okunamadı.')
     const setting = settingData as AiSettingRecord | null
 
     if (body.operation === 'status') {
@@ -966,7 +974,7 @@ serve(async (request: Request) => {
     }
 
     if (!setting?.is_enabled || !setting.free_tier_only) {
-      throw new HttpError(403, 'AI özellikleri henüz etkin değil.')
+      throw new HttpError(403, 'Mupi özellikleri henüz etkin değil.')
     }
     const geminiApiKeys = [...new Set([
       Deno.env.get('GEMINI_API_KEY'),
@@ -1200,7 +1208,7 @@ serve(async (request: Request) => {
             recipient_id: recipient.profile_id,
             notification_type: 'awareness_ai_suggestion',
             channel: 'in_app',
-            title: 'Yeni farkındalık içerik önerisi',
+            title: 'Mupi içerik önerisi',
             body: `${name} için eczacılık odaklı içerik önerisi hazırlandı.`,
             metadata: { awareness_suggestion_id: suggestion.id, url: `/app/farkindalik?suggestion=${suggestion.id}` },
             dedupe_key: `awareness-ai-suggestion:${suggestion.id}:${recipient.profile_id}:in_app`,
@@ -1279,7 +1287,7 @@ serve(async (request: Request) => {
           target_profile_id: requesterId,
         })
       : await userClient!.rpc('get_my_ai_home_context', { target_period_id: membership.period_id })
-    if (contextError) throw new HttpError(500, 'AI ana sayfa bağlamı hazırlanamadı.')
+    if (contextError) throw new HttpError(500, 'Mupi ana sayfa bağlamı hazırlanamadı.')
     const context = normalizeHomeContext(contextData)
     const historyOutput = isScheduledDailySummary
       ? null
@@ -1407,13 +1415,13 @@ serve(async (request: Request) => {
       const validation = validateHomeSummaryPlan(gemini.value, sources)
       if (!validation.plan || validation.errors.length > 0) {
         console.error('Home summary validation failed', validation.errors)
-        throw new HttpError(502, 'AI özeti güvenlik doğrulamasından geçemedi.')
+        throw new HttpError(502, 'Mupi özeti güvenlik doğrulamasından geçemedi.')
       }
 
       const sourceByAlias = new Map(sources.map((source) => [source.alias, source]))
       const resolvedItems = validation.plan.items.map((item) => {
         const source = sourceByAlias.get(item.sourceRef)
-        if (!source) throw new HttpError(502, 'AI özeti geçersiz kaynak içeriyor.')
+        if (!source) throw new HttpError(502, 'Mupi özeti geçersiz kaynak içeriyor.')
         return {
           source_ref: item.sourceRef,
           source_type: source.entityType,
@@ -1453,7 +1461,7 @@ serve(async (request: Request) => {
         is_current: true,
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       })
-      if (outputError) throw new HttpError(500, 'Doğrulanmış AI özeti saklanamadı.')
+      if (outputError) throw new HttpError(500, 'Doğrulanmış Mupi özeti saklanamadı.')
 
       await adminClient.rpc('record_ai_usage_result', {
         target_usage_id: usageId,
@@ -1481,20 +1489,47 @@ serve(async (request: Request) => {
         })
       }
       const payload = buildRuleBasedPayload(sources)
+      const contextHash = await sha256(JSON.stringify({ context, sources, mode: 'rule_based_error_fallback' }))
+      const generatedAt = new Date().toISOString()
+      await adminClient
+        .from('ai_outputs')
+        .update({ is_current: false })
+        .eq('period_id', membership.period_id)
+        .eq('recipient_id', requesterId)
+        .eq('output_type', 'home_summary')
+        .eq('is_current', true)
+      const { error: fallbackOutputError } = await adminClient.from('ai_outputs').insert({
+        period_id: membership.period_id,
+        recipient_id: requesterId,
+        output_type: 'home_summary',
+        payload,
+        source_manifest: sources.slice(0, 3).map((source) => ({
+          alias: source.alias,
+          entity_type: source.entityType,
+          entity_id: source.entityId,
+        })),
+        context_hash: contextHash,
+        model_id: 'rule-based-fallback',
+        validation_status: 'valid',
+        validation_errors: [],
+        is_current: true,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      })
+      if (fallbackOutputError) console.error('Rule-based error fallback could not be stored', fallbackOutputError)
       return jsonResponse({
         success: true,
         output: payload,
-        generatedAt: new Date().toISOString(),
+        generatedAt,
         model: 'rule-based-fallback',
         cached: false,
         warning: error instanceof HttpError && error.status === 429
           ? 'Google günlük kotası dolduğu için özet, doğrulanmış uygulama kayıtlarından hazırlandı.'
-          : 'AI servisine ulaşılamadığı için özet, doğrulanmış uygulama kayıtlarından hazırlandı.',
+          : 'Mupi servisine ulaşılamadığı için özet, doğrulanmış uygulama kayıtlarından hazırlandı.',
       })
     }
   } catch (error) {
     const status = error instanceof HttpError ? error.status : 500
-    const message = error instanceof Error ? error.message : 'AI işlemi başarısız oldu.'
+    const message = error instanceof Error ? error.message : 'Mupi işlemi başarısız oldu.'
     return jsonResponse({ success: false, error: message }, status)
   }
 })
