@@ -14,7 +14,9 @@ Bu dosya, proje bağlamının güncel durum kaydıdır. Bir görev tamamlandığ
 - AI varsayılan olarak kapalıdır; mevcut kullanıcı arayüzünde AI bileşeni gösterilmez.
 - `ai-orchestrator` Edge Function iskeleti yalnızca yetkili kullanıcının AI durumunu döndürür; üretim çağrıları özellikle kapalıdır.
 - Google API anahtarı repoya eklenmedi. `GEMINI_API_KEY` yalnızca Supabase Edge Function secret olarak tanımlanacaktır.
-- Üç yeni AI migration'ı henüz uzak Supabase'e uygulanmadı. `supabase db push --dry-run` denemesi yerel CLI oturum anahtarı bulunmadığı için canlı veritabanına dokunmadan durdu.
+- `20260825090000`, `20260825100000` ve `20260825110000` AI migration'ları 25 Ağustos 2026'da `MUPSA Ekip Koordinasyon` canlı Supabase projesine uygulandı.
+- `ai-orchestrator` Edge Function aynı projeye deploy edildi. Yalnızca durum kontrolü aktiftir; Gemini üretim işlemleri ve kullanıcı arayüzü kapalıdır.
+- Supabase CLI, GitHub kullanıcı adı `itcmupsa` ve doğrulanmış birincil e-posta `itc.mupsa@gmail.com` olan doğru hesapla `mupsa-itc` profiline bağlandı.
 
 ## Canlı sistem
 
