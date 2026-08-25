@@ -16,7 +16,7 @@ Faz 4; mevcut görev, etkinlik, farkındalık ve takvim verilerini yetkiye uygun
 3. Etkinlik ve farkındalık sayfalarında tarih/aşama uyumlu değerlendirme.
 4. Kullanıcının soru sorabildiği bağlama duyarlı MUPSA Asistan.
 5. Duyuru, açıklama, farkındalık içeriği ve rapor için taslak metin.
-6. Halkla İlişkiler koordinatörlerine yaklaşan önemli gün önerileri.
+6. Halk Sağlığı Koordinatörüne yaklaşan önemli gün önerileri.
 7. Manuel takvim kayıtlarının toplantı/akademik tarih gibi sınıflandırılması.
 8. Yönetim onaylı geçmiş kaynaklardan yeni yönetime rehberlik.
 
@@ -233,9 +233,9 @@ Masaüstünde sağ panel, mobilde tam ekran. Kullanıcı soru sorar; AI yalnızc
 
 “AI ile taslak hazırla” önizleme açar. Kullanıcı isterse metni forma aktarır ve normal Kaydet düğmesine kendisi basar.
 
-### Halkla İlişkiler önerileri
+### Halk Sağlığı Koordinatörü önerileri
 
-Yaklaşan önemli gün önerileri yalnızca `public-relations-coordinator` aktif üyelerine gösterilir. Genel ekibe otomatik bildirim gönderilmez.
+Yaklaşan önemli gün önerileri yalnızca `public-health-coordinator` aktif üyelerine gösterilir. Genel ekibe otomatik bildirim gönderilmez.
 
 ## 14. Manuel takvim sınıflandırması
 
@@ -262,7 +262,7 @@ Bu sonuç doğrudan bildirim göndermez. İlk pilotta yalnızca Süper Yönetici
 3. **İndeks pilotu:** Yalnızca onaylı test kaynakları.
 4. **Ana sayfa pilotu:** Önce Süper Yönetici ve birkaç koordinatör.
 5. **Taslak araçları:** Duyuru ve farkındalık metniyle başla.
-6. **Halkla İlişkiler önerileri:** Önemli gün tablosu ve günlük tarama.
+6. **Halk Sağlığı Koordinatörü önerileri:** Önemli gün tablosu ve günlük tarama.
 7. **MUPSA Asistan:** Kaynak doğrulamalı sohbet.
 8. **Manuel takvim önerisi:** Sınıflandırma, kullanıcı tarafından onaylanan politika.
 9. **Kurumsal hafıza:** Yeterli onaylı kaynak sonrasında.

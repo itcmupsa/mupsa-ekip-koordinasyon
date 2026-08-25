@@ -324,7 +324,7 @@ export default function AppHome({ session }: { session: Session }) {
 
   useEffect(() => {
     if (membershipLoading || !hasActiveMembership || !periodId) return
-    if (appRole !== 'super_admin' && coordinatorRoleSlug !== 'public-relations-coordinator') return
+    if (appRole !== 'super_admin' && coordinatorRoleSlug !== 'public-health-coordinator') return
     void supabase.functions.invoke('ai-orchestrator', { body: { operation: 'awareness_suggestion' } })
   }, [appRole, coordinatorRoleSlug, hasActiveMembership, membershipLoading, periodId])
 

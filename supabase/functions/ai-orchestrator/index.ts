@@ -1072,8 +1072,8 @@ serve(async (request: Request) => {
 
     if (body.operation === 'awareness_suggestion') {
       const roleSlug = coordinatorRoleSlug(membership)
-      if (membership.app_role !== 'super_admin' && roleSlug !== 'public-relations-coordinator') {
-        throw new HttpError(403, 'Farkındalık önerileri yalnızca Halkla İlişkiler ve Süper Yöneticiye açıktır.')
+      if (membership.app_role !== 'super_admin' && roleSlug !== 'public-health-coordinator') {
+        throw new HttpError(403, 'Farkındalık önerileri yalnızca Halk Sağlığı Koordinatörü ve Süper Yöneticiye açıktır.')
       }
 
       const { data: catalogData, error: catalogError } = await adminClient
@@ -1191,17 +1191,19 @@ serve(async (request: Request) => {
 
       let notified = 0
       if (due.length > 0) {
-        const { data: prMemberships } = await adminClient
+        const { data: publicHealthMemberships } = await adminClient
           .from('period_memberships')
           .select('profile_id, app_role, coordinator_roles(slug), profiles!inner(is_active)')
           .eq('period_id', membership.period_id)
           .eq('is_active', true)
           .eq('profiles.is_active', true)
-        const prRecipients = (prMemberships ?? []).filter((item) => {
+        const publicHealthRecipients = (publicHealthMemberships ?? []).filter((item) => {
           const relation = Array.isArray(item.coordinator_roles) ? item.coordinator_roles[0] : item.coordinator_roles
-          return relation?.slug === 'public-relations-coordinator'
+          return relation?.slug === 'public-health-coordinator'
         })
-        const recipients = prRecipients.length > 0 ? prRecipients : (prMemberships ?? []).filter((item) => item.app_role === 'super_admin')
+        const recipients = publicHealthRecipients.length > 0
+          ? publicHealthRecipients
+          : (publicHealthMemberships ?? []).filter((item) => item.app_role === 'super_admin')
         const notificationRows = due.flatMap((suggestion) => recipients.map((recipient) => {
           const payload = isRecord(suggestion.payload) ? suggestion.payload : {}
           const name = typeof payload.name === 'string' ? payload.name : 'Yaklaşan önemli gün'

@@ -201,7 +201,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
   const [searchParams, setSearchParams] = useSearchParams()
   const { displayName, hasActiveMembership, profileId, periodId, periodLabel, appRole, coordinatorRoleName, coordinatorRoleSlug, loading: statusLoading } = useMembershipStatus(session)
   const isSuperAdmin = appRole === 'super_admin'
-  const canReviewAiSuggestions = isSuperAdmin || coordinatorRoleSlug === 'public-relations-coordinator'
+  const canReviewAiSuggestions = isSuperAdmin || coordinatorRoleSlug === 'public-health-coordinator'
   const [posts, setPosts] = useState<AwarenessPost[]>([])
   const [profiles, setProfiles] = useState<ProfileOption[]>([])
   const [designStatuses, setDesignStatuses] = useState<StatusOption[]>([])
