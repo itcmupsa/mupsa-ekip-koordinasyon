@@ -15,8 +15,29 @@ const corsHeaders = {
 }
 
 interface AiRequest {
-  operation?: 'status' | 'home_summary'
+  operation?: 'status' | 'home_summary' | 'calendar_classification'
   force?: boolean
+  calendar_entry_id?: string
+}
+
+type CalendarClassification = 'club_meeting' | 'academic_period' | 'exam_period' | 'holiday' | 'governance' | 'multi_day_program' | 'not_global'
+
+interface CalendarEntryRecord {
+  id: string
+  period_id: string
+  title: string
+  entry_type: 'academic' | 'official' | 'meeting' | 'other'
+  start_date: string
+  end_date: string | null
+  note: string | null
+}
+
+interface CalendarClassificationResult {
+  source_id: string
+  classification: CalendarClassification
+  should_notify: boolean
+  confidence: number
+  event_time: string | null
 }
 
 interface MembershipRecord {
@@ -86,6 +107,61 @@ function jsonResponse(body: Record<string, unknown>, status = 200): Response {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+const CALENDAR_CLASSIFICATIONS: CalendarClassification[] = [
+  'club_meeting', 'academic_period', 'exam_period', 'holiday',
+  'governance', 'multi_day_program', 'not_global',
+]
+
+function sanitizeCalendarText(value: string | null): string | null {
+  if (!value) return null
+  return value
+    .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g, '[e-posta kaldırıldı]')
+    .replace(/https?:\/\/\S+/gi, '[bağlantı kaldırıldı]')
+    .replace(/\+?\d[\d\s().-]{8,}\d/g, '[telefon kaldırıldı]')
+    .slice(0, 500)
+}
+
+function deterministicCalendarClassification(entry: CalendarEntryRecord): CalendarClassificationResult {
+  const text = `${entry.title} ${entry.note ?? ''}`.toLocaleLowerCase('tr-TR')
+  let classification: CalendarClassification = 'not_global'
+  if (/vize|final|bütünleme|sınav haft/.test(text)) classification = 'exam_period'
+  else if (/bayram|yılbaşı|cumhuriyet|atatürk|zafer|resm[iî] tatil/.test(text)) classification = 'holiday'
+  else if (/genel kurul|seçim|devir teslim|yönetim kurulu|yk buluş|yk toplant/.test(text)) classification = 'governance'
+  else if (entry.entry_type === 'meeting' || /toplantı|buluşma/.test(text)) classification = 'club_meeting'
+  else if (/ders başlang|dönem başlang|akademik dönem/.test(text)) classification = 'academic_period'
+  else if (entry.end_date && entry.end_date > entry.start_date && /kongre|sempozyum|kamp|program|zirve/.test(text)) classification = 'multi_day_program'
+  const timeMatch = text.match(/(?:saat\s*)?(?:^|\s)([01]?\d|2[0-3])[.:]([0-5]\d)(?:\s|$)/)
+  return {
+    source_id: entry.id,
+    classification,
+    should_notify: classification !== 'not_global',
+    confidence: classification === 'not_global' ? 0.45 : 0.75,
+    event_time: timeMatch ? `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}` : null,
+  }
+}
+
+function validateCalendarClassifications(value: unknown, entries: CalendarEntryRecord[]): CalendarClassificationResult[] {
+  if (!isRecord(value) || !Array.isArray(value.items)) return entries.map(deterministicCalendarClassification)
+  const entryIds = new Set(entries.map((entry) => entry.id))
+  const resolved = new Map<string, CalendarClassificationResult>()
+  for (const raw of value.items) {
+    if (!isRecord(raw) || typeof raw.source_id !== 'string' || !entryIds.has(raw.source_id)) continue
+    const classification = raw.classification as CalendarClassification
+    if (!CALENDAR_CLASSIFICATIONS.includes(classification)) continue
+    const eventTime = typeof raw.event_time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(raw.event_time)
+      ? raw.event_time
+      : null
+    resolved.set(raw.source_id, {
+      source_id: raw.source_id,
+      classification,
+      should_notify: raw.should_notify === true && classification !== 'not_global',
+      confidence: typeof raw.confidence === 'number' ? Math.max(0, Math.min(1, raw.confidence)) : 0.5,
+      event_time: eventTime,
+    })
+  }
+  return entries.map((entry) => resolved.get(entry.id) ?? deterministicCalendarClassification(entry))
 }
 
 function asItems(value: unknown): HomeContextItem[] {
@@ -263,14 +339,14 @@ function prepareHomeSources(context: HomeContext, previousPayload?: unknown): Pr
 }
 
 function buildDailyIntro(items: Array<{ title: string; reason_code: HomeSummaryReasonCode }>): string {
-  if (items.length === 0) return 'Son özetten bu yana yeni bir ekip hareketi veya kritik durum görünmüyor.'
+  if (items.length === 0) return 'Bugün için yeni bir ekip hareketi veya kritik durum bulunmuyor.'
   const completedCount = items.filter((item) => item.reason_code === 'task_completed').length
   const activityCount = items.filter((item) => [
     'task_created', 'task_updated', 'task_completed', 'event_created', 'event_updated',
     'awareness_created', 'awareness_updated', 'calendar_entry_created', 'calendar_entry_updated',
   ].includes(item.reason_code)).length
   if (completedCount > 0 && activityCount === completedCount) return `${completedCount} görev tamamlandı; yeni bir kritik durum görünmüyor.`
-  if (activityCount > 0) return `Son özetten bu yana ${activityCount} ekip hareketi öne çıkıyor.`
+  if (activityCount > 0) return `Bugün kulüpte ${activityCount} ekip hareketi öne çıkıyor.`
   return `Bugün dikkat edilmesi gereken ${items.length} yakın tarihli konu var.`
 }
 
@@ -393,7 +469,7 @@ async function callGemini(
               'Her maddede tam bir source_ref, o kaynak için allowed_reason_codes içinden bir reason_code ve kaynak türüne uygun action kullan.',
               'Recommendation yalnızca kısa bir öneridir; kayıt oluşturma, silme, atama, bildirim gönderme veya durum değiştirme talimatı verme.',
               'Etkinlik raporunu yalnızca event_report_due nedeni sunulmuşsa öner.',
-              'Önce son özetten sonra gerçekleşen ekip hareketlerini özetle; ardından yalnızca gerçekten bugün veya yakın zamanda işlem gerektiren kaynakları seç.',
+              'Bugün kulübün güncel durumunu özetle; yalnızca gerçekten bugün veya yakın zamanda işlem gerektiren kaynakları seç.',
               'Hazırlık döneminin başlamasını tek başına tekrar eden bir öneriye dönüştürme. Sırf alanı boş diye uzak tarihli kaydı seçme.',
               'Intro kısa olsun; uygulama tarafından ayrıca kesin verilerle yeniden oluşturulacaktır.',
               'En yararlı en fazla 3 maddeyi seç. Her öneri tek kısa cümle olsun ve aynı türden benzer uyarılarla listeyi doldurma.',
@@ -488,6 +564,177 @@ async function callGemini(
   throw new HttpError(503, 'Gemini API anahtarı yapılandırılmadı.')
 }
 
+async function callGeminiCalendarClassifier(
+  apiKeys: string[],
+  model: string,
+  entries: CalendarEntryRecord[],
+): Promise<{ value: unknown; inputTokens: number; outputTokens: number }> {
+  const requestBody = JSON.stringify({
+    systemInstruction: {
+      parts: [{
+        text: [
+          'MUPSA kulüp takvimine elle girilen kayıtları sınıflandır.',
+          'Bildirim gönderilecekse alıcılar sistem tarafından tüm aktif üyelerdir; alıcı seçme.',
+          'Kulüp toplantıları/yönetim kurulu buluşmaları, dönem-sınav haftaları, bayram ve resmî günler, genel kurul-seçim-devir teslim duyuruları ve çok günlük ortak programlar global olabilir.',
+          'SKS evrakı, sponsor araması, başvuru işi, kişisel iş, görev niteliğindeki operasyon veya belirsiz/test kaydı global değildir.',
+          'Aynı programın birden çok günü ayrı satırsa yalnızca ilk başlangıç kaydını bildirilecek kabul et.',
+          'Metinde açık saat varsa HH:MM biçiminde çıkar; yoksa null döndür.',
+          'Yalnızca verilen kimlikleri kullan ve her kaynak için tam bir sonuç döndür.',
+        ].join('\n'),
+      }],
+    },
+    contents: [{
+      role: 'user',
+      parts: [{
+        text: JSON.stringify(entries.map((entry) => ({
+          source_id: entry.id,
+          title: entry.title,
+          entry_type: entry.entry_type,
+          start_date: entry.start_date,
+          end_date: entry.end_date,
+          note: sanitizeCalendarText(entry.note),
+        }))),
+      }],
+    }],
+    generationConfig: {
+      maxOutputTokens: 900,
+      thinkingConfig: { thinkingLevel: 'LOW' },
+      responseFormat: {
+        text: {
+          mimeType: 'APPLICATION_JSON',
+          schema: {
+            type: 'object',
+            required: ['items'],
+            properties: {
+              items: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  required: ['source_id', 'classification', 'should_notify', 'confidence', 'event_time'],
+                  properties: {
+                    source_id: { type: 'string' },
+                    classification: { type: 'string', enum: CALENDAR_CLASSIFICATIONS },
+                    should_notify: { type: 'boolean' },
+                    confidence: { type: 'number', minimum: 0, maximum: 1 },
+                    event_time: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+
+  for (const [keyIndex, apiKey] of apiKeys.entries()) {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: requestBody },
+    )
+    if (response.ok) {
+      const data = await response.json() as GeminiResponse
+      const parts = data.candidates?.[0]?.content?.parts ?? []
+      if (parts.length === 0) throw new HttpError(502, 'Gemini boş bir cevap döndürdü.')
+      return {
+        value: parseGeminiJson(parts),
+        inputTokens: data.usageMetadata?.promptTokenCount ?? 0,
+        outputTokens: data.usageMetadata?.candidatesTokenCount ?? 0,
+      }
+    }
+    if (keyIndex < apiKeys.length - 1 && [401, 403, 429, 500, 502, 503, 504].includes(response.status)) continue
+    throw new HttpError(response.status === 429 ? 429 : 502, response.status === 429 ? 'Gemini ücretsiz kotası şu anda dolu.' : 'Gemini isteği başarısız oldu.')
+  }
+  throw new HttpError(503, 'Gemini API anahtarı yapılandırılmadı.')
+}
+
+function calendarReminderTimes(entry: CalendarEntryRecord, result: CalendarClassificationResult): string[] {
+  if (!result.should_notify) return []
+  const eventAt = result.event_time
+    ? new Date(`${entry.start_date}T${result.event_time}:00+03:00`)
+    : new Date(`${entry.start_date}T09:00:00+03:00`)
+  const offsets = result.event_time && ['club_meeting', 'governance'].includes(result.classification)
+    ? [24 * 60 * 60 * 1000, 60 * 60 * 1000]
+    : result.classification === 'holiday'
+      ? [0]
+      : [15 * 60 * 60 * 1000]
+  const now = Date.now()
+  return offsets
+    .map((offset) => new Date(eventAt.getTime() - offset).toISOString())
+    .filter((scheduledAt) => Date.parse(scheduledAt) > now)
+}
+
+function calendarReminderBody(entry: CalendarEntryRecord, result: CalendarClassificationResult, scheduledAt: string): string {
+  const eventAt = result.event_time
+    ? new Date(`${entry.start_date}T${result.event_time}:00+03:00`).getTime()
+    : new Date(`${entry.start_date}T09:00:00+03:00`).getTime()
+  const hours = Math.round((eventAt - Date.parse(scheduledAt)) / 3_600_000)
+  if (hours <= 1) return `“${entry.title}” bir saat içinde başlayacak.`
+  if (result.classification === 'holiday') return `Bugün ${entry.title}. MUPSA olarak güzel bir gün dileriz.`
+  return `“${entry.title}” yarın. Ayrıntılar için takvimi açabilirsiniz.`
+}
+
+async function storeCalendarClassification(
+  adminClient: ReturnType<typeof createClient>,
+  entry: CalendarEntryRecord,
+  result: CalendarClassificationResult,
+  model: string,
+  sourceHash: string,
+): Promise<number> {
+  const scheduledTimes = calendarReminderTimes(entry, result)
+  await adminClient
+    .from('notifications')
+    .delete()
+    .eq('notification_type', 'calendar_entry_reminder')
+    .eq('delivery_status', 'queued')
+    .gt('scheduled_for', new Date().toISOString())
+    .contains('metadata', { calendar_entry_id: entry.id })
+
+  const { error: planError } = await adminClient.from('calendar_ai_notification_plans').upsert({
+    calendar_entry_id: entry.id,
+    period_id: entry.period_id,
+    classification: result.classification,
+    should_notify: result.should_notify,
+    confidence: result.confidence,
+    event_time: result.event_time,
+    model_id: model,
+    source_hash: sourceHash,
+    scheduled_times: scheduledTimes,
+    updated_at: new Date().toISOString(),
+  })
+  if (planError) throw new HttpError(500, 'Takvim bildirim planı saklanamadı.')
+  if (scheduledTimes.length === 0) return 0
+
+  const { data: memberships, error: membershipError } = await adminClient
+    .from('period_memberships')
+    .select('profile_id, profiles!inner(is_active)')
+    .eq('period_id', entry.period_id)
+    .eq('is_active', true)
+    .eq('profiles.is_active', true)
+  if (membershipError) throw new HttpError(500, 'Bildirim alıcıları hazırlanamadı.')
+
+  const rows = scheduledTimes.flatMap((scheduledAt) => (memberships ?? []).map((membership) => ({
+    recipient_id: membership.profile_id,
+    notification_type: 'calendar_entry_reminder',
+    channel: 'in_app',
+    title: result.classification === 'holiday' ? entry.title : 'Takvim hatırlatması',
+    body: calendarReminderBody(entry, result, scheduledAt),
+    metadata: {
+      calendar_entry_id: entry.id,
+      calendar_date: entry.start_date,
+      classification: result.classification,
+      url: `/app/takvim?date=${encodeURIComponent(entry.start_date)}&entry=${encodeURIComponent(entry.id)}`,
+    },
+    dedupe_key: `calendar-reminder:${entry.id}:${sourceHash.slice(0, 12)}:${scheduledAt}:${membership.profile_id}:in_app`,
+    scheduled_for: scheduledAt,
+  })))
+  if (rows.length > 0) {
+    const { error } = await adminClient.from('notifications').insert(rows)
+    if (error) throw new HttpError(500, 'Takvim bildirimleri planlanamadı.')
+  }
+  return rows.length
+}
+
 serve(async (request: Request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (request.method !== 'POST') return jsonResponse({ success: false, error: 'Yalnızca POST desteklenir.' }, 405)
@@ -511,7 +758,7 @@ serve(async (request: Request) => {
     if (userError || !userData.user) throw new HttpError(401, 'Geçersiz oturum.')
 
     const body = (await request.json()) as AiRequest
-    if (body.operation !== 'status' && body.operation !== 'home_summary') {
+    if (body.operation !== 'status' && body.operation !== 'home_summary' && body.operation !== 'calendar_classification') {
       throw new HttpError(400, 'Desteklenmeyen AI işlemi.')
     }
 
@@ -559,6 +806,92 @@ serve(async (request: Request) => {
       Deno.env.get('GEMINI_API_KEY_SECONDARY'),
     ].filter((key): key is string => Boolean(key)))]
     if (geminiApiKeys.length === 0) throw new HttpError(503, 'Gemini API anahtarı yapılandırılmadı.')
+
+    if (body.operation === 'calendar_classification') {
+      let entryQuery = adminClient
+        .from('calendar_entries')
+        .select('id, period_id, title, entry_type, start_date, end_date, note')
+        .eq('period_id', membership.period_id)
+        .is('deleted_at', null)
+        .order('start_date', { ascending: true })
+        .limit(body.calendar_entry_id ? 1 : 20)
+      if (body.calendar_entry_id) entryQuery = entryQuery.eq('id', body.calendar_entry_id)
+      const { data: entryData, error: entryError } = await entryQuery
+      if (entryError) throw new HttpError(500, 'Takvim kayıtları sınıflandırma için okunamadı.')
+
+      const today = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      const futureEntries = ((entryData ?? []) as CalendarEntryRecord[]).filter((entry) => (entry.end_date ?? entry.start_date) >= today)
+      if (futureEntries.length === 0) return jsonResponse({ success: true, classified: 0, scheduled: 0 })
+
+      const sourceHashes = new Map<string, string>()
+      for (const entry of futureEntries) {
+        sourceHashes.set(entry.id, await sha256(JSON.stringify({
+          title: entry.title,
+          entry_type: entry.entry_type,
+          start_date: entry.start_date,
+          end_date: entry.end_date,
+          note: entry.note,
+        })))
+      }
+      const { data: existingPlans } = await adminClient
+        .from('calendar_ai_notification_plans')
+        .select('calendar_entry_id, source_hash')
+        .in('calendar_entry_id', futureEntries.map((entry) => entry.id))
+      const existingHashes = new Map((existingPlans ?? []).map((plan) => [plan.calendar_entry_id as string, plan.source_hash as string]))
+      const candidates = futureEntries.filter((entry) => existingHashes.get(entry.id) !== sourceHashes.get(entry.id))
+      if (candidates.length === 0) return jsonResponse({ success: true, classified: 0, scheduled: 0, cached: true })
+
+      const model = modelForOperation({
+        flashModel: setting.flash_model,
+        flashLiteModel: setting.flash_lite_model,
+        embeddingModel: setting.embedding_model,
+      }, 'calendar_classification')
+      const { data: reservation, error: reservationError } = await adminClient.rpc('reserve_ai_quota', {
+        target_period_id: membership.period_id,
+        target_requester_id: userData.user.id,
+        target_operation_type: 'calendar_classification',
+        target_model_id: model,
+      })
+
+      let results = candidates.map(deterministicCalendarClassification)
+      let resultModel = 'rule-based-fallback'
+      let inputTokens = 0
+      let outputTokens = 0
+      const usageId = !reservationError && isRecord(reservation) && reservation.allowed === true && typeof reservation.usage_id === 'string'
+        ? reservation.usage_id
+        : null
+      if (usageId) {
+        try {
+          const gemini = await callGeminiCalendarClassifier(geminiApiKeys, model, candidates)
+          inputTokens = gemini.inputTokens
+          outputTokens = gemini.outputTokens
+          results = validateCalendarClassifications(gemini.value, candidates)
+          resultModel = model
+          await adminClient.rpc('record_ai_usage_result', {
+            target_usage_id: usageId,
+            target_input_token_count: inputTokens,
+            target_output_token_count: outputTokens,
+            target_succeeded: true,
+          })
+        } catch (error) {
+          console.error('Calendar classification fell back to verified rules', error)
+          await adminClient.rpc('record_ai_usage_result', {
+            target_usage_id: usageId,
+            target_input_token_count: inputTokens,
+            target_output_token_count: outputTokens,
+            target_succeeded: false,
+          })
+        }
+      }
+
+      let scheduled = 0
+      for (const result of results) {
+        const entry = candidates.find((candidate) => candidate.id === result.source_id)
+        if (!entry) continue
+        scheduled += await storeCalendarClassification(adminClient, entry, result, resultModel, sourceHashes.get(entry.id)!)
+      }
+      return jsonResponse({ success: true, classified: results.length, scheduled, model: resultModel })
+    }
 
     if (body.force) {
       const { error: forceRefreshError } = await adminClient
@@ -640,7 +973,7 @@ serve(async (request: Request) => {
     context.activity = isRecord(activityData) ? asItems(activityData.items) : []
     const sources = prepareHomeSources(context, historyOutput?.payload)
     if (sources.length === 0) {
-      const emptyPayload = { intro: 'Son özetten bu yana yeni bir ekip hareketi veya kritik durum görünmüyor.', items: [] }
+      const emptyPayload = { intro: 'Bugün için yeni bir ekip hareketi veya kritik durum bulunmuyor.', items: [] }
       const emptyContextHash = await sha256(JSON.stringify({ context, mode: 'verified_empty_delta' }))
       await adminClient
         .from('ai_outputs')

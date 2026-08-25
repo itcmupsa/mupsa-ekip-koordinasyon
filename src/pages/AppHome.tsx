@@ -19,7 +19,7 @@ import type { TaskStatusTone } from '../components/TaskStatusBadge'
 interface DashboardEvent {
   id: string
   title: string
-  planningDate: string | null
+  effectiveDate: string | null
   eventStatus: string | null
   ownerId: string
   createdAt: string
@@ -56,7 +56,7 @@ interface DashboardAssignment {
 interface DashboardResponsibility {
   id: string
   title: string
-  kind: 'event' | 'awareness'
+  kind: 'event' | 'awareness' | 'manual'
   kindLabel: string
   date: string | null
   href: string
@@ -94,6 +94,7 @@ interface NotificationItem {
   body: string
   readAt: string | null
   createdAt: string
+  metadata: Record<string, unknown>
 }
 
 interface AiStatusResponse {
@@ -320,7 +321,7 @@ export default function AppHome({ session }: { session: Session }) {
 
       const { data: eventRows, error: eventsError } = await supabase
         .from('events')
-        .select('id, title, planning_date, event_status, owner_id, created_at')
+        .select('id, title, estimated_date, confirmed_date, event_status, owner_id, created_at')
         .eq('period_id', periodId)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
@@ -335,7 +336,7 @@ export default function AppHome({ session }: { session: Session }) {
       const events: DashboardEvent[] = (eventRows ?? []).map(row => ({
         id: row.id as string,
         title: row.title as string,
-        planningDate: (row.planning_date as string | null) ?? null,
+        effectiveDate: ((row.confirmed_date as string | null) ?? (row.estimated_date as string | null)) ?? null,
         eventStatus: row.event_status ? (eventStatusMap[row.event_status as string] ?? row.event_status as string) : null,
         ownerId: row.owner_id as string,
         createdAt: row.created_at as string,
@@ -365,6 +366,20 @@ export default function AppHome({ session }: { session: Session }) {
         designResponsibleId: (row.design_responsible_id as string | null) ?? null,
         pressResponsibleId: (row.press_publication_responsible_id as string | null) ?? null,
       }))
+
+      const { data: manualRows, error: manualError } = await supabase
+        .from('calendar_entries')
+        .select('id, title, start_date, end_date')
+        .eq('period_id', periodId)
+        .is('deleted_at', null)
+        .order('start_date', { ascending: true })
+
+      if (!isMounted) return
+      if (manualError) {
+        setDataError('Manuel takvim kayıtları yüklenirken bir hata oluştu.')
+        setDataLoading(false)
+        return
+      }
 
       let allTasks: DashboardTask[] = []
 
@@ -455,7 +470,7 @@ export default function AppHome({ session }: { session: Session }) {
           title: event.title,
           kind: 'event' as const,
           kindLabel: 'Etkinlik',
-          date: event.planningDate,
+          date: event.effectiveDate,
           href: `/app/etkinlikler/${event.id}`,
         })),
         ...awareness.map(post => ({
@@ -466,6 +481,14 @@ export default function AppHome({ session }: { session: Session }) {
           date: post.shareDate ?? post.estimatedDate ?? post.startDate,
           href: '/app/farkindalik',
         })),
+        ...(manualRows ?? []).map(entry => ({
+          id: entry.id as string,
+          title: entry.title as string,
+          kind: 'manual' as const,
+          kindLabel: 'Manuel takvim kaydı',
+          date: (entry.start_date as string | null) ?? null,
+          href: `/app/takvim?date=${encodeURIComponent(entry.start_date as string)}`,
+        })),
       ]
 
       const managedEventIds = new Set(managedEvents.map(event => event.id))
@@ -473,10 +496,15 @@ export default function AppHome({ session }: { session: Session }) {
       const relevantResponsibilities = appRole === 'super_admin'
         ? allResponsibilities
         : allResponsibilities
-            .filter(item => item.kind === 'event' ? managedEventIds.has(item.id) : managedAwarenessIds.has(item.id))
+            .filter(item => item.kind === 'manual'
+              || (item.kind === 'event' ? managedEventIds.has(item.id) : managedAwarenessIds.has(item.id)))
             .map(item => ({
               ...item,
-              kindLabel: item.kind === 'event' ? 'Sorumlu olduğun etkinlik' : 'Sorumlu olduğun farkındalık',
+              kindLabel: item.kind === 'manual'
+                ? 'Manuel takvim kaydı'
+                : item.kind === 'event'
+                  ? 'Sorumlu olduğun etkinlik'
+                  : 'Sorumlu olduğun farkındalık',
             }))
 
       relevantResponsibilities.sort((a, b) => {
@@ -563,7 +591,7 @@ export default function AppHome({ session }: { session: Session }) {
 
       const { data, error } = await supabase
         .from('notifications')
-        .select('id, event_id, task_id, title, body, read_at, created_at')
+        .select('id, event_id, task_id, title, body, read_at, created_at, metadata')
         .eq('recipient_id', profileId)
         .eq('channel', 'in_app')
         .or(`scheduled_for.is.null,scheduled_for.lte.${new Date().toISOString()}`)
@@ -585,6 +613,7 @@ export default function AppHome({ session }: { session: Session }) {
         body: row.body as string,
         readAt: (row.read_at as string | null) ?? null,
         createdAt: row.created_at as string,
+        metadata: (row.metadata && typeof row.metadata === 'object' ? row.metadata : {}) as Record<string, unknown>,
       })))
       setNotificationsLoading(false)
     }
@@ -592,6 +621,13 @@ export default function AppHome({ session }: { session: Session }) {
     void loadNotifications()
     return () => { isMounted = false }
   }, [hasActiveMembership, membershipLoading, notificationsRefreshKey, profileId])
+
+  useEffect(() => {
+    if (membershipLoading || !hasActiveMembership || appRole !== 'super_admin' || !periodId) return
+    void supabase.functions.invoke('ai-orchestrator', {
+      body: { operation: 'calendar_classification' },
+    })
+  }, [appRole, hasActiveMembership, membershipLoading, periodId])
 
   async function handleNotificationClick(notification: NotificationItem) {
     if (!notification.readAt) {
@@ -612,6 +648,12 @@ export default function AppHome({ session }: { session: Session }) {
 
     if (notification.eventId) {
       navigate(`/app/etkinlikler/${notification.eventId}`)
+      return
+    }
+
+    const targetUrl = typeof notification.metadata.url === 'string' ? notification.metadata.url : null
+    if (targetUrl?.startsWith('/app/')) {
+      navigate(targetUrl)
       return
     }
 

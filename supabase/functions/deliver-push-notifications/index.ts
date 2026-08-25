@@ -29,6 +29,7 @@ interface PushPayload {
     url: string
     eventId: string | null
     taskId: string | null
+    calendarEntryId: string | null
   }
 }
 
@@ -107,9 +108,14 @@ Deno.serve(async (request: Request) => {
       badge: '/favicon.png',
       tag: notification.id,
       data: {
-        url: notification.event_id ? `/app/etkinlikler/${notification.event_id}` : '/app',
+        url: typeof notification.metadata?.url === 'string' && notification.metadata.url.startsWith('/app/')
+          ? notification.metadata.url
+          : notification.event_id ? `/app/etkinlikler/${notification.event_id}` : '/app',
         eventId: notification.event_id,
         taskId: notification.task_id,
+        calendarEntryId: typeof notification.metadata?.calendar_entry_id === 'string'
+          ? notification.metadata.calendar_entry_id
+          : null,
       },
     }
 

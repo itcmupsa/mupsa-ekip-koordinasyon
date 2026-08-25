@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import PermanentDeleteDialog from '../components/PermanentDeleteDialog'
 import { supabase } from '../lib/supabaseClient'
@@ -190,6 +190,7 @@ function TagIcon() {
 }
 
 export default function Calendar({ session }: { session: Session }) {
+  const [searchParams] = useSearchParams()
   const { displayName, hasActiveMembership, periodId, periodLabel, appRole, coordinatorRoleName, loading: statusLoading } = useMembershipStatus(session)
   const isSuperAdmin = appRole === 'super_admin'
 
@@ -218,6 +219,15 @@ export default function Calendar({ session }: { session: Session }) {
   const [note, setNote] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    const requestedDate = searchParams.get('date')
+    const parsed = parseDateOnly(requestedDate)
+    if (!requestedDate || !parsed) return
+    setSelectedDate(requestedDate)
+    setViewYear(parsed.getUTCFullYear())
+    setViewMonth(parsed.getUTCMonth())
+  }, [searchParams])
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ManualEntry | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -534,8 +544,8 @@ export default function Calendar({ session }: { session: Session }) {
       note: note.trim() || null,
     }
     const result = formMode === 'create'
-      ? await supabase.from('calendar_entries').insert({ period_id: periodId, created_by: session.user.id, ...payload })
-      : await supabase.from('calendar_entries').update(payload).eq('id', editingId)
+      ? await supabase.from('calendar_entries').insert({ period_id: periodId, created_by: session.user.id, ...payload }).select('id').single()
+      : await supabase.from('calendar_entries').update(payload).eq('id', editingId).select('id').single()
     setSaving(false)
     if (result.error) {
       setFormError(result.error.message.toLowerCase().includes('kilit')
@@ -546,6 +556,12 @@ export default function Calendar({ session }: { session: Session }) {
     setFormMode('closed')
     setActionMessage(formMode === 'create' ? 'Takvim kaydı eklendi.' : 'Takvim kaydı güncellendi.')
     setReloadKey((value) => value + 1)
+    const calendarEntryId = result.data?.id as string | undefined
+    if (calendarEntryId) {
+      void supabase.functions.invoke('ai-orchestrator', {
+        body: { operation: 'calendar_classification', calendar_entry_id: calendarEntryId },
+      })
+    }
   }
 
   async function toggleEntry(entry: ManualEntry) {
