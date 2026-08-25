@@ -18,6 +18,7 @@ Bu dosya, proje bağlamının güncel durum kaydıdır. Bir görev tamamlandığ
 - `ai-orchestrator` Edge Function aynı projeye deploy edildi. Ana sayfa özeti 24 saat önbellek, 15 dakikalık zorunlu yenileme aralığı, eski doğrulanmış özete geri dönüş ve sunucu tarafı rota çözümleme kurallarıyla hazırlanır.
 - Süper Yönetici dashboard'ına mobil uyumlu `AI Günlük Özeti` kartı bağlandı. Kart yalnızca canlı feature flag, API anahtarı ve doğru pilot rolü birlikte doğrulandığında görünür; her öneri ilgili gerçek kayda yönlendirir.
 - Google yeni API anahtarlarında eski `gemini-2.5-flash` modelini kapattığı için `20260825130000_update_gemini_free_models.sql` aktif pilotu kararlı ve ücretsiz katmanı bulunan `gemini-3.6-flash` / `gemini-3.5-flash-lite` model kimliklerine taşır; ücretli katman veya faturalandırma açılmaz.
+- Canlı Süper Yönetici testinde Gemini 3.6 özeti başarıyla üretildi. `MUPSA 2. Online Toplantı` yaklaşan manuel kayıt olarak seçildi; etkinlik önerileri yalnızca RPC'nin doğruladığı eksik alan kodlarını kullandı ve altı kaynak bağlantısının tamamı gerçek uygulama rotalarına çözüldü. Gemini 3 REST yanıtı resmi `responseFormat` / `APPLICATION_JSON` şemasıyla alınır, düşünme parçaları nihai JSON'a karıştırılmaz ve sonuç ayrıca uygulama kurallarıyla doğrulanır.
 - Supabase CLI, GitHub kullanıcı adı `itcmupsa` ve doğrulanmış birincil e-posta `itc.mupsa@gmail.com` olan doğru hesapla `mupsa-itc` profiline bağlandı.
 
 ## Canlı sistem

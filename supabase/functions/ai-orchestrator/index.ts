@@ -62,7 +62,10 @@ interface PreparedHomeSource extends HomeSummarySource {
 }
 
 interface GeminiResponse {
-  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
+  candidates?: Array<{
+    finishReason?: string
+    content?: { parts?: Array<{ text?: string; thought?: boolean }> }
+  }>
   usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number }
 }
 
@@ -177,6 +180,27 @@ function prepareHomeSources(context: HomeContext): PreparedHomeSource[] {
     .map((source, index) => ({ ...source, alias: `S${index + 1}` }))
 }
 
+function parseGeminiJson(parts: Array<{ text?: string; thought?: boolean }>): unknown {
+  const finalTexts = parts
+    .filter((part) => part.thought !== true && typeof part.text === 'string' && part.text.trim())
+    .map((part) => part.text!.trim())
+  const candidates = [...finalTexts].reverse()
+  if (finalTexts.length > 1) candidates.push(finalTexts.join(''))
+
+  for (const candidate of candidates) {
+    const normalized = candidate
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim()
+    try {
+      return JSON.parse(normalized)
+    } catch {
+      // Bir sonraki nihai metin parçasını dene; semantik doğrulama ayrıca uygulanır.
+    }
+  }
+  throw new HttpError(502, 'Gemini cevabı JSON olarak ayrıştırılamadı.')
+}
+
 async function sha256(value: string): Promise<string> {
   const bytes = new TextEncoder().encode(value)
   const digest = await crypto.subtle.digest('SHA-256', bytes)
@@ -228,23 +252,28 @@ async function callGemini(
         }],
         generationConfig: {
           maxOutputTokens: 900,
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: 'object',
-            required: ['intro', 'items'],
-            properties: {
-              intro: { type: 'string', maxLength: 240 },
-              items: {
-                type: 'array',
-                maxItems: 6,
-                items: {
-                  type: 'object',
-                  required: ['source_ref', 'reason_code', 'recommendation', 'action'],
-                  properties: {
-                    source_ref: { type: 'string' },
-                    reason_code: { type: 'string' },
-                    recommendation: { type: 'string', maxLength: 280 },
-                    action: { type: 'string', enum: ['open_task', 'open_event', 'open_awareness', 'open_calendar'] },
+          thinkingConfig: { thinkingLevel: 'LOW' },
+          responseFormat: {
+            text: {
+              mimeType: 'APPLICATION_JSON',
+              schema: {
+                type: 'object',
+                required: ['intro', 'items'],
+                properties: {
+                  intro: { type: 'string', maxLength: 240 },
+                  items: {
+                    type: 'array',
+                    maxItems: 6,
+                    items: {
+                      type: 'object',
+                      required: ['source_ref', 'reason_code', 'recommendation', 'action'],
+                      properties: {
+                        source_ref: { type: 'string' },
+                        reason_code: { type: 'string' },
+                        recommendation: { type: 'string', maxLength: 280 },
+                        action: { type: 'string', enum: ['open_task', 'open_event', 'open_awareness', 'open_calendar'] },
+                      },
+                    },
                   },
                 },
               },
@@ -265,15 +294,9 @@ async function callGemini(
   }
 
   const data = await response.json() as GeminiResponse
-  const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('').trim()
-  if (!text) throw new HttpError(502, 'Gemini boş bir cevap döndürdü.')
-
-  let value: unknown
-  try {
-    value = JSON.parse(text)
-  } catch {
-    throw new HttpError(502, 'Gemini cevabı JSON olarak ayrıştırılamadı.')
-  }
+  const parts = data.candidates?.[0]?.content?.parts ?? []
+  if (parts.length === 0) throw new HttpError(502, 'Gemini boş bir cevap döndürdü.')
+  const value = parseGeminiJson(parts)
   return {
     value,
     inputTokens: data.usageMetadata?.promptTokenCount ?? 0,

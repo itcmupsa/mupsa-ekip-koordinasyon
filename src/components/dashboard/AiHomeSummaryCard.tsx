@@ -64,6 +64,20 @@ function formatGeneratedAt(value: string | null): string | null {
   })
 }
 
+function formatRecommendation(value: string): string {
+  const fieldLabels: Record<string, string> = {
+    venue: 'mekân',
+    sks_status: 'SKS durumu',
+    share_date: 'paylaşım tarihi',
+    design_responsible: 'tasarım sorumlusu',
+    publication_responsible: 'basın-yayın sorumlusu',
+  }
+  return Object.entries(fieldLabels).reduce(
+    (text, [field, label]) => text.replace(new RegExp(`\\b${field}\\b`, 'g'), label),
+    value,
+  )
+}
+
 export default function AiHomeSummaryCard({
   summary,
   generatedAt,
@@ -122,7 +136,7 @@ export default function AiHomeSummaryCard({
                       <span className="text-[11px] font-medium text-ink-soft">AI önerisi</span>
                     </div>
                     <p className="mt-2 break-words text-sm font-semibold text-ink">{item.title}</p>
-                    <p className="mt-1 break-words text-sm leading-5 text-ink-soft">{item.recommendation}</p>
+                    <p className="mt-1 break-words text-sm leading-5 text-ink-soft">{formatRecommendation(item.recommendation)}</p>
                     <Link to={item.route} className="mt-3 inline-flex min-h-[36px] items-center self-start rounded-lg px-2.5 py-2 text-sm font-semibold text-brand-dark hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2">
                       İlgili kayda git
                     </Link>
