@@ -330,17 +330,12 @@ async function sha256(value: string): Promise<string> {
 }
 
 async function callGemini(
-  apiKey: string,
+  apiKeys: string[],
   model: string,
   context: HomeContext,
   sources: PreparedHomeSource[],
 ): Promise<{ value: unknown; inputTokens: number; outputTokens: number }> {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
+  const requestBody = JSON.stringify({
         systemInstruction: {
           parts: [{
             text: [
@@ -403,28 +398,44 @@ async function callGemini(
             },
           },
         },
-      }),
-    },
-  )
+      })
 
-  if (!response.ok) {
+  for (const [keyIndex, apiKey] of apiKeys.entries()) {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: requestBody,
+      },
+    )
+
+    if (response.ok) {
+      const data = await response.json() as GeminiResponse
+      const parts = data.candidates?.[0]?.content?.parts ?? []
+      if (parts.length === 0) throw new HttpError(502, 'Gemini boş bir cevap döndürdü.')
+      const value = parseGeminiJson(parts)
+      return {
+        value,
+        inputTokens: data.usageMetadata?.promptTokenCount ?? 0,
+        outputTokens: data.usageMetadata?.candidatesTokenCount ?? 0,
+      }
+    }
+
     const errorBody = await response.text()
+    const canTrySecondary = keyIndex < apiKeys.length - 1
+      && [401, 403, 429, 500, 502, 503, 504].includes(response.status)
+    if (canTrySecondary) {
+      console.warn('Primary Gemini key unavailable; trying secondary key', response.status)
+      continue
+    }
     const errorMessage = response.status === 429
       ? 'Gemini ücretsiz kotası şu anda dolu.'
       : 'Gemini isteği başarısız oldu.'
     console.error('Gemini request failed', response.status, errorBody.slice(0, 300))
     throw new HttpError(response.status === 429 ? 429 : 502, errorMessage)
   }
-
-  const data = await response.json() as GeminiResponse
-  const parts = data.candidates?.[0]?.content?.parts ?? []
-  if (parts.length === 0) throw new HttpError(502, 'Gemini boş bir cevap döndürdü.')
-  const value = parseGeminiJson(parts)
-  return {
-    value,
-    inputTokens: data.usageMetadata?.promptTokenCount ?? 0,
-    outputTokens: data.usageMetadata?.candidatesTokenCount ?? 0,
-  }
+  throw new HttpError(503, 'Gemini API anahtarı yapılandırılmadı.')
 }
 
 serve(async (request: Request) => {
@@ -473,11 +484,15 @@ serve(async (request: Request) => {
     const setting = settingData as AiSettingRecord | null
 
     if (body.operation === 'status') {
+      const configuredKeys = [
+        Deno.env.get('GEMINI_API_KEY'),
+        Deno.env.get('GEMINI_API_KEY_SECONDARY'),
+      ].filter((key): key is string => Boolean(key))
       return jsonResponse({
         success: true,
         enabled: Boolean(setting?.is_enabled),
         freeTierOnly: setting?.free_tier_only ?? true,
-        configured: Boolean(Deno.env.get('GEMINI_API_KEY')),
+        configured: configuredKeys.length > 0,
         policyVersion: setting?.policy_version ?? null,
         pilotScope: 'super_admin',
       })
@@ -489,8 +504,11 @@ serve(async (request: Request) => {
     if (!setting?.is_enabled || !setting.free_tier_only) {
       throw new HttpError(403, 'AI ana sayfa pilotu henüz etkin değil.')
     }
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
-    if (!geminiApiKey) throw new HttpError(503, 'Gemini API anahtarı yapılandırılmadı.')
+    const geminiApiKeys = [...new Set([
+      Deno.env.get('GEMINI_API_KEY'),
+      Deno.env.get('GEMINI_API_KEY_SECONDARY'),
+    ].filter((key): key is string => Boolean(key)))]
+    if (geminiApiKeys.length === 0) throw new HttpError(503, 'Gemini API anahtarı yapılandırılmadı.')
 
     const { data: latestOutput } = await adminClient
       .from('ai_outputs')
@@ -595,7 +613,7 @@ serve(async (request: Request) => {
     let inputTokens = 0
     let outputTokens = 0
     try {
-      const gemini = await callGemini(geminiApiKey, model, context, sources)
+      const gemini = await callGemini(geminiApiKeys, model, context, sources)
       inputTokens = gemini.inputTokens
       outputTokens = gemini.outputTokens
       const validation = validateHomeSummaryPlan(gemini.value, sources)
