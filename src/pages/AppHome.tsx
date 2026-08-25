@@ -225,7 +225,7 @@ function toWeeklyAgendaItem(item: DashboardResponsibility): WeeklyAgendaItem {
 
 export default function AppHome({ session }: { session: Session }) {
   const navigate = useNavigate()
-  const { displayName, hasActiveMembership, periodLabel, periodId, profileId, appRole, coordinatorRoleName, loading: membershipLoading } = useMembershipStatus(session)
+  const { displayName, hasActiveMembership, periodLabel, periodId, profileId, appRole, coordinatorRoleName, coordinatorRoleSlug, loading: membershipLoading } = useMembershipStatus(session)
   const [dataLoading, setDataLoading] = useState(false)
   const [dataError, setDataError] = useState<string | null>(null)
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
@@ -237,6 +237,7 @@ export default function AppHome({ session }: { session: Session }) {
   const [markingAllRead, setMarkingAllRead] = useState(false)
   const [aiEnabled, setAiEnabled] = useState(false)
   const [aiSummary, setAiSummary] = useState<AiHomeSummary | null>(null)
+  const [aiClubSummary, setAiClubSummary] = useState<AiHomeSummary | null>(null)
   const [aiGeneratedAt, setAiGeneratedAt] = useState<string | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
@@ -244,7 +245,7 @@ export default function AppHome({ session }: { session: Session }) {
   const [aiRefreshKey, setAiRefreshKey] = useState(0)
 
   useEffect(() => {
-    if (membershipLoading || !hasActiveMembership || appRole !== 'super_admin') {
+    if (membershipLoading || !hasActiveMembership) {
       setAiEnabled(false)
       return
     }
@@ -260,7 +261,7 @@ export default function AppHome({ session }: { session: Session }) {
         && statusData?.success === true
         && statusData.enabled === true
         && statusData.configured === true
-        && statusData.pilotScope === 'super_admin'
+        && statusData.pilotScope === 'all_active_members'
       setAiEnabled(enabled)
       if (!enabled) return
 
@@ -278,21 +279,33 @@ export default function AppHome({ session }: { session: Session }) {
         return
       }
       setAiSummary(summaryData.output)
+      if (appRole !== 'super_admin' && periodId) {
+        const { data: clubDigest } = await supabase.rpc('get_my_safe_ai_club_digest', { target_period_id: periodId })
+        if (isMounted) setAiClubSummary(clubDigest && typeof clubDigest === 'object' ? clubDigest as unknown as AiHomeSummary : null)
+      } else {
+        setAiClubSummary(null)
+      }
       setAiGeneratedAt(summaryData.generatedAt ?? null)
       setAiWarning(summaryData.warning ?? null)
     }
 
     void loadAiPilot()
     return () => { isMounted = false }
-  }, [aiRefreshKey, appRole, hasActiveMembership, membershipLoading])
+  }, [aiRefreshKey, appRole, hasActiveMembership, membershipLoading, periodId])
 
   useEffect(() => {
-    if (!aiEnabled || appRole !== 'super_admin') return
+    if (!aiEnabled) return
     const refreshTimer = window.setInterval(() => {
       setAiRefreshKey((value) => value + 1)
     }, 5 * 60 * 1000)
     return () => window.clearInterval(refreshTimer)
-  }, [aiEnabled, appRole])
+  }, [aiEnabled])
+
+  useEffect(() => {
+    if (membershipLoading || !hasActiveMembership || !periodId) return
+    if (appRole !== 'super_admin' && coordinatorRoleSlug !== 'public-relations-coordinator') return
+    void supabase.functions.invoke('ai-orchestrator', { body: { operation: 'awareness_suggestion' } })
+  }, [appRole, coordinatorRoleSlug, hasActiveMembership, membershipLoading, periodId])
 
   useEffect(() => {
     if (membershipLoading || !hasActiveMembership || !periodId || !profileId) return
@@ -811,6 +824,14 @@ export default function AppHome({ session }: { session: Session }) {
       kindLabel: item.kindLabel,
       dateLabel: formatShortDate(item.date),
     }))
+    const personalSummaryItems = aiSummary?.items.filter((item) => item.source_type !== 'calendar_entry') ?? []
+    const normalAiSummary: AiHomeSummary | null = personalSummaryItems.length > 0
+      ? {
+          intro: aiSummary?.intro ?? 'Bugün senin için öne çıkan konular var.',
+          items: personalSummaryItems,
+          club_summary: aiClubSummary,
+        }
+      : aiClubSummary ?? aiSummary
 
     return (
       <NormalDashboardView
@@ -831,6 +852,12 @@ export default function AppHome({ session }: { session: Session }) {
         markingAllRead={markingAllRead}
         onNotificationClick={handleNotificationById}
         onMarkAllNotificationsRead={() => { void handleMarkAllAsRead() }}
+        aiSummary={normalAiSummary}
+        aiGeneratedAt={aiGeneratedAt}
+        aiLoading={aiLoading}
+        aiError={aiError}
+        aiWarning={aiWarning}
+        aiAudienceLabel={personalSummaryItems.length > 0 ? 'AI · Sana özel' : 'AI · Kulüp özeti'}
       />
     )
   }

@@ -14,6 +14,7 @@ export interface AiHomeSummaryItem {
 export interface AiHomeSummary {
   intro: string
   items: AiHomeSummaryItem[]
+  club_summary?: AiHomeSummary | null
 }
 
 interface AiHomeSummaryCardProps {
@@ -22,7 +23,8 @@ interface AiHomeSummaryCardProps {
   loading: boolean
   error: string | null
   warning: string | null
-  onRefresh: () => void
+  onRefresh?: () => void
+  audienceLabel?: string
 }
 
 const reasonLabels: Record<string, string> = {
@@ -94,6 +96,7 @@ export default function AiHomeSummaryCard({
   error,
   warning,
   onRefresh,
+  audienceLabel = 'AI · Günlük',
 }: AiHomeSummaryCardProps) {
   const generatedLabel = formatGeneratedAt(generatedAt)
 
@@ -106,7 +109,7 @@ export default function AiHomeSummaryCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <h2 className="text-base font-semibold text-ink">Günlük özet</h2>
-            <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold text-brand-dark">AI · Süper Yönetici</span>
+            <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold text-brand-dark">{audienceLabel}</span>
           </div>
           <p className="mt-0.5 text-xs text-ink-soft">
             {loading && !summary
@@ -122,14 +125,14 @@ export default function AiHomeSummaryCard({
         {error ? (
           <div role="alert" className="flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between">
             <span>{error}</span>
-            <button
+            {onRefresh ? <button
               type="button"
               onClick={onRefresh}
               disabled={loading}
               className="shrink-0 self-start rounded-md px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60 sm:self-auto"
             >
               Tekrar dene
-            </button>
+            </button> : null}
           </div>
         ) : loading && !summary ? (
           <div className="flex items-center gap-2 py-1 text-sm text-ink-soft">
@@ -171,6 +174,22 @@ export default function AiHomeSummaryCard({
             ) : (
               <p className="mt-1 text-sm text-ink-soft">Yakın tarihli veya acil bir işlem görünmüyor.</p>
             )}
+            {summary.club_summary ? (
+              <div className="mt-3 border-t border-canvas-border pt-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Kulüpte ayrıca</p>
+                <p className="mt-1 text-sm font-medium leading-5 text-ink">{summary.club_summary.intro}</p>
+                {summary.club_summary.items.length > 0 ? (
+                  <ul className="mt-1.5 space-y-1.5">
+                    {summary.club_summary.items.slice(0, 2).map((item) => (
+                      <li key={`club-${item.source_type}-${item.source_id}`} className="flex items-start justify-between gap-3 text-sm text-ink-soft">
+                        <span className="min-w-0 break-words">{item.recommendation}</span>
+                        <Link to={item.route} className="shrink-0 font-semibold text-brand-dark hover:underline">Git ›</Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
           </>
         ) : (
           <p className="text-sm text-ink-soft">Günlük özet henüz hazırlanmadı.</p>

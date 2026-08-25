@@ -5,6 +5,7 @@ import DashboardSection from './DashboardSection'
 import DashboardEmptyState from './DashboardEmptyState'
 import DashboardTaskRow from './DashboardTaskRow'
 import WeeklyAgendaCard, { type WeeklyAgendaItem } from './WeeklyAgendaCard'
+import AiHomeSummaryCard, { type AiHomeSummary } from './AiHomeSummaryCard'
 import type { TaskStatusTone } from '../TaskStatusBadge'
 
 export interface DashboardTaskViewItem {
@@ -67,6 +68,12 @@ interface NormalDashboardViewProps {
   markingAllRead?: boolean
   onNotificationClick: (notificationId: string) => void
   onMarkAllNotificationsRead: () => void
+  aiSummary?: AiHomeSummary | null
+  aiGeneratedAt?: string | null
+  aiLoading?: boolean
+  aiError?: string | null
+  aiWarning?: string | null
+  aiAudienceLabel?: string
 }
 
 function EventDotIcon() {
@@ -145,6 +152,12 @@ export default function NormalDashboardView({
   markingAllRead = false,
   onNotificationClick,
   onMarkAllNotificationsRead,
+  aiSummary = null,
+  aiGeneratedAt = null,
+  aiLoading = false,
+  aiError = null,
+  aiWarning = null,
+  aiAudienceLabel = 'AI · Günlük',
 }: NormalDashboardViewProps) {
   const [showAllNotifications, setShowAllNotifications] = useState(false)
 
@@ -396,6 +409,17 @@ export default function NormalDashboardView({
           </p>
         ) : null}
       </div>
+
+      {aiSummary || aiLoading || aiError ? (
+        <AiHomeSummaryCard
+          summary={aiSummary}
+          generatedAt={aiGeneratedAt}
+          loading={aiLoading}
+          error={aiError}
+          warning={aiWarning}
+          audienceLabel={aiAudienceLabel}
+        />
+      ) : null}
 
       <div className="mb-4 lg:mb-6">{summaryCards}</div>
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import { useSearchParams } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import PermanentDeleteDialog from '../components/PermanentDeleteDialog'
 import { supabase } from '../lib/supabaseClient'
@@ -69,6 +70,27 @@ interface AwarenessPost {
   shareUrl: string | null
   createdBy: string
   deletedAt: string | null
+}
+
+interface AwarenessSuggestionPayload {
+  name: string
+  category: string
+  content_idea: string
+  draft_text: string
+  visual_idea: string
+  pharmacy_relevance: string
+  suggested_preparation_date: string
+  suggested_share_date: string
+  source_name: string
+  source_url: string
+}
+
+interface AwarenessSuggestion {
+  id: string
+  targetDate: string
+  targetEndDate: string | null
+  status: 'new' | 'seen'
+  payload: AwarenessSuggestionPayload
 }
 
 type FormMode = 'closed' | 'create' | 'edit'
@@ -176,8 +198,10 @@ function CenteredMessage({ text }: { text: string }) {
 }
 
 export default function AwarenessPosts({ session }: { session: Session }) {
-  const { displayName, hasActiveMembership, profileId, periodId, periodLabel, appRole, coordinatorRoleName, loading: statusLoading } = useMembershipStatus(session)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { displayName, hasActiveMembership, profileId, periodId, periodLabel, appRole, coordinatorRoleName, coordinatorRoleSlug, loading: statusLoading } = useMembershipStatus(session)
   const isSuperAdmin = appRole === 'super_admin'
+  const canReviewAiSuggestions = isSuperAdmin || coordinatorRoleSlug === 'public-relations-coordinator'
   const [posts, setPosts] = useState<AwarenessPost[]>([])
   const [profiles, setProfiles] = useState<ProfileOption[]>([])
   const [designStatuses, setDesignStatuses] = useState<StatusOption[]>([])
@@ -191,6 +215,11 @@ export default function AwarenessPosts({ session }: { session: Session }) {
   const [listFilter, setListFilter] = useState<ListFilter>('all')
   const [formMode, setFormMode] = useState<FormMode>('closed')
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [suggestions, setSuggestions] = useState<AwarenessSuggestion[]>([])
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false)
+  const [suggestionError, setSuggestionError] = useState<string | null>(null)
+  const [suggestionTransferId, setSuggestionTransferId] = useState<string | null>(null)
+  const suggestionSectionRef = useRef<HTMLElement>(null)
   const panelRef = useRef<HTMLElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const previouslyFocusedRef = useRef<HTMLElement | null>(null)
@@ -363,6 +392,49 @@ export default function AwarenessPosts({ session }: { session: Session }) {
     }
   }, [hasActiveMembership, periodId, reloadKey, showInactive, statusLoading])
 
+  useEffect(() => {
+    if (statusLoading || !hasActiveMembership || !periodId || !canReviewAiSuggestions) return
+    let isMounted = true
+
+    async function loadSuggestions() {
+      setSuggestionsLoading(true)
+      setSuggestionError(null)
+
+      // Tarama sunucuda kaynaklı tarih kataloğunu kullanır. Yeni aday yoksa model çağrısı yapılmaz.
+      await supabase.functions.invoke('ai-orchestrator', { body: { operation: 'awareness_suggestion' } })
+      const { data, error } = await supabase
+        .from('ai_awareness_suggestions')
+        .select('id, target_date, target_end_date, status, payload')
+        .eq('period_id', periodId)
+        .in('status', ['new', 'seen'])
+        .order('target_date', { ascending: true })
+
+      if (!isMounted) return
+      setSuggestionsLoading(false)
+      if (error) {
+        setSuggestionError('AI içerik fırsatları şu anda yüklenemedi.')
+        return
+      }
+      const nextSuggestions = (data ?? []).map((row) => ({
+        id: row.id as string,
+        targetDate: row.target_date as string,
+        targetEndDate: (row.target_end_date as string | null) ?? null,
+        status: row.status as 'new' | 'seen',
+        payload: row.payload as unknown as AwarenessSuggestionPayload,
+      }))
+      setSuggestions(nextSuggestions)
+
+      const requestedId = searchParams.get('suggestion')
+      if (requestedId && nextSuggestions.some((item) => item.id === requestedId)) {
+        await supabase.from('ai_awareness_suggestions').update({ status: 'seen' }).eq('id', requestedId).eq('status', 'new')
+        window.setTimeout(() => suggestionSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+      }
+    }
+
+    void loadSuggestions()
+    return () => { isMounted = false }
+  }, [canReviewAiSuggestions, hasActiveMembership, periodId, searchParams, statusLoading])
+
   function resetForm() {
     setAwarenessName('')
     setScope('')
@@ -383,6 +455,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
     setDesignUrl('')
     setShareUrl('')
     setEditingId(null)
+    setSuggestionTransferId(null)
     setFormError(null)
   }
 
@@ -393,6 +466,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
   }
 
   function openEdit(post: AwarenessPost) {
+    setSuggestionTransferId(null)
     setEditingId(post.id)
     setAwarenessName(post.awarenessName)
     setScope(post.scope ?? '')
@@ -415,6 +489,36 @@ export default function AwarenessPosts({ session }: { session: Session }) {
     setFormError(null)
     setSuccessMessage(null)
     setFormMode('edit')
+  }
+
+  function transferSuggestionToForm(suggestion: AwarenessSuggestion) {
+    resetForm()
+    const payload = suggestion.payload
+    setAwarenessName(payload.name)
+    setScope(payload.content_idea)
+    setStartDate(suggestion.targetDate)
+    setEndDate(suggestion.targetEndDate ?? suggestion.targetDate)
+    setEstimatedDate(payload.suggested_share_date || suggestion.targetDate)
+    setShareDate(payload.suggested_share_date || suggestion.targetDate)
+    setNextAction('İçerik kapsamını ekipçe doğrula ve tasarım planını oluştur.')
+    setNote(`AI içerik taslağı (yayınlamadan önce doğrulayın):\n${payload.draft_text}\n\nGörsel fikri:\n${payload.visual_idea}\n\nEczacılık bağlantısı:\n${payload.pharmacy_relevance}\n\nKaynak: ${payload.source_name} — ${payload.source_url}`)
+    setSuggestionTransferId(suggestion.id)
+    setSuccessMessage(null)
+    setFormMode('create')
+  }
+
+  async function dismissSuggestion(suggestionId: string) {
+    const { error } = await supabase.from('ai_awareness_suggestions').update({ status: 'dismissed' }).eq('id', suggestionId)
+    if (error) {
+      setSuggestionError('Öneri kapatılamadı.')
+      return
+    }
+    setSuggestions((current) => current.filter((item) => item.id !== suggestionId))
+    if (searchParams.get('suggestion') === suggestionId) {
+      const next = new URLSearchParams(searchParams)
+      next.delete('suggestion')
+      setSearchParams(next, { replace: true })
+    }
   }
 
   async function handleSave() {
@@ -464,6 +568,14 @@ export default function AwarenessPosts({ session }: { session: Session }) {
       const message = result.error.message.toLowerCase()
       setFormError(message.includes('kilit') ? 'Dönem kilitli olduğu için işlem yapılamaz.' : 'Kayıt kaydedilemedi. Yetki ve tarih bilgilerini kontrol edin.')
       return
+    }
+
+    if (formMode === 'create' && suggestionTransferId) {
+      await supabase.from('ai_awareness_suggestions').update({ status: 'transferred' }).eq('id', suggestionTransferId)
+      setSuggestions((current) => current.filter((item) => item.id !== suggestionTransferId))
+      const next = new URLSearchParams(searchParams)
+      next.delete('suggestion')
+      setSearchParams(next, { replace: true })
     }
 
     setFormMode('closed')
@@ -548,6 +660,52 @@ export default function AwarenessPosts({ session }: { session: Session }) {
         </div>
 
         {successMessage ? <p role="status" className="mt-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{successMessage}</p> : null}
+
+        {canReviewAiSuggestions ? (
+          <section ref={suggestionSectionRef} className="mt-5 scroll-mt-5 overflow-hidden rounded-2xl border border-brand/20 bg-gradient-to-br from-brand-soft/70 via-canvas-surface to-accent-soft/35 shadow-card">
+            <div className="flex items-start gap-3 border-b border-brand/10 px-4 py-4 sm:px-5">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand text-white"><AwarenessIcon /></span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold text-ink">Eczacılık odaklı içerik fırsatları</h2><span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-brand-dark">AI taslağı</span></div>
+                <p className="mt-1 text-xs leading-5 text-ink-soft">Kaynaklı önemli günler 60–120 gün önceden değerlendirilir. Taslaklar otomatik yayımlanmaz veya kaydedilmez.</p>
+              </div>
+            </div>
+            <div className="p-4 sm:p-5">
+              {suggestionsLoading ? <p className="text-sm text-ink-soft">Yaklaşan eczacılık ve sağlık günleri kontrol ediliyor…</p> : null}
+              {suggestionError ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{suggestionError}</p> : null}
+              {!suggestionsLoading && !suggestionError && suggestions.length === 0 ? <p className="text-sm text-ink-soft">Şu anda hazırlığa alınması gereken yeni bir içerik fırsatı yok.</p> : null}
+              {suggestions.length > 0 ? (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {suggestions.map((suggestion) => {
+                    const payload = suggestion.payload
+                    const requested = searchParams.get('suggestion') === suggestion.id
+                    return (
+                      <details key={suggestion.id} open={requested} className={`group rounded-xl border bg-white/90 p-4 ${requested ? 'border-brand ring-2 ring-brand/10' : 'border-canvas-border'}`}>
+                        <summary className="cursor-pointer list-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0"><p className="text-xs font-semibold uppercase tracking-wide text-brand-dark">Hazırlığa başla: {formatDate(payload.suggested_preparation_date)}</p><h3 className="mt-1 break-words font-semibold text-ink">{payload.name}</h3><p className="mt-1 text-sm text-ink-soft">Paylaşım: {formatDate(payload.suggested_share_date || suggestion.targetDate)}</p></div>
+                            <span className="shrink-0 rounded-full bg-brand-soft px-2 py-1 text-xs font-semibold text-brand-dark">Detay</span>
+                          </div>
+                          <p className="mt-3 text-sm leading-5 text-ink-soft">{payload.content_idea}</p>
+                        </summary>
+                        <div className="mt-4 grid gap-3 border-t border-canvas-border pt-4 text-sm">
+                          <div><p className="font-semibold text-ink">Taslak metin</p><p className="mt-1 whitespace-pre-wrap leading-5 text-ink-soft">{payload.draft_text}</p></div>
+                          <div><p className="font-semibold text-ink">Görsel fikri</p><p className="mt-1 leading-5 text-ink-soft">{payload.visual_idea}</p></div>
+                          <div className="rounded-lg bg-brand-soft/70 p-3"><p className="font-semibold text-brand-dark">Neden MUPSA için uygun?</p><p className="mt-1 leading-5 text-ink-soft">{payload.pharmacy_relevance}</p></div>
+                          <a href={payload.source_url} target="_blank" rel="noreferrer" className="w-fit font-semibold text-brand-dark hover:underline">Kaynak: {payload.source_name} ↗</a>
+                          <div className="grid gap-2 min-[420px]:grid-cols-2">
+                            <button type="button" onClick={() => transferSuggestionToForm(suggestion)} className="min-h-[44px] rounded-lg bg-brand px-4 text-sm font-semibold text-white hover:brightness-95">Farkındalık formuna aktar</button>
+                            <button type="button" onClick={() => void dismissSuggestion(suggestion.id)} className="min-h-[44px] rounded-lg border border-canvas-border px-4 text-sm font-semibold text-ink-soft hover:bg-canvas">Bu yıl kullanma</button>
+                          </div>
+                        </div>
+                      </details>
+                    )
+                  })}
+                </div>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
 
         <section className="mt-5 rounded-2xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
           <div className="mb-4 flex items-center gap-3">

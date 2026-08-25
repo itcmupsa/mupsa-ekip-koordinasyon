@@ -15,7 +15,7 @@ const corsHeaders = {
 }
 
 interface AiRequest {
-  operation?: 'status' | 'home_summary' | 'calendar_classification'
+  operation?: 'status' | 'home_summary' | 'calendar_classification' | 'awareness_suggestion'
   force?: boolean
   calendar_entry_id?: string
 }
@@ -44,6 +44,36 @@ interface MembershipRecord {
   period_id: string
   app_role: 'super_admin' | 'coordinator'
   coordinator_role_id: string
+  coordinator_roles: { slug: string } | Array<{ slug: string }> | null
+}
+
+interface AwarenessCatalogRecord {
+  id: string
+  slug: string
+  name: string
+  category: string
+  month: number
+  day: number
+  end_month: number | null
+  end_day: number | null
+  pharmacy_relevance: string
+  source_name: string
+  source_url: string
+  suggestion_lead_days: number
+  notification_lead_days: number
+}
+
+interface AwarenessSuggestionCandidate extends AwarenessCatalogRecord {
+  target_date: string
+  target_end_date: string | null
+  days_until: number
+}
+
+interface AwarenessSuggestionResult {
+  catalog_id: string
+  content_idea: string
+  draft_text: string
+  visual_idea: string
 }
 
 interface AiSettingRecord {
@@ -735,6 +765,122 @@ async function storeCalendarClassification(
   return rows.length
 }
 
+function coordinatorRoleSlug(membership: MembershipRecord): string {
+  const relation = membership.coordinator_roles
+  if (Array.isArray(relation)) return relation[0]?.slug ?? ''
+  return relation?.slug ?? ''
+}
+
+function dateOnlyFromParts(year: number, month: number, day: number): string {
+  return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
+}
+
+function buildAwarenessCandidates(catalog: AwarenessCatalogRecord[]): AwarenessSuggestionCandidate[] {
+  const now = new Date(Date.now() + 3 * 60 * 60 * 1000)
+  const today = new Date(`${now.toISOString().slice(0, 10)}T00:00:00Z`)
+  return catalog.flatMap((item) => {
+    let year = today.getUTCFullYear()
+    let target = new Date(Date.UTC(year, item.month - 1, item.day))
+    if (target < today) {
+      year += 1
+      target = new Date(Date.UTC(year, item.month - 1, item.day))
+    }
+    const daysUntil = Math.round((target.getTime() - today.getTime()) / 86_400_000)
+    if (daysUntil > item.suggestion_lead_days) return []
+    return [{
+      ...item,
+      target_date: dateOnlyFromParts(year, item.month, item.day),
+      target_end_date: item.end_month && item.end_day ? dateOnlyFromParts(year, item.end_month, item.end_day) : null,
+      days_until: daysUntil,
+    }]
+  })
+}
+
+function deterministicAwarenessSuggestion(candidate: AwarenessSuggestionCandidate): AwarenessSuggestionResult {
+  return {
+    catalog_id: candidate.id,
+    content_idea: `${candidate.name} kapsamında ilacın güvenli ve akılcı kullanımı ile eczacının danışmanlık rolünü eczacılık öğrencilerinin bakış açısından anlatan bir içerik hazırlanabilir.`,
+    draft_text: `${candidate.name} kapsamında, doğru sağlık bilgisine ulaşmanın ve ilaçları sağlık profesyonellerinin önerileri doğrultusunda kullanmanın önemini hatırlatıyoruz. Eczacılar; güvenli ilaç kullanımı, sağlık okuryazarlığı ve hasta danışmanlığında önemli bir role sahiptir.`,
+    visual_idea: 'Eczacılık öğrencisi, danışmanlık ve güvenli ilaç kullanımı temasını sade ikonlar ve kısa başlıklarla anlatan kaydırmalı gönderi.',
+  }
+}
+
+function validateAwarenessSuggestions(value: unknown, candidates: AwarenessSuggestionCandidate[]): AwarenessSuggestionResult[] {
+  if (!isRecord(value) || !Array.isArray(value.items)) return candidates.map(deterministicAwarenessSuggestion)
+  const ids = new Set(candidates.map((candidate) => candidate.id))
+  const results = new Map<string, AwarenessSuggestionResult>()
+  for (const raw of value.items) {
+    if (!isRecord(raw) || typeof raw.catalog_id !== 'string' || !ids.has(raw.catalog_id)) continue
+    if (typeof raw.content_idea !== 'string' || typeof raw.draft_text !== 'string' || typeof raw.visual_idea !== 'string') continue
+    const contentIdea = raw.content_idea.trim().slice(0, 700)
+    const draftText = raw.draft_text.trim().slice(0, 1200)
+    const visualIdea = raw.visual_idea.trim().slice(0, 700)
+    if (!contentIdea || !draftText || !visualIdea) continue
+    results.set(raw.catalog_id, { catalog_id: raw.catalog_id, content_idea: contentIdea, draft_text: draftText, visual_idea: visualIdea })
+  }
+  return candidates.map((candidate) => results.get(candidate.id) ?? deterministicAwarenessSuggestion(candidate))
+}
+
+async function callGeminiAwarenessSuggestions(
+  apiKeys: string[],
+  model: string,
+  candidates: AwarenessSuggestionCandidate[],
+): Promise<{ value: unknown; inputTokens: number; outputTokens: number }> {
+  const requestBody = JSON.stringify({
+    systemInstruction: {
+      parts: [{ text: [
+        'MUPSA bir eczacılık öğrencileri topluluğudur. Verilen, kaynağı doğrulanmış önemli günler için Türkçe sosyal medya içerik önerileri hazırla.',
+        'İçeriği eczacılık öğrencilerinin mesleki bakışıyla; güvenli ve akılcı ilaç kullanımı, sağlık okuryazarlığı, hasta danışmanlığı veya eczacının sağlık sistemindeki rolüyle ilişkilendir.',
+        'Tanı veya kişisel tedavi önerisi verme. Kaynakta bulunmayan istatistik, sayı, slogan, yıl teması veya tıbbi iddia üretme.',
+        'İlaç bırakma, başlama ya da doz değiştirme önerme. Metni bilgilendirici, kapsayıcı ve damgalamadan uzak tut.',
+        'Her katalog kimliği için bir içerik fikri, kısa paylaşım taslağı ve uygulanabilir görsel fikri döndür.',
+        'Üretilenler yalnızca kullanıcı onayına sunulan taslaktır; paylaşım veya kayıt oluşturma talimatı verme.',
+      ].join('\n') }],
+    },
+    contents: [{ role: 'user', parts: [{ text: JSON.stringify(candidates.map((candidate) => ({
+      catalog_id: candidate.id,
+      name: candidate.name,
+      date: candidate.target_date,
+      end_date: candidate.target_end_date,
+      category: candidate.category,
+      pharmacy_relevance: candidate.pharmacy_relevance,
+      source_name: candidate.source_name,
+    }))) }] }],
+    generationConfig: {
+      maxOutputTokens: 1800,
+      thinkingConfig: { thinkingLevel: 'LOW' },
+      responseFormat: {
+        text: {
+          mimeType: 'APPLICATION_JSON',
+          schema: {
+            type: 'object', required: ['items'], properties: {
+              items: { type: 'array', items: { type: 'object', required: ['catalog_id', 'content_idea', 'draft_text', 'visual_idea'], properties: {
+                catalog_id: { type: 'string' }, content_idea: { type: 'string' }, draft_text: { type: 'string' }, visual_idea: { type: 'string' },
+              } } },
+            },
+          },
+        },
+      },
+    },
+  })
+
+  for (const [keyIndex, apiKey] of apiKeys.entries()) {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: requestBody },
+    )
+    if (response.ok) {
+      const data = await response.json() as GeminiResponse
+      const parts = data.candidates?.[0]?.content?.parts ?? []
+      if (parts.length === 0) throw new HttpError(502, 'Gemini boş bir cevap döndürdü.')
+      return { value: parseGeminiJson(parts), inputTokens: data.usageMetadata?.promptTokenCount ?? 0, outputTokens: data.usageMetadata?.candidatesTokenCount ?? 0 }
+    }
+    if (keyIndex < apiKeys.length - 1 && [401, 403, 429, 500, 502, 503, 504].includes(response.status)) continue
+    throw new HttpError(response.status === 429 ? 429 : 502, response.status === 429 ? 'Gemini ücretsiz kotası şu anda dolu.' : 'Gemini isteği başarısız oldu.')
+  }
+  throw new HttpError(503, 'Gemini API anahtarı yapılandırılmadı.')
+}
+
 serve(async (request: Request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (request.method !== 'POST') return jsonResponse({ success: false, error: 'Yalnızca POST desteklenir.' }, 405)
@@ -758,13 +904,13 @@ serve(async (request: Request) => {
     if (userError || !userData.user) throw new HttpError(401, 'Geçersiz oturum.')
 
     const body = (await request.json()) as AiRequest
-    if (body.operation !== 'status' && body.operation !== 'home_summary' && body.operation !== 'calendar_classification') {
+    if (body.operation !== 'status' && body.operation !== 'home_summary' && body.operation !== 'calendar_classification' && body.operation !== 'awareness_suggestion') {
       throw new HttpError(400, 'Desteklenmeyen AI işlemi.')
     }
 
     const { data: membershipData, error: membershipError } = await adminClient
       .from('period_memberships')
-      .select('period_id, app_role, coordinator_role_id, periods!inner(is_active)')
+      .select('period_id, app_role, coordinator_role_id, periods!inner(is_active), coordinator_roles(slug)')
       .eq('profile_id', userData.user.id)
       .eq('is_active', true)
       .eq('periods.is_active', true)
@@ -791,15 +937,12 @@ serve(async (request: Request) => {
         freeTierOnly: setting?.free_tier_only ?? true,
         configured: configuredKeys.length > 0,
         policyVersion: setting?.policy_version ?? null,
-        pilotScope: 'super_admin',
+        pilotScope: 'all_active_members',
       })
     }
 
-    if (membership.app_role !== 'super_admin') {
-      throw new HttpError(403, 'AI ana sayfa pilotu yalnızca Süper Yöneticiye açıktır.')
-    }
     if (!setting?.is_enabled || !setting.free_tier_only) {
-      throw new HttpError(403, 'AI ana sayfa pilotu henüz etkin değil.')
+      throw new HttpError(403, 'AI özellikleri henüz etkin değil.')
     }
     const geminiApiKeys = [...new Set([
       Deno.env.get('GEMINI_API_KEY'),
@@ -808,6 +951,7 @@ serve(async (request: Request) => {
     if (geminiApiKeys.length === 0) throw new HttpError(503, 'Gemini API anahtarı yapılandırılmadı.')
 
     if (body.operation === 'calendar_classification') {
+      if (membership.app_role !== 'super_admin') throw new HttpError(403, 'Takvim sınıflandırması yalnızca Süper Yönetici tarafından başlatılabilir.')
       let entryQuery = adminClient
         .from('calendar_entries')
         .select('id, period_id, title, entry_type, start_date, end_date, note')
@@ -893,6 +1037,163 @@ serve(async (request: Request) => {
       return jsonResponse({ success: true, classified: results.length, scheduled, model: resultModel })
     }
 
+    if (body.operation === 'awareness_suggestion') {
+      const roleSlug = coordinatorRoleSlug(membership)
+      if (membership.app_role !== 'super_admin' && roleSlug !== 'public-relations-coordinator') {
+        throw new HttpError(403, 'Farkındalık önerileri yalnızca Halkla İlişkiler ve Süper Yöneticiye açıktır.')
+      }
+
+      const { data: catalogData, error: catalogError } = await adminClient
+        .from('awareness_date_catalog')
+        .select('id, slug, name, category, month, day, end_month, end_day, pharmacy_relevance, source_name, source_url, suggestion_lead_days, notification_lead_days')
+        .eq('is_active', true)
+      if (catalogError) throw new HttpError(500, 'Önemli günler kataloğu okunamadı.')
+      const allCandidates = buildAwarenessCandidates((catalogData ?? []) as AwarenessCatalogRecord[])
+
+      const { data: existingSuggestionData, error: existingSuggestionError } = await adminClient
+        .from('ai_awareness_suggestions')
+        .select('id, catalog_id, target_date, status, notified_at, awareness_date_catalog!inner(notification_lead_days)')
+        .eq('period_id', membership.period_id)
+        .in('status', ['new', 'seen', 'transferred', 'dismissed'])
+      if (existingSuggestionError) throw new HttpError(500, 'Mevcut farkındalık önerileri okunamadı.')
+      const existingKeys = new Set((existingSuggestionData ?? []).map((suggestion) => `${suggestion.catalog_id}:${suggestion.target_date}`))
+
+      const { data: awarenessData } = await adminClient
+        .from('awareness_posts')
+        .select('awareness_name, share_date, estimated_date')
+        .eq('period_id', membership.period_id)
+        .is('deleted_at', null)
+      const occupiedDates = new Set((awarenessData ?? [])
+        .map((post) => (post.share_date ?? post.estimated_date) as string | null)
+        .filter((date): date is string => Boolean(date)))
+      const candidates = allCandidates.filter((candidate) =>
+        !existingKeys.has(`${candidate.id}:${candidate.target_date}`)
+        && !occupiedDates.has(candidate.target_date)
+      )
+
+      let generated = 0
+      if (candidates.length > 0) {
+        const model = modelForOperation({ flashModel: setting.flash_model, flashLiteModel: setting.flash_lite_model, embeddingModel: setting.embedding_model }, 'awareness_suggestion')
+        const { data: reservation, error: reservationError } = await adminClient.rpc('reserve_ai_quota', {
+          target_period_id: membership.period_id,
+          target_requester_id: userData.user.id,
+          target_operation_type: 'awareness_suggestion',
+          target_model_id: model,
+        })
+        const usageId = !reservationError && isRecord(reservation) && reservation.allowed === true && typeof reservation.usage_id === 'string'
+          ? reservation.usage_id
+          : null
+        let results = candidates.map(deterministicAwarenessSuggestion)
+        let resultModel = 'rule-based-fallback'
+        let inputTokens = 0
+        let outputTokens = 0
+        if (usageId) {
+          try {
+            const gemini = await callGeminiAwarenessSuggestions(geminiApiKeys, model, candidates)
+            inputTokens = gemini.inputTokens
+            outputTokens = gemini.outputTokens
+            results = validateAwarenessSuggestions(gemini.value, candidates)
+            resultModel = model
+            await adminClient.rpc('record_ai_usage_result', {
+              target_usage_id: usageId, target_input_token_count: inputTokens, target_output_token_count: outputTokens, target_succeeded: true,
+            })
+          } catch (error) {
+            console.error('Awareness suggestions fell back to verified rules', error)
+            await adminClient.rpc('record_ai_usage_result', {
+              target_usage_id: usageId, target_input_token_count: inputTokens, target_output_token_count: outputTokens, target_succeeded: false,
+            })
+          }
+        }
+
+        const rows = []
+        for (const result of results) {
+          const candidate = candidates.find((item) => item.id === result.catalog_id)
+          if (!candidate) continue
+          const sourceHash = await sha256(JSON.stringify({ candidate, result }))
+          const prepDate = new Date(`${candidate.target_date}T00:00:00Z`)
+          prepDate.setUTCDate(prepDate.getUTCDate() - candidate.notification_lead_days)
+          rows.push({
+            period_id: membership.period_id,
+            catalog_id: candidate.id,
+            target_date: candidate.target_date,
+            target_end_date: candidate.target_end_date,
+            status: 'new',
+            payload: {
+              name: candidate.name,
+              category: candidate.category,
+              content_idea: result.content_idea,
+              draft_text: result.draft_text,
+              visual_idea: result.visual_idea,
+              pharmacy_relevance: candidate.pharmacy_relevance,
+              suggested_preparation_date: prepDate.toISOString().slice(0, 10),
+              suggested_share_date: candidate.target_date,
+              source_name: candidate.source_name,
+              source_url: candidate.source_url,
+            },
+            source_hash: sourceHash,
+            model_id: resultModel,
+          })
+        }
+        if (rows.length > 0) {
+          const { error: insertError } = await adminClient.from('ai_awareness_suggestions').insert(rows)
+          if (insertError) throw new HttpError(500, 'Farkındalık önerileri saklanamadı.')
+          generated = rows.length
+        }
+      }
+
+      const { data: dueSuggestions, error: dueError } = await adminClient
+        .from('ai_awareness_suggestions')
+        .select('id, target_date, payload, awareness_date_catalog!inner(notification_lead_days)')
+        .eq('period_id', membership.period_id)
+        .in('status', ['new', 'seen'])
+        .is('notified_at', null)
+      if (dueError) throw new HttpError(500, 'Farkındalık bildirimleri hazırlanamadı.')
+      const nowDate = new Date(`${new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10)}T00:00:00Z`)
+      const due = (dueSuggestions ?? []).filter((suggestion) => {
+        const relation = Array.isArray(suggestion.awareness_date_catalog) ? suggestion.awareness_date_catalog[0] : suggestion.awareness_date_catalog
+        const leadDays = Number(relation?.notification_lead_days ?? 60)
+        const daysUntil = Math.round((Date.parse(`${suggestion.target_date}T00:00:00Z`) - nowDate.getTime()) / 86_400_000)
+        return daysUntil <= leadDays && daysUntil >= 0
+      })
+
+      let notified = 0
+      if (due.length > 0) {
+        const { data: prMemberships } = await adminClient
+          .from('period_memberships')
+          .select('profile_id, app_role, coordinator_roles(slug), profiles!inner(is_active)')
+          .eq('period_id', membership.period_id)
+          .eq('is_active', true)
+          .eq('profiles.is_active', true)
+        const prRecipients = (prMemberships ?? []).filter((item) => {
+          const relation = Array.isArray(item.coordinator_roles) ? item.coordinator_roles[0] : item.coordinator_roles
+          return relation?.slug === 'public-relations-coordinator'
+        })
+        const recipients = prRecipients.length > 0 ? prRecipients : (prMemberships ?? []).filter((item) => item.app_role === 'super_admin')
+        const notificationRows = due.flatMap((suggestion) => recipients.map((recipient) => {
+          const payload = isRecord(suggestion.payload) ? suggestion.payload : {}
+          const name = typeof payload.name === 'string' ? payload.name : 'Yaklaşan önemli gün'
+          return {
+            recipient_id: recipient.profile_id,
+            notification_type: 'awareness_ai_suggestion',
+            channel: 'in_app',
+            title: 'Yeni farkındalık içerik önerisi',
+            body: `${name} için eczacılık odaklı içerik önerisi hazırlandı.`,
+            metadata: { awareness_suggestion_id: suggestion.id, url: `/app/farkindalik?suggestion=${suggestion.id}` },
+            dedupe_key: `awareness-ai-suggestion:${suggestion.id}:${recipient.profile_id}:in_app`,
+          }
+        }))
+        if (notificationRows.length > 0) {
+          const { error: notificationError } = await adminClient.from('notifications').insert(notificationRows)
+          if (notificationError && notificationError.code !== '23505') {
+            throw new HttpError(500, 'Farkındalık önerisi bildirimi oluşturulamadı.')
+          }
+          notified = notificationRows.length
+        }
+        await adminClient.from('ai_awareness_suggestions').update({ notified_at: new Date().toISOString() }).in('id', due.map((suggestion) => suggestion.id))
+      }
+      return jsonResponse({ success: true, generated, notified })
+    }
+
     if (body.force) {
       const { error: forceRefreshError } = await adminClient
         .from('ai_outputs')
@@ -919,7 +1220,7 @@ serve(async (request: Request) => {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
-    const { data: periodLatestOutput } = userLatestOutput
+    const { data: periodLatestOutput } = userLatestOutput || membership.app_role !== 'super_admin'
       ? { data: null }
       : await adminClient
         .from('ai_outputs')
@@ -971,7 +1272,10 @@ serve(async (request: Request) => {
     })
     if (activityError) console.error('AI home activity delta could not be loaded', activityError)
     context.activity = isRecord(activityData) ? asItems(activityData.items) : []
-    const sources = prepareHomeSources(context, historyOutput?.payload)
+    const preparedSources = prepareHomeSources(context, historyOutput?.payload)
+    const sources = membership.app_role === 'super_admin'
+      ? preparedSources
+      : preparedSources.filter((source) => source.entityType !== 'calendar_entry')
     if (sources.length === 0) {
       const emptyPayload = { intro: 'Bugün için yeni bir ekip hareketi veya kritik durum bulunmuyor.', items: [] }
       const emptyContextHash = await sha256(JSON.stringify({ context, mode: 'verified_empty_delta' }))
