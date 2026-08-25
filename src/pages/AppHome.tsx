@@ -112,6 +112,18 @@ interface AiHomeSummaryResponse {
   error?: string
 }
 
+async function getAiFunctionErrorMessage(error: unknown, fallback: string): Promise<string> {
+  if (!error || typeof error !== 'object' || !('context' in error)) return fallback
+  const context = (error as { context?: unknown }).context
+  if (!(context instanceof Response)) return fallback
+  try {
+    const payload = await context.clone().json() as { error?: unknown }
+    return typeof payload.error === 'string' && payload.error.trim() ? payload.error : fallback
+  } catch {
+    return fallback
+  }
+}
+
 const ASSIGNMENT_TYPE_LABELS: Record<string, string> = {
   primary: 'Ana sorumlu',
   supporting: 'Destekleyen',
@@ -259,7 +271,8 @@ export default function AppHome({ session }: { session: Session }) {
       if (!isMounted) return
       setAiLoading(false)
       if (summaryError || summaryData?.success !== true || !summaryData.output) {
-        setAiError(summaryData?.error ?? 'AI özeti şu anda hazırlanamadı. Mevcut ana sayfa verileri kullanılmaya devam ediyor.')
+        const fallback = 'AI özeti şu anda hazırlanamadı. Mevcut ana sayfa verileri kullanılmaya devam ediyor.'
+        setAiError(summaryData?.error ?? await getAiFunctionErrorMessage(summaryError, fallback))
         return
       }
       setAiSummary(summaryData.output)
@@ -642,7 +655,8 @@ export default function AppHome({ session }: { session: Session }) {
     )
     setAiLoading(false)
     if (summaryError || summaryData?.success !== true || !summaryData.output) {
-      setAiError(summaryData?.error ?? 'AI özeti şu anda yenilenemedi. Son geçerli özet korunuyor.')
+      const fallback = 'AI özeti şu anda yenilenemedi. Son geçerli özet korunuyor.'
+      setAiError(summaryData?.error ?? await getAiFunctionErrorMessage(summaryError, fallback))
       return
     }
     setAiSummary(summaryData.output)
