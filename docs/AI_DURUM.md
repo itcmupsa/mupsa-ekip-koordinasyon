@@ -17,6 +17,7 @@ Bu dosya, proje bağlamının güncel durum kaydıdır. Bir görev tamamlandığ
 - `20260825090000`, `20260825100000`, `20260825110000` ve `20260825120000` AI migration'ları 25 Ağustos 2026'da `MUPSA Ekip Koordinasyon` canlı Supabase projesine uygulandı; yerel ve uzak migration geçmişi eşleşiyor.
 - `ai-orchestrator` Edge Function aynı projeye deploy edildi. Ana sayfa özeti 24 saat önbellek, 15 dakikalık zorunlu yenileme aralığı, eski doğrulanmış özete geri dönüş ve sunucu tarafı rota çözümleme kurallarıyla hazırlanır.
 - Süper Yönetici dashboard'ına mobil uyumlu `AI Günlük Özeti` kartı bağlandı. Kart yalnızca canlı feature flag, API anahtarı ve doğru pilot rolü birlikte doğrulandığında görünür; her öneri ilgili gerçek kayda yönlendirir.
+- Google yeni API anahtarlarında eski `gemini-2.5-flash` modelini kapattığı için `20260825130000_update_gemini_free_models.sql` aktif pilotu kararlı ve ücretsiz katmanı bulunan `gemini-3.6-flash` / `gemini-3.5-flash-lite` model kimliklerine taşır; ücretli katman veya faturalandırma açılmaz.
 - Supabase CLI, GitHub kullanıcı adı `itcmupsa` ve doğrulanmış birincil e-posta `itc.mupsa@gmail.com` olan doğru hesapla `mupsa-itc` profiline bağlandı.
 
 ## Canlı sistem
