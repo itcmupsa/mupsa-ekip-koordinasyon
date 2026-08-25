@@ -38,6 +38,52 @@ export interface AiValidationResult {
   errors: string[]
 }
 
+export type HomeSummarySourceType = 'task' | 'event' | 'awareness' | 'calendar_entry'
+
+export type HomeSummaryReasonCode =
+  | 'overdue_task'
+  | 'due_soon_task'
+  | 'high_priority_task'
+  | 'assigned_open_task'
+  | 'missing_event_field'
+  | 'event_preparation_active'
+  | 'event_final_days'
+  | 'event_day'
+  | 'event_report_due'
+  | 'missing_awareness_field'
+  | 'awareness_preparation_active'
+  | 'awareness_share_due_soon'
+  | 'upcoming_calendar_entry'
+
+export type HomeSummaryAction =
+  | 'open_task'
+  | 'open_event'
+  | 'open_awareness'
+  | 'open_calendar'
+
+export interface HomeSummarySource {
+  alias: string
+  entityType: HomeSummarySourceType
+  entityId: string
+}
+
+export interface HomeSummaryItem {
+  sourceRef: string
+  reasonCode: HomeSummaryReasonCode
+  recommendation: string
+  action: HomeSummaryAction
+}
+
+export interface HomeSummaryPlan {
+  intro: string
+  items: HomeSummaryItem[]
+}
+
+export interface HomeSummaryValidationResult {
+  plan: HomeSummaryPlan | null
+  errors: string[]
+}
+
 const FLASH_OPERATIONS: ReadonlySet<AiOperation> = new Set([
   'home_summary',
   'page_analysis',
@@ -131,3 +177,102 @@ export function sourceAliasesAreSafe(sources: AiSourceDescriptor[]): boolean {
     && aliases.every((alias) => /^S[1-9][0-9]*$/.test(alias))
 }
 
+const HOME_REASON_TYPES: Record<HomeSummaryReasonCode, HomeSummarySourceType> = {
+  overdue_task: 'task',
+  due_soon_task: 'task',
+  high_priority_task: 'task',
+  assigned_open_task: 'task',
+  missing_event_field: 'event',
+  event_preparation_active: 'event',
+  event_final_days: 'event',
+  event_day: 'event',
+  event_report_due: 'event',
+  missing_awareness_field: 'awareness',
+  awareness_preparation_active: 'awareness',
+  awareness_share_due_soon: 'awareness',
+  upcoming_calendar_entry: 'calendar_entry',
+}
+
+const HOME_ACTION_TYPES: Record<HomeSummaryAction, HomeSummarySourceType> = {
+  open_task: 'task',
+  open_event: 'event',
+  open_awareness: 'awareness',
+  open_calendar: 'calendar_entry',
+}
+
+function isHomeReasonCode(value: unknown): value is HomeSummaryReasonCode {
+  return typeof value === 'string' && value in HOME_REASON_TYPES
+}
+
+function isHomeAction(value: unknown): value is HomeSummaryAction {
+  return typeof value === 'string' && value in HOME_ACTION_TYPES
+}
+
+export function validateHomeSummaryPlan(
+  value: unknown,
+  allowedSources: HomeSummarySource[],
+): HomeSummaryValidationResult {
+  if (!isRecord(value)) return { plan: null, errors: ['Ana sayfa özeti nesne biçiminde değil.'] }
+
+  const errors: string[] = []
+  const intro = value.intro
+  const rawItems = value.items
+  if (typeof intro !== 'string' || intro.trim().length === 0 || intro.length > 240) {
+    errors.push('Ana sayfa özetinde geçerli intro alanı yok.')
+  }
+  if (!Array.isArray(rawItems) || rawItems.length > 6) {
+    errors.push('Ana sayfa özeti en fazla 6 maddelik items dizisi taşımalıdır.')
+  }
+  if (errors.length > 0) return { plan: null, errors }
+
+  const sourceByAlias = new Map(allowedSources.map((source) => [source.alias, source]))
+  const seenSources = new Set<string>()
+  const items: HomeSummaryItem[] = []
+
+  for (const [index, rawItem] of (rawItems as unknown[]).entries()) {
+    if (!isRecord(rawItem)) {
+      errors.push(`Özet maddesi ${index + 1} nesne biçiminde değil.`)
+      continue
+    }
+
+    const sourceRef = rawItem.source_ref
+    const reasonCode = rawItem.reason_code
+    const recommendation = rawItem.recommendation
+    const action = rawItem.action
+    if (
+      typeof sourceRef !== 'string'
+      || !isHomeReasonCode(reasonCode)
+      || typeof recommendation !== 'string'
+      || recommendation.trim().length === 0
+      || recommendation.length > 280
+      || !isHomeAction(action)
+    ) {
+      errors.push(`Özet maddesi ${index + 1} gerekli alanları taşımıyor.`)
+      continue
+    }
+
+    const source = sourceByAlias.get(sourceRef)
+    if (!source) {
+      errors.push(`Özet maddesi ${index + 1} izin verilmeyen kaynak kullanıyor.`)
+      continue
+    }
+    if (seenSources.has(sourceRef)) {
+      errors.push(`Özet maddesi ${index + 1} aynı kaynağı tekrar ediyor.`)
+      continue
+    }
+    if (HOME_REASON_TYPES[reasonCode] !== source.entityType) {
+      errors.push(`Özet maddesi ${index + 1} kaynak türüyle uyuşmayan neden kullanıyor.`)
+      continue
+    }
+    if (HOME_ACTION_TYPES[action] !== source.entityType) {
+      errors.push(`Özet maddesi ${index + 1} kaynak türüyle uyuşmayan eylem kullanıyor.`)
+      continue
+    }
+
+    seenSources.add(sourceRef)
+    items.push({ sourceRef, reasonCode, recommendation: recommendation.trim(), action })
+  }
+
+  if (errors.length > 0) return { plan: null, errors }
+  return { plan: { intro: (intro as string).trim(), items }, errors: [] }
+}

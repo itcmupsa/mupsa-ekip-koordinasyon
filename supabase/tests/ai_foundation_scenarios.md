@@ -76,3 +76,14 @@ Bu senaryolar `20260825090000_add_ai_foundation.sql` migration'ı uygulandıktan
 8. Kesin tarih varsa `effective_date` kesin tarih, yoksa tahmini tarih olmalıdır.
 9. `report_reminder_offset_days` boşsa geçmiş etkinlik için `report_due` üretilmemelidir.
 10. Bağlam çıktısında silme, güncelleme, oluşturma veya bildirim gönderme komutu bulunmamalıdır.
+
+## 10. Atomik kota rezervasyonu
+
+1. AI kapalıyken rezervasyon `feature_disabled` ile reddedilmelidir.
+2. İşlem için yapılandırılmamış model `invalid_model` ile reddedilmelidir.
+3. Aktif olmayan kullanıcı adına rezervasyon yapılamamalıdır.
+4. Aynı gün/model için eş zamanlı rezervasyonlar toplam proje sınırını aşamamalıdır.
+5. `chat` ve `draft` işlemleri kullanıcı başına tanımlanan sınırı aşamamalıdır.
+6. Kota dolduğunda Gemini çağrısı yapılmamalı; son geçerli özet kullanılmalıdır.
+7. Başarısız Gemini çağrısı da istek kotasından düşmeli ve `failure_count` artırılmalıdır.
+8. Token sayaçlarına negatif değer yazılamamalıdır.
