@@ -54,6 +54,7 @@ interface HomeContext {
   events: HomeContextItem[]
   awareness: HomeContextItem[]
   calendar: HomeContextItem[]
+  activity: HomeContextItem[]
 }
 
 interface PreparedHomeSource extends HomeSummarySource {
@@ -114,6 +115,7 @@ function normalizeHomeContext(value: unknown): HomeContext {
     events: asItems(value.events),
     awareness: asItems(value.awareness),
     calendar: asItems(value.calendar),
+    activity: asItems(value.activity),
   }
 }
 
@@ -129,6 +131,16 @@ function dateHasStarted(value: unknown): boolean {
 
 function allowedReasons(item: HomeContextItem): HomeSummaryReasonCode[] {
   const reasons: HomeSummaryReasonCode[] = []
+  if (typeof item.activity_kind === 'string') {
+    const activityReason = item.activity_kind as HomeSummaryReasonCode
+    const knownActivityReasons: HomeSummaryReasonCode[] = [
+      'task_created', 'task_updated', 'task_completed',
+      'event_created', 'event_updated',
+      'awareness_created', 'awareness_updated',
+      'calendar_entry_created', 'calendar_entry_updated',
+    ]
+    if (knownActivityReasons.includes(activityReason)) reasons.push(activityReason)
+  }
   if (item.source_type === 'task') {
     if (item.is_overdue === true) reasons.push('overdue_task')
     const deadline = typeof item.deadline_at === 'string' ? Date.parse(item.deadline_at) : Number.NaN
@@ -136,10 +148,6 @@ function allowedReasons(item: HomeContextItem): HomeSummaryReasonCode[] {
       reasons.push('due_soon_task')
     }
     if (item.priority === 'high' || item.priority === 'urgent') reasons.push('high_priority_task')
-    if (item.assignment_type === 'primary' || item.assignment_type === 'supporting') {
-      reasons.push('assigned_open_task')
-    }
-    reasons.push('open_task')
   }
   if (item.source_type === 'event') {
     const activePreparationPhase = item.lifecycle_phase === 'preparation'
@@ -148,7 +156,6 @@ function allowedReasons(item: HomeContextItem): HomeSummaryReasonCode[] {
     if (activePreparationPhase && Array.isArray(item.missing_fields) && item.missing_fields.length > 0) {
       reasons.push('missing_event_field')
     }
-    if (item.lifecycle_phase === 'preparation') reasons.push('event_preparation_active')
     if (item.lifecycle_phase === 'final_days') reasons.push('event_final_days')
     if (item.lifecycle_phase === 'event_day') reasons.push('event_day')
     if (item.lifecycle_phase === 'report_due') reasons.push('event_report_due')
@@ -165,8 +172,6 @@ function allowedReasons(item: HomeContextItem): HomeSummaryReasonCode[] {
     ) reasons.push('missing_awareness_field')
     if (daysUntilShare !== null && daysUntilShare >= 0 && daysUntilShare <= 7) {
       reasons.push('awareness_share_due_soon')
-    } else if (preparationStarted && daysUntilShare !== null && daysUntilShare > 7) {
-      reasons.push('awareness_preparation_active')
     }
   }
   if (item.source_type === 'calendar_entry') {
@@ -177,6 +182,9 @@ function allowedReasons(item: HomeContextItem): HomeSummaryReasonCode[] {
 }
 
 const REASON_PRIORITY: Record<HomeSummaryReasonCode, number> = {
+  task_completed: 104,
+  task_created: 94,
+  task_updated: 82,
   overdue_task: 100,
   event_day: 98,
   due_soon_task: 95,
@@ -191,6 +199,12 @@ const REASON_PRIORITY: Record<HomeSummaryReasonCode, number> = {
   event_preparation_active: 60,
   awareness_preparation_active: 58,
   open_task: 50,
+  event_created: 93,
+  event_updated: 81,
+  awareness_created: 91,
+  awareness_updated: 79,
+  calendar_entry_created: 89,
+  calendar_entry_updated: 77,
 }
 
 function sourcePriority(source: PreparedHomeSource): number {
@@ -202,14 +216,31 @@ function sourcePriority(source: PreparedHomeSource): number {
   return reasonScore + proximityBonus
 }
 
-function prepareHomeSources(context: HomeContext): PreparedHomeSource[] {
-  const candidates = [
+function previousReasonMap(payload: unknown): Map<string, string> {
+  if (!isRecord(payload) || !Array.isArray(payload.items)) return new Map()
+  const result = new Map<string, string>()
+  for (const item of payload.items) {
+    if (!isRecord(item) || typeof item.source_type !== 'string' || typeof item.source_id !== 'string' || typeof item.reason_code !== 'string') continue
+    result.set(`${item.source_type}:${item.source_id}`, item.reason_code)
+  }
+  return result
+}
+
+function prepareHomeSources(context: HomeContext, previousPayload?: unknown): PreparedHomeSource[] {
+  const currentCandidates = [
     ...context.tasks.slice(0, 12),
     ...context.events.slice(0, 8),
     ...context.awareness.slice(0, 8),
     ...context.calendar.slice(0, 8),
   ]
-  return candidates
+  const candidateByEntity = new Map<string, HomeContextItem>()
+  for (const item of currentCandidates) candidateByEntity.set(`${item.source_type}:${item.source_id}`, item)
+  for (const activity of context.activity.slice(0, 20)) {
+    const key = `${activity.source_type}:${activity.source_id}`
+    candidateByEntity.set(key, { ...(candidateByEntity.get(key) ?? {}), ...activity } as HomeContextItem)
+  }
+  const previousReasons = previousReasonMap(previousPayload)
+  return [...candidateByEntity.values()]
     .map((item, index) => ({
       alias: `S${index + 1}`,
       entityType: item.source_type,
@@ -223,15 +254,24 @@ function prepareHomeSources(context: HomeContext): PreparedHomeSource[] {
     }))
     .filter((source) => source.allowedReasonCodes.length > 0)
     .sort((left, right) => sourcePriority(right) - sourcePriority(left))
+    .filter((source) => {
+      if (typeof source.facts.activity_kind === 'string') return true
+      return previousReasons.get(`${source.entityType}:${source.entityId}`) !== primaryReason(source)
+    })
     .slice(0, 18)
     .map((source, index) => ({ ...source, alias: `S${index + 1}` }))
 }
 
-function buildDailyIntro(items: Array<{ title: string }>): string {
-  if (items.length === 0) return 'Bugün için acil müdahale gerektiren bir kayıt görünmüyor.'
-  if (items.length === 1) return `Bugün için öne çıkan konu: ${items[0].title}.`
-  const firstTitles = items.slice(0, 2).map((item) => item.title).join(' ve ')
-  return `Bugün ${items.length} öncelik öne çıkıyor; ilk olarak ${firstTitles} kayıtlarına bakabilirsiniz.`
+function buildDailyIntro(items: Array<{ title: string; reason_code: HomeSummaryReasonCode }>): string {
+  if (items.length === 0) return 'Son özetten bu yana yeni bir ekip hareketi veya kritik durum görünmüyor.'
+  const completedCount = items.filter((item) => item.reason_code === 'task_completed').length
+  const activityCount = items.filter((item) => [
+    'task_created', 'task_updated', 'task_completed', 'event_created', 'event_updated',
+    'awareness_created', 'awareness_updated', 'calendar_entry_created', 'calendar_entry_updated',
+  ].includes(item.reason_code)).length
+  if (completedCount > 0 && activityCount === completedCount) return `${completedCount} görev tamamlandı; yeni bir kritik durum görünmüyor.`
+  if (activityCount > 0) return `Son özetten bu yana ${activityCount} ekip hareketi öne çıkıyor.`
+  return `Bugün dikkat edilmesi gereken ${items.length} yakın tarihli konu var.`
 }
 
 const SOURCE_ACTIONS: Record<HomeSummarySourceType, HomeSummaryAction> = {
@@ -264,11 +304,16 @@ function missingFieldText(source: PreparedHomeSource): string {
 function ruleBasedRecommendation(source: PreparedHomeSource, reason: HomeSummaryReasonCode): string {
   const missingFields = missingFieldText(source)
   switch (reason) {
+    case 'task_created': return 'Ekip için yeni bir görev oluşturuldu.'
+    case 'task_updated': return 'Görev kaydının güncel durumu değiştirildi.'
+    case 'task_completed': return 'Görev ekip tarafından tamamlandı.'
     case 'overdue_task': return 'Son tarihi geçen görevin güncel durumunu kontrol edin.'
     case 'due_soon_task': return 'Son tarihi yaklaşan görevin güncel durumunu kontrol edin.'
     case 'high_priority_task': return 'Yüksek öncelikli görevin güncel durumunu kontrol edin.'
     case 'assigned_open_task': return 'Size atanmış açık görevin durumunu kontrol edin.'
     case 'open_task': return 'Açık görevin durumunu kontrol edin.'
+    case 'event_created': return 'Yeni etkinlik kaydı oluşturuldu.'
+    case 'event_updated': return 'Etkinliğin güncel bilgileri değiştirildi.'
     case 'missing_event_field': return missingFields
       ? `Hazırlık dönemi başlayan etkinlikte eksik görünen alanları kontrol edin: ${missingFields}.`
       : 'Hazırlık dönemi başlayan etkinliğin eksik bilgilerini kontrol edin.'
@@ -276,11 +321,15 @@ function ruleBasedRecommendation(source: PreparedHomeSource, reason: HomeSummary
     case 'event_final_days': return 'Etkinliğe az kaldığı için güncel bilgileri kontrol edin.'
     case 'event_day': return 'Bugünkü etkinlik kaydını kontrol edin.'
     case 'event_report_due': return 'Etkinlik sonrasındaki rapor durumunu kontrol edin.'
+    case 'awareness_created': return 'Yeni farkındalık çalışması oluşturuldu.'
+    case 'awareness_updated': return 'Farkındalık çalışmasının güncel durumu değiştirildi.'
     case 'missing_awareness_field': return missingFields
       ? `Hazırlık dönemi başlayan farkındalık kaydında eksik görünen alanları kontrol edin: ${missingFields}.`
       : 'Hazırlık dönemi başlayan farkındalık kaydının eksik bilgilerini kontrol edin.'
     case 'awareness_preparation_active': return 'Paylaşım hazırlığı başlayan farkındalık kaydını kontrol edin.'
     case 'awareness_share_due_soon': return 'Paylaşım tarihi yaklaşan farkındalık kaydını kontrol edin.'
+    case 'calendar_entry_created': return 'Takvime yeni bir kayıt eklendi.'
+    case 'calendar_entry_updated': return 'Takvim kaydının bilgileri güncellendi.'
     case 'upcoming_calendar_entry': return 'Yaklaşan takvim kaydının tarih ve açıklama bilgilerini kontrol edin.'
   }
 }
@@ -344,9 +393,10 @@ async function callGemini(
               'Her maddede tam bir source_ref, o kaynak için allowed_reason_codes içinden bir reason_code ve kaynak türüne uygun action kullan.',
               'Recommendation yalnızca kısa bir öneridir; kayıt oluşturma, silme, atama, bildirim gönderme veya durum değiştirme talimatı verme.',
               'Etkinlik raporunu yalnızca event_report_due nedeni sunulmuşsa öner.',
-              'Yalnızca gerçekten bugün veya yakın zamanda işlem gerektiren kaynakları seç; sırf alanı boş diye uzak tarihli kaydı seçme.',
+              'Önce son özetten sonra gerçekleşen ekip hareketlerini özetle; ardından yalnızca gerçekten bugün veya yakın zamanda işlem gerektiren kaynakları seç.',
+              'Hazırlık döneminin başlamasını tek başına tekrar eden bir öneriye dönüştürme. Sırf alanı boş diye uzak tarihli kaydı seçme.',
               'Intro kısa olsun; uygulama tarafından ayrıca kesin verilerle yeniden oluşturulacaktır.',
-              'En yararlı en fazla 3 maddeyi seç. Aynı türden benzer uyarılarla listeyi doldurma.',
+              'En yararlı en fazla 3 maddeyi seç. Her öneri tek kısa cümle olsun ve aynı türden benzer uyarılarla listeyi doldurma.',
             ].join('\n'),
           }],
         },
@@ -570,13 +620,54 @@ serve(async (request: Request) => {
     })
     if (contextError) throw new HttpError(500, 'AI ana sayfa bağlamı hazırlanamadı.')
     const context = normalizeHomeContext(contextData)
-    const sources = prepareHomeSources(context)
+    const historyOutput = latestOutput ?? (await adminClient
+      .from('ai_outputs')
+      .select('payload, model_id, created_at, expires_at')
+      .eq('period_id', membership.period_id)
+      .eq('recipient_id', userData.user.id)
+      .eq('output_type', 'home_summary')
+      .eq('validation_status', 'valid')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()).data
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
+    const { data: activityData, error: activityError } = await userClient.rpc('get_my_ai_home_activity', {
+      target_period_id: membership.period_id,
+      target_changed_since: historyOutput?.created_at ?? startOfToday.toISOString(),
+    })
+    if (activityError) console.error('AI home activity delta could not be loaded', activityError)
+    context.activity = isRecord(activityData) ? asItems(activityData.items) : []
+    const sources = prepareHomeSources(context, historyOutput?.payload)
     if (sources.length === 0) {
+      const emptyPayload = { intro: 'Son özetten bu yana yeni bir ekip hareketi veya kritik durum görünmüyor.', items: [] }
+      const emptyContextHash = await sha256(JSON.stringify({ context, mode: 'verified_empty_delta' }))
+      await adminClient
+        .from('ai_outputs')
+        .update({ is_current: false })
+        .eq('period_id', membership.period_id)
+        .eq('recipient_id', userData.user.id)
+        .eq('output_type', 'home_summary')
+        .eq('is_current', true)
+      const { error: emptyOutputError } = await adminClient.from('ai_outputs').insert({
+        period_id: membership.period_id,
+        recipient_id: userData.user.id,
+        output_type: 'home_summary',
+        payload: emptyPayload,
+        source_manifest: [],
+        context_hash: emptyContextHash,
+        model_id: 'verified-delta',
+        validation_status: 'valid',
+        validation_errors: [],
+        is_current: true,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      })
+      if (emptyOutputError) console.error('Verified empty AI delta could not be stored', emptyOutputError)
       return jsonResponse({
         success: true,
-        output: { intro: 'Bugün için öncelikli bir AI önerisi bulunmuyor.', items: [] },
+        output: emptyPayload,
         generatedAt: new Date().toISOString(),
-        model: null,
+        model: 'verified-delta',
       })
     }
 
@@ -592,12 +683,12 @@ serve(async (request: Request) => {
       target_model_id: model,
     })
     if (reservationError || !isRecord(reservation) || reservation.allowed !== true || typeof reservation.usage_id !== 'string') {
-      if (latestOutput) {
+      if (historyOutput) {
         return jsonResponse({
           success: true,
-          output: latestOutput.payload,
-          generatedAt: latestOutput.created_at,
-          model: latestOutput.model_id,
+          output: historyOutput.payload,
+          generatedAt: historyOutput.created_at,
+          model: historyOutput.model_id,
           cached: true,
           stale: true,
           warning: 'Yeni özet üretilemedi; son doğrulanmış özet gösteriliyor.',
@@ -706,12 +797,12 @@ serve(async (request: Request) => {
         target_output_token_count: outputTokens,
         target_succeeded: false,
       })
-      if (latestOutput) {
+      if (historyOutput) {
         return jsonResponse({
           success: true,
-          output: latestOutput.payload,
-          generatedAt: latestOutput.created_at,
-          model: latestOutput.model_id,
+          output: historyOutput.payload,
+          generatedAt: historyOutput.created_at,
+          model: historyOutput.model_id,
           cached: true,
           stale: true,
           warning: 'Yeni özet üretilemedi; son doğrulanmış özet gösteriliyor.',

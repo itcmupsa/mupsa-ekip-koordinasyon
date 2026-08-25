@@ -26,19 +26,28 @@ interface AiHomeSummaryCardProps {
 }
 
 const reasonLabels: Record<string, string> = {
+  task_created: 'Yeni görev',
+  task_updated: 'Görev hareketi',
+  task_completed: 'Tamamlanan görev',
   overdue_task: 'Geciken görev',
   due_soon_task: 'Yaklaşan son tarih',
   high_priority_task: 'Yüksek öncelik',
   assigned_open_task: 'Atanmış açık görev',
   open_task: 'Açık görev',
+  event_created: 'Yeni etkinlik',
+  event_updated: 'Etkinlik hareketi',
   missing_event_field: 'Eksik etkinlik bilgisi',
   event_preparation_active: 'Hazırlık dönemi',
   event_final_days: 'Etkinliğe son günler',
   event_day: 'Etkinlik günü',
   event_report_due: 'Rapor zamanı',
+  awareness_created: 'Yeni farkındalık',
+  awareness_updated: 'Farkındalık hareketi',
   missing_awareness_field: 'Eksik farkındalık bilgisi',
   awareness_preparation_active: 'İçerik hazırlık dönemi',
   awareness_share_due_soon: 'Yaklaşan paylaşım',
+  calendar_entry_created: 'Yeni takvim kaydı',
+  calendar_entry_updated: 'Takvim hareketi',
   upcoming_calendar_entry: 'Yaklaşan takvim kaydı',
 }
 
@@ -103,7 +112,7 @@ export default function AiHomeSummaryCard({
             {loading && !summary
               ? 'Günün öncelikleri hazırlanıyor…'
               : generatedLabel
-                ? `Son güncelleme: ${generatedLabel} · Günde bir kez hazırlanır`
+                ? `Son güncelleme: ${generatedLabel} · Değişikliklerden sonra yenilenir`
                 : 'Yetkili uygulama kayıtlarından otomatik hazırlanır'}
           </p>
         </div>
@@ -148,7 +157,13 @@ export default function AiHomeSummaryCard({
                       to={item.route}
                       className="inline-flex min-h-[36px] shrink-0 items-center self-start rounded-lg px-2.5 py-2 text-sm font-semibold text-brand-dark hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 sm:self-auto"
                     >
-                      Kayda git <span className="ml-1" aria-hidden="true">›</span>
+                      {item.source_type === 'task'
+                        ? 'Göreve git'
+                        : item.source_type === 'event'
+                          ? 'Etkinliğe git'
+                          : item.source_type === 'awareness'
+                            ? 'Farkındalığa git'
+                            : 'Takvime git'} <span className="ml-1" aria-hidden="true">›</span>
                     </Link>
                   </li>
                 ))}

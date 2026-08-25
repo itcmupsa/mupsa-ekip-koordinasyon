@@ -45,19 +45,28 @@ export interface AiValidationResult {
 export type HomeSummarySourceType = 'task' | 'event' | 'awareness' | 'calendar_entry'
 
 export type HomeSummaryReasonCode =
+  | 'task_created'
+  | 'task_updated'
+  | 'task_completed'
   | 'overdue_task'
   | 'due_soon_task'
   | 'high_priority_task'
   | 'assigned_open_task'
   | 'open_task'
+  | 'event_created'
+  | 'event_updated'
   | 'missing_event_field'
   | 'event_preparation_active'
   | 'event_final_days'
   | 'event_day'
   | 'event_report_due'
+  | 'awareness_created'
+  | 'awareness_updated'
   | 'missing_awareness_field'
   | 'awareness_preparation_active'
   | 'awareness_share_due_soon'
+  | 'calendar_entry_created'
+  | 'calendar_entry_updated'
   | 'upcoming_calendar_entry'
 
 export type HomeSummaryAction =
@@ -188,19 +197,28 @@ export function sourceAliasesAreSafe(sources: AiSourceDescriptor[]): boolean {
 }
 
 const HOME_REASON_TYPES: Record<HomeSummaryReasonCode, HomeSummarySourceType> = {
+  task_created: 'task',
+  task_updated: 'task',
+  task_completed: 'task',
   overdue_task: 'task',
   due_soon_task: 'task',
   high_priority_task: 'task',
   assigned_open_task: 'task',
   open_task: 'task',
+  event_created: 'event',
+  event_updated: 'event',
   missing_event_field: 'event',
   event_preparation_active: 'event',
   event_final_days: 'event',
   event_day: 'event',
   event_report_due: 'event',
+  awareness_created: 'awareness',
+  awareness_updated: 'awareness',
   missing_awareness_field: 'awareness',
   awareness_preparation_active: 'awareness',
   awareness_share_due_soon: 'awareness',
+  calendar_entry_created: 'calendar_entry',
+  calendar_entry_updated: 'calendar_entry',
   upcoming_calendar_entry: 'calendar_entry',
 }
 
