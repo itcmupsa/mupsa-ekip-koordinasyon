@@ -45,6 +45,7 @@ export type HomeSummaryReasonCode =
   | 'due_soon_task'
   | 'high_priority_task'
   | 'assigned_open_task'
+  | 'open_task'
   | 'missing_event_field'
   | 'event_preparation_active'
   | 'event_final_days'
@@ -65,6 +66,7 @@ export interface HomeSummarySource {
   alias: string
   entityType: HomeSummarySourceType
   entityId: string
+  allowedReasonCodes: HomeSummaryReasonCode[]
 }
 
 export interface HomeSummaryItem {
@@ -182,6 +184,7 @@ const HOME_REASON_TYPES: Record<HomeSummaryReasonCode, HomeSummarySourceType> = 
   due_soon_task: 'task',
   high_priority_task: 'task',
   assigned_open_task: 'task',
+  open_task: 'task',
   missing_event_field: 'event',
   event_preparation_active: 'event',
   event_final_days: 'event',
@@ -262,6 +265,10 @@ export function validateHomeSummaryPlan(
     }
     if (HOME_REASON_TYPES[reasonCode] !== source.entityType) {
       errors.push(`Özet maddesi ${index + 1} kaynak türüyle uyuşmayan neden kullanıyor.`)
+      continue
+    }
+    if (!source.allowedReasonCodes.includes(reasonCode)) {
+      errors.push(`Özet maddesi ${index + 1} kaynak verisiyle doğrulanamayan neden kullanıyor.`)
       continue
     }
     if (HOME_ACTION_TYPES[action] !== source.entityType) {

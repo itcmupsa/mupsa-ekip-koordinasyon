@@ -11,11 +11,12 @@ Bu dosya, proje bağlamının güncel durum kaydıdır. Bir görev tamamlandığ
 - `20260825100000_add_ai_home_context.sql` ana sayfa özeti için çağrı öncesi yetki filtreli kesin veri bağlamını hazırlar. Bütçe, sponsor, kişi adı/e-posta, açıklama, not, rapor ve karar metinleri bu bağlama alınmaz.
 - `20260825110000_add_ai_quota_reservation.sql` Gemini çağrısından önce proje/model ve kullanıcı sınırlarını atomik biçimde rezerve eder; kota doluysa model çağrısının başlamamasını sağlar.
 - Ana sayfa bağlamı kesin tarihi, yoksa tahmini tarihi kullanır; rapor önerisi yönetimce gün sayısı belirlenmedikçe `report_due` aşamasına geçmez ve kayıtlı bağımlılık olmadan neden-sonuç üretimine izin vermez.
-- AI varsayılan olarak kapalıdır; mevcut kullanıcı arayüzünde AI bileşeni gösterilmez.
-- `ai-orchestrator` Edge Function iskeleti yalnızca yetkili kullanıcının AI durumunu döndürür; üretim çağrıları özellikle kapalıdır.
-- Google API anahtarı repoya eklenmedi. `GEMINI_API_KEY` yalnızca Supabase Edge Function secret olarak tanımlanacaktır.
-- `20260825090000`, `20260825100000` ve `20260825110000` AI migration'ları 25 Ağustos 2026'da `MUPSA Ekip Koordinasyon` canlı Supabase projesine uygulandı.
-- `ai-orchestrator` Edge Function aynı projeye deploy edildi. Yalnızca durum kontrolü aktiftir; Gemini üretim işlemleri ve kullanıcı arayüzü kapalıdır.
+- AI varsayılan olarak kapalı kurulur. `20260825120000_enable_super_admin_ai_pilot.sql` yalnızca aktif dönemdeki Süper Yönetici ana sayfa pilotunu düşük uygulama kotalarıyla açar; koordinatörler Gemini çağrısı yapamaz.
+- `ai-orchestrator` Edge Function, yetkili kullanıcı bağlamını RLS'li RPC üzerinden hazırlar; kaynak ve neden kodu doğrulanmayan önerileri reddeder. Uygulama kayıtlarında oluşturma, güncelleme, atama, bildirim gönderme veya silme işlemi yapmaz.
+- `GEMINI_API_KEY` repoya eklenmedi; yalnızca doğru canlı Supabase projesinin Edge Function secret alanında tanımlandı.
+- `20260825090000`, `20260825100000`, `20260825110000` ve `20260825120000` AI migration'ları 25 Ağustos 2026'da `MUPSA Ekip Koordinasyon` canlı Supabase projesine uygulandı; yerel ve uzak migration geçmişi eşleşiyor.
+- `ai-orchestrator` Edge Function aynı projeye deploy edildi. Ana sayfa özeti 24 saat önbellek, 15 dakikalık zorunlu yenileme aralığı, eski doğrulanmış özete geri dönüş ve sunucu tarafı rota çözümleme kurallarıyla hazırlanır.
+- Süper Yönetici dashboard'ına mobil uyumlu `AI Günlük Özeti` kartı bağlandı. Kart yalnızca canlı feature flag, API anahtarı ve doğru pilot rolü birlikte doğrulandığında görünür; her öneri ilgili gerçek kayda yönlendirir.
 - Supabase CLI, GitHub kullanıcı adı `itcmupsa` ve doğrulanmış birincil e-posta `itc.mupsa@gmail.com` olan doğru hesapla `mupsa-itc` profiline bağlandı.
 
 ## Canlı sistem

@@ -5,6 +5,7 @@ import DashboardSection from './DashboardSection'
 import DashboardEmptyState from './DashboardEmptyState'
 import DashboardTaskRow from './DashboardTaskRow'
 import WeeklyAgendaCard, { type WeeklyAgendaItem } from './WeeklyAgendaCard'
+import AiHomeSummaryCard, { type AiHomeSummary } from './AiHomeSummaryCard'
 import type {
   DashboardActivityViewItem,
   DashboardNotificationViewItem,
@@ -32,6 +33,12 @@ interface SuperAdminDashboardViewProps {
   markingAllRead?: boolean
   onNotificationClick: (notificationId: string) => void
   onMarkAllNotificationsRead: () => void
+  aiSummary?: AiHomeSummary | null
+  aiGeneratedAt?: string | null
+  aiLoading?: boolean
+  aiError?: string | null
+  aiWarning?: string | null
+  onRefreshAiSummary?: () => void
 }
 
 function EventDotIcon(): ReactElement {
@@ -110,6 +117,12 @@ export default function SuperAdminDashboardView({
   markingAllRead = false,
   onNotificationClick,
   onMarkAllNotificationsRead,
+  aiSummary = null,
+  aiGeneratedAt = null,
+  aiLoading = false,
+  aiError = null,
+  aiWarning = null,
+  onRefreshAiSummary,
 }: SuperAdminDashboardViewProps) {
   const [showAllNotifications, setShowAllNotifications] = useState(false)
 
@@ -375,6 +388,17 @@ export default function SuperAdminDashboardView({
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       {headerSection}
+
+      {onRefreshAiSummary ? (
+        <AiHomeSummaryCard
+          summary={aiSummary}
+          generatedAt={aiGeneratedAt}
+          loading={aiLoading}
+          error={aiError}
+          warning={aiWarning}
+          onRefresh={onRefreshAiSummary}
+        />
+      ) : null}
 
       {/* Mobil sıralama */}
       <div className="flex flex-col gap-4 lg:hidden">

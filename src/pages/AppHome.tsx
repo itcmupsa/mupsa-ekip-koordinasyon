@@ -6,6 +6,7 @@ import { useMembershipStatus } from '../hooks/useMembershipStatus'
 import AppShell from '../components/AppShell'
 import NormalDashboardView from '../components/dashboard/NormalDashboardView'
 import SuperAdminDashboardView from '../components/dashboard/SuperAdminDashboardView'
+import type { AiHomeSummary } from '../components/dashboard/AiHomeSummaryCard'
 import type {
   DashboardActivityViewItem,
   DashboardNotificationViewItem,
@@ -93,6 +94,22 @@ interface NotificationItem {
   body: string
   readAt: string | null
   createdAt: string
+}
+
+interface AiStatusResponse {
+  success: boolean
+  enabled?: boolean
+  configured?: boolean
+  pilotScope?: string
+  error?: string
+}
+
+interface AiHomeSummaryResponse {
+  success: boolean
+  output?: AiHomeSummary
+  generatedAt?: string
+  warning?: string
+  error?: string
 }
 
 const ASSIGNMENT_TYPE_LABELS: Record<string, string> = {
@@ -205,6 +222,54 @@ export default function AppHome({ session }: { session: Session }) {
   const [notificationsRefreshKey, setNotificationsRefreshKey] = useState(0)
   const [markingReadId, setMarkingReadId] = useState<string | null>(null)
   const [markingAllRead, setMarkingAllRead] = useState(false)
+  const [aiEnabled, setAiEnabled] = useState(false)
+  const [aiSummary, setAiSummary] = useState<AiHomeSummary | null>(null)
+  const [aiGeneratedAt, setAiGeneratedAt] = useState<string | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+  const [aiWarning, setAiWarning] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (membershipLoading || !hasActiveMembership || appRole !== 'super_admin') {
+      setAiEnabled(false)
+      return
+    }
+
+    let isMounted = true
+    async function loadAiPilot() {
+      const { data: statusData, error: statusError } = await supabase.functions.invoke<AiStatusResponse>(
+        'ai-orchestrator',
+        { body: { operation: 'status' } },
+      )
+      if (!isMounted) return
+      const enabled = !statusError
+        && statusData?.success === true
+        && statusData.enabled === true
+        && statusData.configured === true
+        && statusData.pilotScope === 'super_admin'
+      setAiEnabled(enabled)
+      if (!enabled) return
+
+      setAiLoading(true)
+      setAiError(null)
+      const { data: summaryData, error: summaryError } = await supabase.functions.invoke<AiHomeSummaryResponse>(
+        'ai-orchestrator',
+        { body: { operation: 'home_summary' } },
+      )
+      if (!isMounted) return
+      setAiLoading(false)
+      if (summaryError || summaryData?.success !== true || !summaryData.output) {
+        setAiError(summaryData?.error ?? 'AI özeti şu anda hazırlanamadı. Mevcut ana sayfa verileri kullanılmaya devam ediyor.')
+        return
+      }
+      setAiSummary(summaryData.output)
+      setAiGeneratedAt(summaryData.generatedAt ?? null)
+      setAiWarning(summaryData.warning ?? null)
+    }
+
+    void loadAiPilot()
+    return () => { isMounted = false }
+  }, [appRole, hasActiveMembership, membershipLoading])
 
   useEffect(() => {
     if (membershipLoading || !hasActiveMembership || !periodId || !profileId) return
@@ -566,6 +631,25 @@ export default function AppHome({ session }: { session: Session }) {
     setNotificationsRefreshKey(previous => previous + 1)
   }
 
+  async function handleRefreshAiSummary() {
+    if (!aiEnabled || aiLoading || appRole !== 'super_admin') return
+    setAiLoading(true)
+    setAiError(null)
+    setAiWarning(null)
+    const { data: summaryData, error: summaryError } = await supabase.functions.invoke<AiHomeSummaryResponse>(
+      'ai-orchestrator',
+      { body: { operation: 'home_summary', force: true } },
+    )
+    setAiLoading(false)
+    if (summaryError || summaryData?.success !== true || !summaryData.output) {
+      setAiError(summaryData?.error ?? 'AI özeti şu anda yenilenemedi. Son geçerli özet korunuyor.')
+      return
+    }
+    setAiSummary(summaryData.output)
+    setAiGeneratedAt(summaryData.generatedAt ?? null)
+    setAiWarning(summaryData.warning ?? null)
+  }
+
   async function handleSignOut() { await supabase.auth.signOut() }
 
   const roleLabel = coordinatorRoleName ?? (appRole === 'super_admin' ? 'Süper Yönetici' : 'Koordinatör')
@@ -645,6 +729,12 @@ export default function AppHome({ session }: { session: Session }) {
           markingAllRead={markingAllRead}
           onNotificationClick={handleNotificationById}
           onMarkAllNotificationsRead={() => { void handleMarkAllAsRead() }}
+          aiSummary={aiSummary}
+          aiGeneratedAt={aiGeneratedAt}
+          aiLoading={aiLoading}
+          aiError={aiError}
+          aiWarning={aiWarning}
+          onRefreshAiSummary={aiEnabled ? () => { void handleRefreshAiSummary() } : undefined}
         />
       )
     }
