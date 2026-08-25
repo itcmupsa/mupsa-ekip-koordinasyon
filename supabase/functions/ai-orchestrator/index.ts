@@ -1227,19 +1227,13 @@ serve(async (request: Request) => {
       return jsonResponse({ success: true, generated, notified })
     }
 
-    if (body.force || isScheduledDailySummary) {
-      const { error: forceRefreshError } = await adminClient
-        .from('ai_outputs')
-        .update({ is_current: false })
-        .eq('period_id', membership.period_id)
-        .eq('output_type', 'home_summary')
-        .eq('is_current', true)
-      if (forceRefreshError) console.error('AI home summary force refresh failed', forceRefreshError)
-    } else {
-      const { error: dueRefreshError } = await adminClient.rpc('apply_due_ai_home_summary_refresh', {
+    let refreshRequested = Boolean(body.force || isScheduledDailySummary)
+    if (!refreshRequested) {
+      const { data: dueRefreshData, error: dueRefreshError } = await adminClient.rpc('apply_due_ai_home_summary_refresh', {
         target_period_id: membership.period_id,
       })
       if (dueRefreshError) console.error('Due AI home summary refresh could not be applied', dueRefreshError)
+      refreshRequested = dueRefreshData === true
     }
 
     const { data: userLatestOutput } = await adminClient
@@ -1268,7 +1262,7 @@ serve(async (request: Request) => {
     const latestOutput = userLatestOutput ?? periodLatestOutput
     const cacheIsFresh = latestOutput?.expires_at
       && Date.parse(latestOutput.expires_at) > Date.now()
-    if (latestOutput && cacheIsFresh) {
+    if (latestOutput && cacheIsFresh && !refreshRequested) {
       return jsonResponse({
         success: true,
         output: latestOutput.payload,
@@ -1321,6 +1315,15 @@ serve(async (request: Request) => {
       ? preparedSources
       : preparedSources.filter((source) => source.entityType !== 'calendar_entry')
     if (sources.length === 0) {
+      if (latestOutput) {
+        return jsonResponse({
+          success: true,
+          output: latestOutput.payload,
+          generatedAt: latestOutput.created_at,
+          model: latestOutput.model_id,
+          cached: true,
+        })
+      }
       const emptyPayload = { intro: 'Bugün için yeni bir ekip hareketi veya kritik durum bulunmuyor.', items: [] }
       const emptyContextHash = await sha256(JSON.stringify({ context, mode: 'verified_empty_delta' }))
       await adminClient
@@ -1364,12 +1367,13 @@ serve(async (request: Request) => {
       target_model_id: model,
     })
     if (reservationError || !isRecord(reservation) || reservation.allowed !== true || typeof reservation.usage_id !== 'string') {
-      if (historyOutput) {
+      const preservedOutput = historyOutput ?? latestOutput
+      if (preservedOutput) {
         return jsonResponse({
           success: true,
-          output: historyOutput.payload,
-          generatedAt: historyOutput.created_at,
-          model: historyOutput.model_id,
+          output: preservedOutput.payload,
+          generatedAt: preservedOutput.created_at,
+          model: preservedOutput.model_id,
           cached: true,
           stale: true,
           warning: 'Yeni özet üretilemedi; son doğrulanmış özet gösteriliyor.',
@@ -1437,32 +1441,20 @@ serve(async (request: Request) => {
       const payload = { intro: buildDailyIntro(resolvedItems), items: resolvedItems }
       const contextHash = await sha256(JSON.stringify({ context, sources }))
 
-      await adminClient
-        .from('ai_outputs')
-        .update({ is_current: false })
-        .eq('period_id', membership.period_id)
-        .eq('recipient_id', requesterId)
-        .eq('output_type', 'home_summary')
-        .eq('is_current', true)
-
-      const { error: outputError } = await adminClient.from('ai_outputs').insert({
-        period_id: membership.period_id,
-        recipient_id: requesterId,
-        output_type: 'home_summary',
-        payload,
-        source_manifest: sources.map((source) => ({
+      const { data: newOutputId, error: outputError } = await adminClient.rpc('replace_ai_home_output', {
+        target_period_id: membership.period_id,
+        target_recipient_id: requesterId,
+        target_payload: payload,
+        target_source_manifest: sources.map((source) => ({
           alias: source.alias,
           entity_type: source.entityType,
           entity_id: source.entityId,
         })),
-        context_hash: contextHash,
-        model_id: model,
-        validation_status: 'valid',
-        validation_errors: [],
-        is_current: true,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        target_context_hash: contextHash,
+        target_model_id: model,
+        target_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       })
-      if (outputError) throw new HttpError(500, 'Doğrulanmış MUPİ özeti saklanamadı.')
+      if (outputError || typeof newOutputId !== 'string') throw new HttpError(500, 'Doğrulanmış MUPİ özeti saklanamadı.')
 
       await adminClient.rpc('record_ai_usage_result', {
         target_usage_id: usageId,
@@ -1478,12 +1470,13 @@ serve(async (request: Request) => {
         target_output_token_count: outputTokens,
         target_succeeded: false,
       })
-      if (historyOutput) {
+      const preservedOutput = historyOutput ?? latestOutput
+      if (preservedOutput) {
         return jsonResponse({
           success: true,
-          output: historyOutput.payload,
-          generatedAt: historyOutput.created_at,
-          model: historyOutput.model_id,
+          output: preservedOutput.payload,
+          generatedAt: preservedOutput.created_at,
+          model: preservedOutput.model_id,
           cached: true,
           stale: true,
           warning: 'Yeni özet üretilemedi; son doğrulanmış özet gösteriliyor.',
