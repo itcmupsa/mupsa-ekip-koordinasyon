@@ -157,7 +157,7 @@ export default function NormalDashboardView({
   aiLoading = false,
   aiError = null,
   aiWarning = null,
-  aiAudienceLabel = 'Mupi · Günlük',
+  aiAudienceLabel = 'MUPİ · Günlük',
 }: NormalDashboardViewProps) {
   const [showAllNotifications, setShowAllNotifications] = useState(false)
 

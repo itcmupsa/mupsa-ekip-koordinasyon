@@ -90,9 +90,13 @@ export default function AccountSettings({ session }: { session: Session }) {
     profileId,
     appRole,
     coordinatorRoleName,
+    coordinatorRoleSlug,
     loading: membershipLoading,
   } = useMembershipStatus(session)
   const isSuperAdmin = hasActiveMembership && appRole === 'super_admin'
+  const canSendAnnouncements = isSuperAdmin || (
+    hasActiveMembership && coordinatorRoleSlug === 'general-secretary'
+  )
   const [pushSupportState, setPushSupportState] = useState<PushSupportState>('unsupported')
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushActionState, setPushActionState] = useState<'idle' | 'loading'>('idle')
@@ -171,7 +175,7 @@ export default function AccountSettings({ session }: { session: Session }) {
   }
 
   useEffect(() => {
-    if (!isSuperAdmin || !announcementOpen || !periodId) return
+    if (!canSendAnnouncements || !announcementOpen || !periodId) return
 
     let isMounted = true
     async function loadAnnouncementOptions() {
@@ -219,7 +223,7 @@ export default function AccountSettings({ session }: { session: Session }) {
     return () => {
       isMounted = false
     }
-  }, [announcementOpen, isSuperAdmin, periodId])
+  }, [announcementOpen, canSendAnnouncements, periodId])
 
   function toggleAnnouncementSelection(
     value: string,
@@ -365,10 +369,10 @@ export default function AccountSettings({ session }: { session: Session }) {
                 <Link to="/app/ayarlar/sifre" className="mt-4 flex min-h-[56px] items-center justify-between gap-3 rounded-lg border border-canvas-border bg-canvas px-4 text-sm transition hover:border-brand"><span><span className="block font-medium text-ink">Şifre değiştir</span><span className="mt-0.5 block text-xs text-ink-soft">Hesap şifreni güvenli biçimde güncelle.</span></span><span className="text-ink-soft"><ChevronIcon /></span></Link>
               </section>
 
-              {isSuperAdmin ? <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
-                <div className="flex gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-amber-800"><TeamIcon /></span><div><h2 className="font-semibold text-ink">Yönetim</h2><p className="mt-1 text-sm text-ink-soft">Ekip yetkilerini düzenle veya genel duyuru gönder.</p></div></div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <Link to="/app/yonetim/uyeler" className="flex min-h-[72px] items-center justify-between gap-3 rounded-lg border border-canvas-border bg-canvas px-4 text-sm transition hover:border-brand"><span><span className="block font-medium text-ink">Ekip ve yetki yönetimi</span><span className="mt-1 block text-xs text-ink-soft">Üyeleri ve rollerini yönet.</span></span><ChevronIcon /></Link>
+              {canSendAnnouncements ? <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
+                <div className="flex gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-amber-800">{isSuperAdmin ? <TeamIcon /> : <MegaphoneIcon />}</span><div><h2 className="font-semibold text-ink">{isSuperAdmin ? 'Yönetim' : 'Duyuru yönetimi'}</h2><p className="mt-1 text-sm text-ink-soft">{isSuperAdmin ? 'Ekip yetkilerini düzenle veya genel duyuru gönder.' : 'Genel Sekreter yetkisiyle manuel bildirim gönder.'}</p></div></div>
+                <div className={`mt-4 grid gap-3 ${isSuperAdmin ? 'sm:grid-cols-2' : ''}`}>
+                  {isSuperAdmin ? <Link to="/app/yonetim/uyeler" className="flex min-h-[72px] items-center justify-between gap-3 rounded-lg border border-canvas-border bg-canvas px-4 text-sm transition hover:border-brand"><span><span className="block font-medium text-ink">Ekip ve yetki yönetimi</span><span className="mt-1 block text-xs text-ink-soft">Üyeleri ve rollerini yönet.</span></span><ChevronIcon /></Link> : null}
                   <button type="button" onClick={() => { setAnnouncementOpen(true); setAnnouncementMessage(null); setAnnouncementError(null) }} className="flex min-h-[72px] items-center justify-between gap-3 rounded-lg border border-canvas-border bg-canvas px-4 text-left text-sm transition hover:border-accent"><span><span className="block font-medium text-ink">Duyuru gönder</span><span className="mt-1 block text-xs text-ink-soft">Kişilere veya ekiplere bildir.</span></span><MegaphoneIcon /></button>
                 </div>
               </section> : null}
@@ -379,7 +383,7 @@ export default function AccountSettings({ session }: { session: Session }) {
         )}
       </main>
 
-      {isSuperAdmin && announcementOpen ? <>
+      {canSendAnnouncements && announcementOpen ? <>
         <button type="button" aria-label="Duyuru panelini kapat" onClick={() => !announcementSubmitting && setAnnouncementOpen(false)} className="fixed inset-0 z-40 hidden bg-ink/45 backdrop-blur-[1px] lg:block" />
         <section role="dialog" aria-modal="true" aria-labelledby="announcement-title" className="fixed inset-0 z-50 flex flex-col bg-canvas-surface shadow-2xl lg:left-auto lg:w-[min(44rem,calc(100vw-15rem))]" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           <header className="flex items-center justify-between gap-3 border-b border-canvas-border px-4 py-4 sm:px-6"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-lg bg-accent-soft text-amber-800"><MegaphoneIcon /></span><div><h2 id="announcement-title" className="font-semibold text-ink">Yeni duyuru</h2><p className="text-xs text-ink-soft">Uygulama ve mobil bildirim gönder.</p></div></div><button type="button" onClick={() => setAnnouncementOpen(false)} disabled={announcementSubmitting} className="min-h-[44px] rounded-lg border border-canvas-border px-3 text-sm font-medium text-ink-soft hover:bg-canvas disabled:opacity-60">Kapat</button></header>

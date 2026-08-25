@@ -86,7 +86,7 @@ export default function AiHomeSummaryCard({
   error,
   warning,
   onRefresh,
-  audienceLabel = 'Mupi · Günlük',
+  audienceLabel = 'MUPİ · Günlük',
 }: AiHomeSummaryCardProps) {
   const generatedLabel = formatGeneratedAt(generatedAt)
 
@@ -94,11 +94,11 @@ export default function AiHomeSummaryCard({
     <section className="mb-4 overflow-hidden rounded-xl border border-brand/15 bg-white shadow-card sm:mb-5">
       <div className="flex items-center gap-3 border-b border-canvas-border px-4 py-3 sm:px-5">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-brand shadow-sm">
-          <img src="/mupi.png" alt="Mupi" className="h-full w-full object-cover" />
+          <img src="/mupi.png" alt="MUPİ" className="h-full w-full object-cover" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h2 className="text-base font-semibold text-ink">Mupi günlük özeti</h2>
+            <h2 className="text-base font-semibold text-ink">MUPİ günlük özeti</h2>
             <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold text-brand-dark">{audienceLabel}</span>
           </div>
           <p className="mt-0.5 text-xs text-ink-soft">

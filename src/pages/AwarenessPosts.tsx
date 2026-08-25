@@ -100,11 +100,11 @@ const fieldClass = 'min-h-[44px] rounded-lg border border-canvas-border bg-canva
 const focusableSelector = 'button:not([disabled]), textarea:not([disabled]), select:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 function AwarenessIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6" aria-hidden="true"><path d="M4 10v3a1 1 0 0 0 1 1h2l4.5 3.5v-11L7 10H5a1 1 0 0 0-1 1zM16.5 9a4 4 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11" /></svg>
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6" aria-hidden="true"><path d="M19.5 4.5C13 4.7 8.5 7.2 8.5 12.1c0 2.9 2 5 4.8 5 4.8 0 6.7-5.8 6.2-12.6Z" /><path d="M4.5 20c1.8-4.9 5.1-8.2 10.4-10.4" /><path d="m5 5 .45 1.35L6.8 6.8l-1.35.45L5 8.6l-.45-1.35L3.2 6.8l1.35-.45z" /></svg>
 }
 
 function EmptyAwarenessIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6" aria-hidden="true"><path d="M12 4.5a6 6 0 1 1 0 12 6 6 0 0 1 0-12z" /><path d="M12 8v5M9.5 10.5h5M8.2 15.2 7 20l5-2 5 2-1.2-4.8M16.5 3.5l.5-1.5.5 1.5L19 4l-1.5.5L17 6l-.5-1.5L15 4z" /></svg>
+  return <AwarenessIcon />
 }
 
 function PlusIcon() {
@@ -412,7 +412,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
       if (!isMounted) return
       setSuggestionsLoading(false)
       if (error) {
-        setSuggestionError('Mupi içerik fırsatları şu anda yüklenemedi.')
+        setSuggestionError('MUPİ içerik fırsatları şu anda yüklenemedi.')
         return
       }
       const nextSuggestions = (data ?? []).map((row) => ({
@@ -501,7 +501,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
     setEstimatedDate(payload.suggested_share_date || suggestion.targetDate)
     setShareDate(payload.suggested_share_date || suggestion.targetDate)
     setNextAction('İçerik kapsamını ekipçe doğrula ve tasarım planını oluştur.')
-    setNote(`Mupi içerik taslağı (yayınlamadan önce doğrulayın):\n${payload.draft_text}\n\nGörsel fikri:\n${payload.visual_idea}\n\nEczacılık bağlantısı:\n${payload.pharmacy_relevance}\n\nKaynak: ${payload.source_name} — ${payload.source_url}`)
+    setNote(`MUPİ içerik taslağı (yayınlamadan önce doğrulayın):\n${payload.draft_text}\n\nGörsel fikri:\n${payload.visual_idea}\n\nEczacılık bağlantısı:\n${payload.pharmacy_relevance}\n\nKaynak: ${payload.source_name} — ${payload.source_url}`)
     setSuggestionTransferId(suggestion.id)
     setSuccessMessage(null)
     setFormMode('create')
@@ -666,7 +666,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
             <div className="flex items-start gap-3 border-b border-brand/10 px-4 py-4 sm:px-5">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand text-white"><AwarenessIcon /></span>
               <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold text-ink">Eczacılık odaklı içerik fırsatları</h2><span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-brand-dark">Mupi taslağı</span></div>
+                <div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold text-ink">Eczacılık odaklı içerik fırsatları</h2><span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-brand-dark">MUPİ taslağı</span></div>
                 <p className="mt-1 text-xs leading-5 text-ink-soft">Kaynaklı önemli günler 60–120 gün önceden değerlendirilir. Taslaklar otomatik yayımlanmaz veya kaydedilmez.</p>
               </div>
             </div>
@@ -807,6 +807,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
                       <div className="mt-2 grid gap-2 text-sm text-ink-soft">
                         <span className="flex items-center gap-2"><PersonIcon /><span><span className="font-medium text-ink">Tasarım:</span> {getProfileName(post.designResponsibleId)}</span></span>
                         <span className="flex items-center gap-2"><PersonIcon /><span><span className="font-medium text-ink">Basın Yayın:</span> {getProfileName(post.pressResponsibleId)}</span></span>
+                        <span className="flex items-center gap-2"><PersonIcon /><span><span className="font-medium text-ink">Kaydı giren:</span> {getProfileName(post.createdBy)}</span></span>
                       </div>
                     </div>
                   </div>

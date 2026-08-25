@@ -116,7 +116,7 @@ interface AiHomeSummaryResponse {
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   let timeoutId: number | undefined
   const timeout = new Promise<T>((_, reject) => {
-    timeoutId = window.setTimeout(() => reject(new Error('Mupi isteği zaman aşımına uğradı.')), timeoutMs)
+    timeoutId = window.setTimeout(() => reject(new Error('MUPİ isteği zaman aşımına uğradı.')), timeoutMs)
   })
   try {
     return await Promise.race([promise, timeout])
@@ -288,14 +288,14 @@ export default function AppHome({ session }: { session: Session }) {
       } catch {
         if (!isMounted) return
         setAiLoading(false)
-        setAiError('Mupi özeti zamanında hazırlanamadı. Son geçerli özet varsa korunur; kısa süre sonra yeniden deneyin.')
+        setAiError('MUPİ özeti zamanında hazırlanamadı. Son geçerli özet varsa korunur; kısa süre sonra yeniden deneyin.')
         return
       }
       const { data: summaryData, error: summaryError } = summaryResult
       if (!isMounted) return
       setAiLoading(false)
       if (summaryError || summaryData?.success !== true || !summaryData.output) {
-        const fallback = 'Mupi özeti şu anda hazırlanamadı. Mevcut ana sayfa verileri kullanılmaya devam ediyor.'
+        const fallback = 'MUPİ özeti şu anda hazırlanamadı. Mevcut ana sayfa verileri kullanılmaya devam ediyor.'
         setAiError(summaryData?.error ?? await getAiFunctionErrorMessage(summaryError, fallback))
         return
       }
@@ -742,13 +742,13 @@ export default function AppHome({ session }: { session: Session }) {
       ), 20_000)
     } catch {
       setAiLoading(false)
-      setAiError('Mupi özeti zamanında yenilenemedi. Son geçerli özet korunuyor.')
+      setAiError('MUPİ özeti zamanında yenilenemedi. Son geçerli özet korunuyor.')
       return
     }
     const { data: summaryData, error: summaryError } = summaryResult
     setAiLoading(false)
     if (summaryError || summaryData?.success !== true || !summaryData.output) {
-      const fallback = 'Mupi özeti şu anda yenilenemedi. Son geçerli özet korunuyor.'
+      const fallback = 'MUPİ özeti şu anda yenilenemedi. Son geçerli özet korunuyor.'
       setAiError(summaryData?.error ?? await getAiFunctionErrorMessage(summaryError, fallback))
       return
     }
@@ -886,7 +886,7 @@ export default function AppHome({ session }: { session: Session }) {
         aiLoading={aiLoading}
         aiError={aiError}
         aiWarning={aiWarning}
-        aiAudienceLabel={personalSummaryItems.length > 0 ? 'Mupi · Sana özel' : 'Mupi · Kulüp özeti'}
+        aiAudienceLabel={personalSummaryItems.length > 0 ? 'MUPİ · Sana özel' : 'MUPİ · Kulüp özeti'}
       />
     )
   }
