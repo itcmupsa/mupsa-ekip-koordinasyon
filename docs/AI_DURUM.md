@@ -23,8 +23,9 @@ Bu dosya, proje bağlamının güncel durum kaydıdır. Bir görev tamamlandığ
 
 ## Canlı sistem
 
-- Canlı web adresi: https://mupsa-ekip-koordinasyon.pages.dev
-- Barındırma: Cloudflare Pages
+- Güncel canlı web adresi: https://mupsa-ekip-koordinasyon.vercel.app
+- Güncel barındırma: Vercel; GitHub `main` gönderimleri otomatik yayınlanır.
+- Eski Cloudflare Pages adresi (`https://mupsa-ekip-koordinasyon.pages.dev`) güncel paketi takip etmiyor ve canlı doğrulama hedefi olarak kullanılmamalıdır.
 - Kaynak dal: GitHub `main`
 - İlk canlı derleme başarılı oldu.
 - Canlı giriş ekranı ve `/auth/callback` route'u test edildi.
