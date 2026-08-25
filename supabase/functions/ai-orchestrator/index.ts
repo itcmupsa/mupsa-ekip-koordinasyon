@@ -708,7 +708,8 @@ function calendarReminderBody(entry: CalendarEntryRecord, result: CalendarClassi
     : new Date(`${entry.start_date}T09:00:00+03:00`).getTime()
   const hours = Math.round((eventAt - Date.parse(scheduledAt)) / 3_600_000)
   if (hours <= 1) return `“${entry.title}” bir saat içinde başlayacak.`
-  if (result.classification === 'holiday') return `Bugün ${entry.title}. MUPSA olarak güzel bir gün dileriz.`
+  if (result.classification === 'exam_period') return `“${entry.title}” yarın başlıyor. MUPİ başarılar diler.`
+  if (result.classification === 'holiday') return `Bugün ${entry.title}. MUPİ güzel bir gün diler.`
   return `“${entry.title}” yarın. Ayrıntılar için takvimi açabilirsiniz.`
 }
 
