@@ -282,8 +282,8 @@ export default function AppHome({ session }: { session: Session }) {
       let summaryResult
       try {
         summaryResult = await withTimeout(supabase.functions.invoke<AiHomeSummaryResponse>(
-          'ai-orchestrator',
-          { body: { operation: 'home_summary' } },
+          'mupi-daily-summary',
+          { body: {} },
         ), 20_000)
       } catch {
         if (!isMounted) return
@@ -737,8 +737,8 @@ export default function AppHome({ session }: { session: Session }) {
     let summaryResult
     try {
       summaryResult = await withTimeout(supabase.functions.invoke<AiHomeSummaryResponse>(
-        'ai-orchestrator',
-        { body: { operation: 'home_summary', force: true } },
+        'mupi-daily-summary',
+        { body: { force: true } },
       ), 20_000)
     } catch {
       setAiLoading(false)
@@ -753,7 +753,7 @@ export default function AppHome({ session }: { session: Session }) {
       return
     }
     setAiSummary(summaryData.output)
-    setAiGeneratedAt(summaryData.generatedAt ?? null)
+    setAiGeneratedAt(summaryData.generatedAt ?? new Date().toISOString())
     setAiWarning(summaryData.warning ?? null)
   }
 
@@ -853,14 +853,26 @@ export default function AppHome({ session }: { session: Session }) {
       kindLabel: item.kindLabel,
       dateLabel: formatShortDate(item.date),
     }))
-    const personalSummaryItems = aiSummary?.items.filter((item) => item.source_type !== 'calendar_entry') ?? []
-    const normalAiSummary: AiHomeSummary | null = personalSummaryItems.length > 0
+    // Manuel takvim uygulamada tum aktif uyelerin ortak verisi oldugu icin
+    // calendar_entry maddeleri normal koordinatorde de kisisel MUPI akisi icinde korunur.
+    const personalSummaryItems = aiSummary?.items ?? []
+    const personalTodayItems = aiSummary?.today
+    const personalUpcomingItems = aiSummary?.upcoming
+    const hasPersonalSummary = personalSummaryItems.length > 0
+      || (personalTodayItems?.length ?? 0) > 0
+      || (personalUpcomingItems?.length ?? 0) > 0
+    const personalAiSummary: AiHomeSummary | null = aiSummary
       ? {
-          intro: aiSummary?.intro ?? 'Bugün senin için öne çıkan konular var.',
+          ...aiSummary,
           items: personalSummaryItems,
+          today: personalTodayItems,
+          upcoming: personalUpcomingItems,
           club_summary: aiClubSummary,
         }
-      : aiClubSummary ?? aiSummary
+      : null
+    const normalAiSummary: AiHomeSummary | null = hasPersonalSummary
+      ? personalAiSummary
+      : aiClubSummary ?? personalAiSummary
 
     return (
       <NormalDashboardView
@@ -886,7 +898,7 @@ export default function AppHome({ session }: { session: Session }) {
         aiLoading={aiLoading}
         aiError={aiError}
         aiWarning={aiWarning}
-        aiAudienceLabel={personalSummaryItems.length > 0 ? 'MUPİ · Sana özel' : 'MUPİ · Kulüp özeti'}
+        aiAudienceLabel={hasPersonalSummary ? 'MUPİ · Sana özel' : 'MUPİ · Kulüp özeti'}
       />
     )
   }

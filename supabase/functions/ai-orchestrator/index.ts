@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.192.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
 import {
   modelForOperation,
   validateHomeSummaryPlan,
@@ -729,7 +729,7 @@ function calendarReminderBody(entry: CalendarEntryRecord, result: CalendarClassi
 }
 
 async function storeCalendarClassification(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: SupabaseClient,
   entry: CalendarEntryRecord,
   result: CalendarClassificationResult,
   model: string,
@@ -767,7 +767,8 @@ async function storeCalendarClassification(
     .eq('profiles.is_active', true)
   if (membershipError) throw new HttpError(500, 'Bildirim alıcıları hazırlanamadı.')
 
-  const rows = scheduledTimes.flatMap((scheduledAt) => (memberships ?? []).map((membership) => ({
+  const activeMemberships = (memberships ?? []) as Array<{ profile_id: string }>
+  const rows = scheduledTimes.flatMap((scheduledAt) => activeMemberships.map((membership) => ({
     recipient_id: membership.profile_id,
     notification_type: 'calendar_entry_reminder',
     channel: 'in_app',
@@ -1330,9 +1331,9 @@ serve(async (request: Request) => {
     if (activityError) console.error('AI home activity delta could not be loaded', activityError)
     context.activity = isRecord(activityData) ? asItems(activityData.items) : []
     const preparedSources = prepareHomeSources(context, historyOutput?.payload)
-    const sources = membership.app_role === 'super_admin'
-      ? preparedSources
-      : preparedSources.filter((source) => source.entityType !== 'calendar_entry')
+    // Manuel takvim kayıtları bütün aktif üyelerin ortak verisidir. Legacy
+    // home_summary yolu çağrılsa bile koordinatör takvim maddelerini korur.
+    const sources = preparedSources
     if (sources.length === 0) {
       if (latestOutput) {
         return jsonResponse({

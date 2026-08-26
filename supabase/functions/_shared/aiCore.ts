@@ -44,6 +44,8 @@ export interface AiValidationResult {
 
 export type HomeSummarySourceType = 'task' | 'event' | 'awareness' | 'calendar_entry'
 
+// Legacy orchestrator sozlesmesi. V2 reason code'lar ayri tutulur; boylece eski
+// exhaustive Record tablolarinin ve kayitlarin davranisi degismez.
 export type HomeSummaryReasonCode =
   | 'task_created'
   | 'task_updated'
@@ -69,11 +71,35 @@ export type HomeSummaryReasonCode =
   | 'calendar_entry_updated'
   | 'upcoming_calendar_entry'
 
+export type DeterministicHomeSummaryReasonCode =
+  | HomeSummaryReasonCode
+  | 'task_overdue'
+  | 'task_due_today'
+  | 'task_due_tomorrow'
+  | 'task_due_2_3_days'
+  | 'task_due_4_7_days'
+  | 'task_due_8_14_days'
+  | 'event_preparation_started'
+  | 'event_early_preparation'
+  | 'event_active_preparation_missing'
+  | 'event_intensive_preparation_missing'
+  | 'event_final_preparation_missing'
+  | 'event_critical_preparation_missing'
+  | 'awareness_share_overdue'
+  | 'awareness_share_today'
+  | 'awareness_final_preparation'
+  | 'awareness_upcoming_preparation'
+  | 'calendar_today'
+  | 'calendar_upcoming'
+
 export type HomeSummaryAction =
   | 'open_task'
   | 'open_event'
   | 'open_awareness'
   | 'open_calendar'
+
+export type HomeSummaryBucket = 'today' | 'upcoming'
+export type HomeSummaryUrgency = 'critical' | 'action' | 'upcoming' | 'info'
 
 export interface HomeSummarySource {
   alias: string
@@ -99,6 +125,27 @@ export interface HomeSummaryValidationResult {
   errors: string[]
 }
 
+export interface DeterministicHomeSummaryItem {
+  alias: string
+  entityType: HomeSummarySourceType
+  entityId: string
+  title: string
+  route: string
+  reasonCode: DeterministicHomeSummaryReasonCode
+  action: HomeSummaryAction
+  bucket: HomeSummaryBucket
+  urgency: HomeSummaryUrgency
+  score: number
+  fallbackDetail: string
+  facts: Record<string, unknown>
+}
+
+export interface DeterministicHomeSummaryDecision {
+  summaryDate: string
+  today: DeterministicHomeSummaryItem[]
+  upcoming: DeterministicHomeSummaryItem[]
+}
+
 const FLASH_OPERATIONS: ReadonlySet<AiOperation> = new Set([
   'home_summary',
   'page_analysis',
@@ -119,7 +166,7 @@ export function modelForOperation(settings: AiModelSettings, operation: AiOperat
   if (operation === 'embedding') return settings.embeddingModel
   if (FLASH_OPERATIONS.has(operation)) return settings.flashModel
   if (FLASH_LITE_OPERATIONS.has(operation)) return settings.flashLiteModel
-  throw new Error('Desteklenmeyen AI işlemi.')
+  throw new Error('Desteklenmeyen AI islemi.')
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -140,14 +187,14 @@ export function validateAiResponse(
   allowedSources: AiSourceDescriptor[],
 ): AiValidationResult {
   const errors: string[] = []
-  if (!isRecord(value)) return { envelope: null, errors: ['AI cevabı nesne biçiminde değil.'] }
+  if (!isRecord(value)) return { envelope: null, errors: ['AI cevabi nesne biciminde degil.'] }
 
   const answer = value.answer
   const rawClaims = value.claims
   if (typeof answer !== 'string' || answer.trim().length === 0) {
-    errors.push('AI cevabında geçerli answer alanı yok.')
+    errors.push('AI cevabinda gecerli answer alani yok.')
   }
-  if (!Array.isArray(rawClaims)) errors.push('AI cevabında claims dizisi yok.')
+  if (!Array.isArray(rawClaims)) errors.push('AI cevabinda claims dizisi yok.')
   if (errors.length > 0) return { envelope: null, errors }
 
   const allowedAliases = new Set(allowedSources.map((source) => source.alias))
@@ -155,7 +202,7 @@ export function validateAiResponse(
 
   for (const [index, rawClaim] of (rawClaims as unknown[]).entries()) {
     if (!isRecord(rawClaim)) {
-      errors.push(`İddia ${index + 1} nesne biçiminde değil.`)
+      errors.push(`Iddia ${index + 1} nesne biciminde degil.`)
       continue
     }
 
@@ -163,18 +210,18 @@ export function validateAiResponse(
     const type = rawClaim.type
     const sourceRefs = parseSourceRefs(rawClaim.source_refs)
     if (typeof text !== 'string' || text.trim().length === 0 || !isClaimType(type) || !sourceRefs) {
-      errors.push(`İddia ${index + 1} gerekli alanları taşımıyor.`)
+      errors.push(`Iddia ${index + 1} gerekli alanlari tasimiyor.`)
       continue
     }
 
     const unknownSources = sourceRefs.filter((sourceRef) => !allowedAliases.has(sourceRef))
     if (unknownSources.length > 0) {
-      errors.push(`İddia ${index + 1} izin verilmeyen kaynak kullanıyor.`)
+      errors.push(`Iddia ${index + 1} izin verilmeyen kaynak kullaniyor.`)
       continue
     }
 
     if (type !== 'draft' && sourceRefs.length === 0) {
-      errors.push(`İddia ${index + 1} kaynak göstermiyor.`)
+      errors.push(`Iddia ${index + 1} kaynak gostermiyor.`)
       continue
     }
 
@@ -241,16 +288,16 @@ export function validateHomeSummaryPlan(
   value: unknown,
   allowedSources: HomeSummarySource[],
 ): HomeSummaryValidationResult {
-  if (!isRecord(value)) return { plan: null, errors: ['Ana sayfa özeti nesne biçiminde değil.'] }
+  if (!isRecord(value)) return { plan: null, errors: ['Ana sayfa ozeti nesne biciminde degil.'] }
 
   const errors: string[] = []
   const intro = value.intro
   const rawItems = value.items
   if (typeof intro !== 'string' || intro.trim().length === 0 || intro.length > 240) {
-    errors.push('Ana sayfa özetinde geçerli intro alanı yok.')
+    errors.push('Ana sayfa ozetinde gecerli intro alani yok.')
   }
   if (!Array.isArray(rawItems) || rawItems.length > 3) {
-    errors.push('Ana sayfa özeti en fazla 3 maddelik items dizisi taşımalıdır.')
+    errors.push('Ana sayfa ozeti en fazla 3 maddelik items dizisi tasimalidir.')
   }
   if (errors.length > 0) return { plan: null, errors }
 
@@ -260,7 +307,7 @@ export function validateHomeSummaryPlan(
 
   for (const [index, rawItem] of (rawItems as unknown[]).entries()) {
     if (!isRecord(rawItem)) {
-      errors.push(`Özet maddesi ${index + 1} nesne biçiminde değil.`)
+      errors.push(`Ozet maddesi ${index + 1} nesne biciminde degil.`)
       continue
     }
 
@@ -276,29 +323,29 @@ export function validateHomeSummaryPlan(
       || recommendation.length > 280
       || !isHomeAction(action)
     ) {
-      errors.push(`Özet maddesi ${index + 1} gerekli alanları taşımıyor.`)
+      errors.push(`Ozet maddesi ${index + 1} gerekli alanlari tasimiyor.`)
       continue
     }
 
     const source = sourceByAlias.get(sourceRef)
     if (!source) {
-      errors.push(`Özet maddesi ${index + 1} izin verilmeyen kaynak kullanıyor.`)
+      errors.push(`Ozet maddesi ${index + 1} izin verilmeyen kaynak kullaniyor.`)
       continue
     }
     if (seenSources.has(sourceRef)) {
-      errors.push(`Özet maddesi ${index + 1} aynı kaynağı tekrar ediyor.`)
+      errors.push(`Ozet maddesi ${index + 1} ayni kaynagi tekrar ediyor.`)
       continue
     }
     if (HOME_REASON_TYPES[reasonCode] !== source.entityType) {
-      errors.push(`Özet maddesi ${index + 1} kaynak türüyle uyuşmayan neden kullanıyor.`)
+      errors.push(`Ozet maddesi ${index + 1} kaynak turuyle uyusmayan neden kullaniyor.`)
       continue
     }
     if (!source.allowedReasonCodes.includes(reasonCode)) {
-      errors.push(`Özet maddesi ${index + 1} kaynak verisiyle doğrulanamayan neden kullanıyor.`)
+      errors.push(`Ozet maddesi ${index + 1} kaynak verisiyle dogrulanamayan neden kullaniyor.`)
       continue
     }
     if (HOME_ACTION_TYPES[action] !== source.entityType) {
-      errors.push(`Özet maddesi ${index + 1} kaynak türüyle uyuşmayan eylem kullanıyor.`)
+      errors.push(`Ozet maddesi ${index + 1} kaynak turuyle uyusmayan eylem kullaniyor.`)
       continue
     }
 
