@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient'
 
 export type PushSupportState = 'supported' | 'unsupported' | 'not_configured'
+export type PushHealthState = 'healthy' | 'permission_default' | 'permission_denied' | 'missing_subscription' | 'unsupported' | 'not_configured'
 
 // Public VAPID key'i gizli degildir. Ortam degiskeni varsa onu kullanir;
 // iki hosting ortami icin de varsayilan anahtarla build ayari olmadan calisir.
@@ -26,19 +27,7 @@ export async function getCurrentPushSubscription(): Promise<PushSubscription | n
   return registration.pushManager.getSubscription()
 }
 
-export async function enablePushNotifications(profileId: string): Promise<void> {
-  if (getPushSupportState() !== 'supported' || !vapidPublicKey) {
-    throw new Error('Mobil bildirim yapılandırması henüz tamamlanmamış.')
-  }
-
-  const permission = await Notification.requestPermission()
-  if (permission !== 'granted') throw new Error('Bildirim izni verilmedi.')
-
-  const registration = await navigator.serviceWorker.ready
-  const subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as BufferSource,
-  })
+async function savePushSubscription(profileId: string, subscription: PushSubscription): Promise<void> {
   const subscriptionJson = subscription.toJSON()
   const endpoint = subscriptionJson.endpoint
   const p256dh = subscriptionJson.keys?.p256dh
@@ -63,6 +52,37 @@ export async function enablePushNotifications(profileId: string): Promise<void> 
   )
 
   if (error) throw new Error('Bildirim aboneliği kaydedilemedi.')
+}
+
+// Tarayıcıda mevcut olan aboneliği her uygulama açılışında veritabanıyla
+// yeniden eşleştirir. Yeni izin istemez; bu yüzden sayfa yüklenirken güvenle
+// çalıştırılabilir ve yanlışlıkla pasife düşen kayıtları tekrar etkinleştirir.
+export async function syncExistingPushSubscription(profileId: string): Promise<PushHealthState> {
+  const supportState = getPushSupportState()
+  if (supportState !== 'supported') return supportState
+  if (Notification.permission === 'denied') return 'permission_denied'
+  if (Notification.permission !== 'granted') return 'permission_default'
+
+  const subscription = await getCurrentPushSubscription()
+  if (!subscription) return 'missing_subscription'
+  await savePushSubscription(profileId, subscription)
+  return 'healthy'
+}
+
+export async function enablePushNotifications(profileId: string): Promise<void> {
+  if (getPushSupportState() !== 'supported' || !vapidPublicKey) {
+    throw new Error('Mobil bildirim yapılandırması henüz tamamlanmamış.')
+  }
+
+  const permission = await Notification.requestPermission()
+  if (permission !== 'granted') throw new Error('Bildirim izni verilmedi.')
+
+  const registration = await navigator.serviceWorker.ready
+  const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as BufferSource,
+  })
+  await savePushSubscription(profileId, subscription)
 }
 
 export async function disablePushNotifications(profileId: string): Promise<void> {

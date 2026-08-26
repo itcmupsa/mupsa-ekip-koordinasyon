@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { useNavigate } from 'react-router-dom'
+import PushHealthBanner from '../components/PushHealthBanner'
 import { supabase } from '../lib/supabaseClient'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
 import AppShell from '../components/AppShell'
@@ -910,7 +911,14 @@ export default function AppHome({ session }: { session: Session }) {
       roleLabel={roleLabel}
       onSignOut={handleSignOut}
     >
-      <main>{renderDashboard()}</main>
+      <main>
+        {profileId && hasActiveMembership ? (
+          <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
+            <PushHealthBanner profileId={profileId} />
+          </div>
+        ) : null}
+        {renderDashboard()}
+      </main>
     </AppShell>
   )
 }

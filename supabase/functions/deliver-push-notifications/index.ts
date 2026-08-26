@@ -19,6 +19,11 @@ interface PushSubscriptionRow {
   content_encoding: string
 }
 
+interface WebPushError {
+  statusCode?: number
+  message?: string
+}
+
 interface PushPayload {
   title: string
   body: string
@@ -42,6 +47,18 @@ function isExpiredSubscriptionError(error: unknown): boolean {
   const statusCode = (error as { statusCode?: number }).statusCode
   return statusCode === 404 || statusCode === 410
 }
+
+function isTransientSubscriptionError(error: unknown): boolean {
+  const statusCode = (error as WebPushError).statusCode
+  return statusCode === undefined || statusCode === 408 || statusCode === 425 || statusCode === 429 || statusCode >= 500
+}
+
+function pushErrorCode(error: unknown): string {
+  const statusCode = (error as WebPushError).statusCode
+  return statusCode ? `web_push_${statusCode}` : 'web_push_network_error'
+}
+
+const retryDelaysMinutes = [1, 5, 15]
 
 Deno.serve(async (request: Request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -89,6 +106,7 @@ Deno.serve(async (request: Request) => {
 
   let sent = 0
   let failed = 0
+  let retried = 0
   for (const notification of (notifications ?? []) as PushNotificationRow[]) {
     const { data: subscriptions, error: subscriptionError } = await adminClient
       .from('push_subscriptions')
@@ -97,7 +115,28 @@ Deno.serve(async (request: Request) => {
       .eq('is_active', true)
 
     if (subscriptionError) {
-      failed += 1
+      const currentRetryCount = typeof notification.metadata?.push_retry_count === 'number'
+        ? notification.metadata.push_retry_count
+        : 0
+      const nextRetryCount = currentRetryCount + 1
+      const shouldRetry = nextRetryCount <= retryDelaysMinutes.length
+      await adminClient
+        .from('notifications')
+        .update({
+          delivery_status: shouldRetry ? 'queued' : 'failed',
+          ...(shouldRetry
+            ? { scheduled_for: new Date(Date.now() + retryDelaysMinutes[nextRetryCount - 1] * 60_000).toISOString() }
+            : {}),
+          metadata: {
+            ...notification.metadata,
+            push_retry_count: nextRetryCount,
+            delivery_error_code: 'subscription_lookup_failed',
+            delivery_error: subscriptionError.message.slice(0, 300),
+          },
+        })
+        .eq('id', notification.id)
+      if (shouldRetry) retried += 1
+      else failed += 1
       continue
     }
 
@@ -120,6 +159,9 @@ Deno.serve(async (request: Request) => {
     }
 
     let delivered = false
+    let transientFailure = false
+    let lastErrorCode: string | null = null
+    let lastErrorMessage: string | null = null
     for (const subscription of (subscriptions ?? []) as PushSubscriptionRow[]) {
       try {
         await webpush.sendNotification(
@@ -132,11 +174,15 @@ Deno.serve(async (request: Request) => {
         )
         delivered = true
       } catch (error) {
+        lastErrorCode = pushErrorCode(error)
+        lastErrorMessage = error instanceof Error ? error.message.slice(0, 300) : 'Bilinmeyen Web Push hatası.'
         if (isExpiredSubscriptionError(error)) {
           await adminClient
             .from('push_subscriptions')
             .update({ is_active: false, failed_at: new Date().toISOString() })
             .eq('id', subscription.id)
+        } else if (isTransientSubscriptionError(error)) {
+          transientFailure = true
         }
       }
     }
@@ -147,16 +193,61 @@ Deno.serve(async (request: Request) => {
         .update({ delivery_status: 'sent', sent_at: new Date().toISOString() })
         .eq('id', notification.id)
       sent += 1
+    } else if (transientFailure) {
+      const currentRetryCount = typeof notification.metadata?.push_retry_count === 'number'
+        ? notification.metadata.push_retry_count
+        : 0
+      const nextRetryCount = currentRetryCount + 1
+      if (nextRetryCount <= retryDelaysMinutes.length) {
+        await adminClient
+          .from('notifications')
+          .update({
+            delivery_status: 'queued',
+            scheduled_for: new Date(Date.now() + retryDelaysMinutes[nextRetryCount - 1] * 60_000).toISOString(),
+            metadata: {
+              ...notification.metadata,
+              push_retry_count: nextRetryCount,
+              delivery_error_code: lastErrorCode,
+              delivery_error: lastErrorMessage,
+            },
+          })
+          .eq('id', notification.id)
+        retried += 1
+      } else {
+        await adminClient
+          .from('notifications')
+          .update({
+            delivery_status: 'failed',
+            metadata: {
+              ...notification.metadata,
+              push_retry_count: nextRetryCount,
+              delivery_error_code: lastErrorCode ?? 'push_retry_exhausted',
+              delivery_error: lastErrorMessage ?? 'Push bildirimi tekrar denemelerine rağmen teslim edilemedi.',
+            },
+          })
+          .eq('id', notification.id)
+        failed += 1
+      }
     } else {
+      const hasSubscriptions = (subscriptions ?? []).length > 0
       await adminClient
         .from('notifications')
-        .update({ delivery_status: 'failed', metadata: { ...notification.metadata, delivery_error: 'Aktif cihaz aboneliği bulunamadı veya teslim başarısız oldu.' } })
+        .update({
+          delivery_status: 'failed',
+          metadata: {
+            ...notification.metadata,
+            delivery_error_code: hasSubscriptions ? (lastErrorCode ?? 'push_delivery_rejected') : 'no_active_subscription',
+            delivery_error: hasSubscriptions
+              ? (lastErrorMessage ?? 'Aktif cihaz aboneliğine teslim başarısız oldu.')
+              : 'Kullanıcının aktif PWA bildirim aboneliği bulunmuyor.',
+          },
+        })
         .eq('id', notification.id)
       failed += 1
     }
   }
 
-  return new Response(JSON.stringify({ processed: (notifications ?? []).length, sent, failed }), {
+  return new Response(JSON.stringify({ processed: (notifications ?? []).length, sent, failed, retried }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 })

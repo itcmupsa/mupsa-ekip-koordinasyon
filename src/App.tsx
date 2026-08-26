@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useSession } from './hooks/useSession'
 import Login from './pages/Login'
@@ -11,9 +12,19 @@ import AccountSettings from './pages/AccountSettings'
 import AwarenessPosts from './pages/AwarenessPosts'
 import Calendar from './pages/Calendar'
 import Tasks from './pages/Tasks'
+import { syncExistingPushSubscription } from './lib/pushNotifications'
 
 export default function App() {
   const { session, loading } = useSession()
+
+  useEffect(() => {
+    if (!session) return
+    // Mevcut izni sessizce tazeler; izin istemek yine kullanıcının düğmeye
+    // basmasını gerektirir. Böylece doğrudan alt sayfaya girildiğinde de
+    // sunucudaki PWA abonelik kaydı güncel kalır.
+    void syncExistingPushSubscription(session.user.id).catch(() => undefined)
+  }, [session])
+
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-canvas"><p className="text-sm text-ink-soft">Yükleniyor…</p></div>
   return <Routes>
     <Route path="/login" element={session ? <Navigate to="/app" replace /> : <Login />} />

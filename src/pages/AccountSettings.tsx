@@ -7,8 +7,8 @@ import { useMembershipStatus } from '../hooks/useMembershipStatus'
 import {
   disablePushNotifications,
   enablePushNotifications,
-  getCurrentPushSubscription,
   getPushSupportState,
+  syncExistingPushSubscription,
   type PushSupportState,
 } from '../lib/pushNotifications'
 
@@ -120,6 +120,7 @@ export default function AccountSettings({ session }: { session: Session }) {
 
   useEffect(() => {
     if (membershipLoading || !hasActiveMembership || !profileId) return
+    const currentProfileId = profileId
 
     let isMounted = true
     async function loadPushState() {
@@ -129,8 +130,8 @@ export default function AccountSettings({ session }: { session: Session }) {
       if (supportState !== 'supported') return
 
       try {
-        const subscription = await getCurrentPushSubscription()
-        if (isMounted) setPushEnabled(Boolean(subscription))
+        const health = await syncExistingPushSubscription(currentProfileId)
+        if (isMounted) setPushEnabled(health === 'healthy')
       } catch {
         if (isMounted) setPushError('Bildirim durumu kontrol edilemedi.')
       }
