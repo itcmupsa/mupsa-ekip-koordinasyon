@@ -46,7 +46,11 @@ VITE_SUPABASE_PUBLISHABLE_KEY=...
 VITE_WEB_PUSH_PUBLIC_KEY=...
 ```
 
-`VITE_WEB_PUSH_PUBLIC_KEY` yalnızca Web Push için public VAPID anahtarıdır. VAPID private key ve `service_role` anahtarı frontend ortamına veya repoya eklenmemelidir.
+`VITE_WEB_PUSH_PUBLIC_KEY` yalnızca Web Push için public VAPID anahtarıdır. Frontend bu değer eksikse eski/hardcoded bir anahtara sessizce düşmez; bildirim özelliği `not_configured` durumunda kalır. Canlı ortamda yeni frontend build alınmadan önce bu public anahtarın hosting ortam değişkeninde tanımlı olduğu doğrulanmalıdır. VAPID private key ve `service_role` anahtarı frontend ortamına veya repoya eklenmemelidir.
+
+Push teslimatı kullanıcı tarayıcısındaki aktif oturuma bağlı değildir: queued kayıtları cron tarafından çağrılan `deliver-push-notifications` Edge Function işler. Web Push provider kabulünden sonra TTL yaklaşık 28 gündür; provider/network transient hataları cihaz/subscription bazında 1 dk, 5 dk, 15 dk, 1 saat, 6 saat, 24 saat ve daha uzun backoff ile yeniden denenir. 404/410 abonelik hataları kalıcı kabul edilir ve tekrar denenmez.
+
+`pushsubscriptionchange` tarayıcı desteği sınırlıdır. Service Worker destekleyen tarayıcılarda aboneliği yeniden oluşturmaya çalışır; güvenli sunucu senkronu authenticated uygulama açılışında yapılır. Bu nedenle uygulama hiç açılmadan gerçekleşen subscription rotasyonunda tüm tarayıcılarda kesintisiz teslim garantisi verilemez.
 
 `service_role` anahtarı tarayıcı uygulamasına veya repoya eklenmez. Güvenli kullanıcı oluşturma işlemi Supabase Edge Function üzerinden yürütülür.
 

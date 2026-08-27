@@ -23,6 +23,15 @@ export default function App() {
     // basmasını gerektirir. Böylece doğrudan alt sayfaya girildiğinde de
     // sunucudaki PWA abonelik kaydı güncel kalır.
     void syncExistingPushSubscription(session.user.id).catch(() => undefined)
+
+    const handleServiceWorkerMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'PUSH_SUBSCRIPTION_CHANGED') {
+        void syncExistingPushSubscription(session.user.id).catch(() => undefined)
+      }
+    }
+
+    navigator.serviceWorker?.addEventListener('message', handleServiceWorkerMessage)
+    return () => navigator.serviceWorker?.removeEventListener('message', handleServiceWorkerMessage)
   }, [session])
 
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-canvas"><p className="text-sm text-ink-soft">Yükleniyor…</p></div>

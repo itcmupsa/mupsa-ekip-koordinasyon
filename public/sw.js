@@ -27,11 +27,20 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(title, options))
 })
 
+function safeNotificationTarget(candidate) {
+  try {
+    const parsed = new URL(typeof candidate === 'string' ? candidate : '/app', self.location.origin)
+    const isAllowedPath = parsed.pathname === '/app' || parsed.pathname.startsWith('/app/')
+    if (parsed.origin !== self.location.origin || !isAllowedPath) return '/app'
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`
+  } catch {
+    return '/app'
+  }
+}
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const targetUrl = event.notification.data && event.notification.data.url
-    ? event.notification.data.url
-    : '/app'
+  const targetUrl = safeNotificationTarget(event.notification.data && event.notification.data.url)
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
@@ -44,6 +53,33 @@ self.addEventListener('notificationclick', (event) => {
       return self.clients.openWindow(targetUrl)
     }),
   )
+})
+
+// pushsubscriptionchange tarayici destegine baglidir. Destekleyen tarayicilarda
+// browser aboneligini yeniden olusturmaya calisir; sunucuya guvenli senkron icin
+// authenticated bir sayfa gerekir, bu nedenle acik client'lara haber verir. Sayfa
+// kapaliysa normal uygulama acilisindaki sync fallback'i devreye girer.
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil((async () => {
+    try {
+      const applicationServerKey = event.oldSubscription
+        && event.oldSubscription.options
+        && event.oldSubscription.options.applicationServerKey
+      if (!applicationServerKey) return
+
+      await self.registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey,
+      })
+
+      const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      for (const client of clientList) {
+        client.postMessage({ type: 'PUSH_SUBSCRIPTION_CHANGED' })
+      }
+    } catch {
+      // Tarayici destegi sinirli olabilir; uygulama acilisindaki sync ana fallback'tir.
+    }
+  })())
 })
 
 self.addEventListener('fetch', (event) => {

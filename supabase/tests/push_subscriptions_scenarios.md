@@ -17,8 +17,9 @@ Bu senaryolar gerçek Supabase test projesinde çalıştırılacaktır.
 
 1. Kullanıcı yalnızca kendi aboneliklerini okuyup değiştirebildiğini doğrular.
 2. Başka bir normal ekip üyesinin başka kullanıcının aboneliklerini okuyamadığı/değiştiremediği doğrulanır.
-3. Süper yöneticinin gerektiğinde aboneliği pasifleştirebildiği doğrulanır.
-4. Abonelik anahtarlarının `audit_logs` tablosuna yazılmadığı doğrulanır.
+3. Süper Yöneticinin başka kullanıcıların ham `endpoint`, `p256dh_key` ve `auth_key` değerlerini SELECT/UPDATE edemediği doğrulanır; teslimat erişimi service role ile sınırlı kalır.
+4. Aynı browser endpoint'i oturum değişiminde `sync_push_subscription` ile yalnız authenticated kullanıcının profiline bağlanır.
+5. Abonelik anahtarlarının `audit_logs` tablosuna yazılmadığı doğrulanır.
 
 ## 4. Pasifleştirme
 

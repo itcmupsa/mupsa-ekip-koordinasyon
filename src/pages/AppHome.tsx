@@ -758,7 +758,9 @@ export default function AppHome({ session }: { session: Session }) {
     setAiWarning(summaryData.warning ?? null)
   }
 
-  async function handleSignOut() { await supabase.auth.signOut() }
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+  }
 
   const roleLabel = coordinatorRoleName ?? (appRole === 'super_admin' ? 'Süper Yönetici' : 'Koordinatör')
   const notificationItems: DashboardNotificationViewItem[] = notifications.map(notification => ({

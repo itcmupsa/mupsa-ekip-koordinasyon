@@ -4,6 +4,8 @@ import DesktopSidebar from './DesktopSidebar'
 import MobileBottomNavigation from './MobileBottomNavigation'
 import MobileHeader from './MobileHeader'
 import MobileMoreSheet from './MobileMoreSheet'
+import { supabase } from '../lib/supabaseClient'
+import { detachPushSubscriptionForLogout } from '../lib/pushNotifications'
 
 interface AppShellProps {
   children: ReactNode
@@ -16,6 +18,12 @@ interface AppShellProps {
 export default function AppShell({ children, isSuperAdmin, displayName, roleLabel, onSignOut }: AppShellProps) {
   const [isMoreOpen, setIsMoreOpen] = useState(false)
   const location = useLocation()
+
+  async function handleSafeSignOut() {
+    const { data } = await supabase.auth.getUser()
+    if (data.user) await detachPushSubscriptionForLogout(data.user.id)
+    onSignOut()
+  }
 
   useEffect(() => {
     setIsMoreOpen(false)
@@ -34,7 +42,7 @@ export default function AppShell({ children, isSuperAdmin, displayName, roleLabe
 
   return (
     <div className="min-h-screen bg-canvas">
-      <DesktopSidebar isSuperAdmin={isSuperAdmin} displayName={displayName} roleLabel={roleLabel} onSignOut={onSignOut} />
+      <DesktopSidebar isSuperAdmin={isSuperAdmin} displayName={displayName} roleLabel={roleLabel} onSignOut={() => void handleSafeSignOut()} />
       <MobileHeader displayName={displayName} />
       <div className="pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-60">{children}</div>
       <MobileBottomNavigation isMoreOpen={isMoreOpen} onMoreClick={() => setIsMoreOpen((open) => !open)} />
