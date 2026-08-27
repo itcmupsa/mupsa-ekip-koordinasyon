@@ -4,7 +4,7 @@
 7+ gün uygulama açılmasa da sunucu tarafı push teslimini dayanıklı, çoklu cihaz güvenli ve tekrar denemeli hale getirmek; logout/RLS/VAPID/SW/payload risklerini azaltmak.
 
 ## Durum
-Bağımsız denetim ve doğrulamalar tamamlandı. Supabase migration uygulanıp `deliver-push-notifications` Edge Function yayına alındı. Git commit/push ve Vercel frontend deployment adımı sırada.
+Tamamlandı. Supabase migration uygulandı, `deliver-push-notifications` Edge Function yayına alındı, Git commit/push tamamlandı ve Vercel canlı adresi 200/login ekranıyla doğrulandı.
 
 ## Uygulanan kararlar
 - Push provider kabulü için TTL explicit 28 gün (`2419200` sn).
@@ -62,4 +62,4 @@ Bağımsız denetim ve doğrulamalar tamamlandı. Supabase migration uygulanıp 
 - Vercel `VITE_WEB_PUSH_PUBLIC_KEY` canlı Production ortam değişkeni doğrulandı ve eklendi. Yeni frontend deployment ile etkili olacak.
 
 ## Sonraki adım
-Görev kapsamındaki dosyalar için son Git kontrolünü yap, commit/push ile Vercel otomatik deployment'ını tetikle ve canlı durumu doğrula.
+Gerçek cihazlarda en az bir iPhone/PWA ve bir ikinci cihaz ile test bildirimi gönderip teslim davranışını gözlemle; gerekirse teslim gözlemlenebilirliğini ayrıca geliştir.
