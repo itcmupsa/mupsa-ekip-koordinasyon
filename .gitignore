@@ -141,3 +141,10 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# OS metadata
+.DS_Store
+
+# Local generated artifacts
+tmp/
+output/
