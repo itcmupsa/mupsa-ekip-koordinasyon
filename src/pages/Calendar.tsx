@@ -465,6 +465,39 @@ export default function Calendar({ session }: { session: Session }) {
     return filtered
   }, [activeFilter, itemsByDate])
 
+  const monthlyCounts = useMemo(() => {
+    const monthStart = dateKey(new Date(Date.UTC(viewYear, viewMonth, 1)))
+    const monthEnd = dateKey(new Date(Date.UTC(viewYear, viewMonth + 1, 0)))
+    const isInMonth = (value: string | null) => Boolean(value && value >= monthStart && value <= monthEnd)
+    const rangeIntersectsMonth = (start: string | null, end: string | null) => {
+      if (!start) return false
+      const rangeEnd = end ?? start
+      return start <= monthEnd && rangeEnd >= monthStart
+    }
+
+    const eventCount = events.filter((event) => {
+      const eventDate = event.confirmedDate ?? event.estimatedDate
+      return isInMonth(event.preparationStartDate) || isInMonth(eventDate)
+    }).length
+
+    const awarenessCount = awarenessPosts.filter((post) => (
+      rangeIntersectsMonth(post.startDate, post.endDate)
+      || isInMonth(post.preparationStartDate)
+      || isInMonth(post.estimatedDate)
+      || isInMonth(post.shareDate)
+      || isInMonth(post.closingDate)
+    )).length
+
+    const taskCount = tasks.filter((task) => {
+      const deadline = new Date(task.deadlineAt)
+      if (Number.isNaN(deadline.getTime())) return false
+      const key = dateKey(new Date(Date.UTC(deadline.getFullYear(), deadline.getMonth(), deadline.getDate())))
+      return key >= monthStart && key <= monthEnd
+    }).length
+
+    return { eventCount, taskCount, awarenessCount }
+  }, [awarenessPosts, events, tasks, viewMonth, viewYear])
+
   const selectedItems = selectedDate ? filteredItemsByDate.get(selectedDate) ?? [] : []
 
   const filterOptions = useMemo(() => [
@@ -710,7 +743,7 @@ export default function Calendar({ session }: { session: Session }) {
               <button type="button" onClick={() => changeMonth(-1)} aria-label="Önceki ay" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-canvas-border text-ink-soft hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"><ChevronIcon direction="left" /></button>
               <div className="text-center">
                 <h2 className="text-lg font-semibold capitalize text-ink">{monthLabel(viewYear, viewMonth)}</h2>
-                <p className="mt-1 hidden text-xs text-ink-soft lg:block">{events.length} etkinlik · {tasks.length} görev · {awarenessPosts.length} farkındalık</p>
+                <p className="mt-1 hidden text-xs text-ink-soft lg:block">{monthlyCounts.eventCount} etkinlik · {monthlyCounts.taskCount} görev · {monthlyCounts.awarenessCount} farkındalık</p>
               </div>
               <button type="button" onClick={() => { const today = new Date(); const key = dateKey(new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()))); setViewYear(today.getFullYear()); setViewMonth(today.getMonth()); setSelectedDate(key) }} className="flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-lg border border-canvas-border px-2 text-xs font-medium text-ink-soft hover:bg-canvas sm:px-3 sm:text-sm"><TodayIcon />Bugün</button>
               <button type="button" onClick={() => changeMonth(1)} aria-label="Sonraki ay" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-canvas-border text-ink-soft hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"><ChevronIcon direction="right" /></button>

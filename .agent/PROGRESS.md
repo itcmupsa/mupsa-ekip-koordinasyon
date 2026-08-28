@@ -63,3 +63,10 @@ Tamamlandı. Supabase migration uygulandı, `deliver-push-notifications` Edge Fu
 
 ## Sonraki adım
 Gerçek cihazlarda en az bir iPhone/PWA ve bir ikinci cihaz ile test bildirimi gönderip teslim davranışını gözlemle; gerekirse teslim gözlemlenebilirliğini ayrıca geliştir.
+
+## 2026-08-28 Takvim aylık sayaç düzeltmesi
+- Hedef: Takvim ay başlığı altındaki etkinlik/görev/farkındalık sayılarını dönem toplamı yerine seçili aya ait benzersiz kayıt sayılarıyla göstermek.
+- Değişen yol: `src/pages/Calendar.tsx`.
+- Karar: Etkinlik aynı ayda hem hazırlık hem etkinlik tarihi taşısa da bir kez sayılır; farkındalık tarih aralığı seçili ayla kesişiyorsa bir kez sayılır; görevler son tarih ayına göre sayılır.
+- Doğrulama: `npm run lint`, `npm run build`, `git diff --check` PASS.
+- Sonraki adım: Commit/push ve canlı Takvimde ay değiştirerek sayaçların değiştiğini doğrulamak.
