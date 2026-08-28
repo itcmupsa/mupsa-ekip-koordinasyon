@@ -14,6 +14,7 @@ interface NewEventPanelProps {
   estimatedDate: string
   preparationStartDate: string
   coordinatorOptions: EventCoordinatorOption[]
+  hasSharedCoordinator: boolean
   selectedCoordinatorProfileIds: string[]
   error: string | null
   submitting: boolean
@@ -22,6 +23,7 @@ interface NewEventPanelProps {
   onPlanningDateChange: (value: string) => void
   onEstimatedDateChange: (value: string) => void
   onPreparationStartDateChange: (value: string) => void
+  onSharedCoordinatorChange: (value: boolean) => void
   onToggleCoordinator: (profileId: string) => void
   onSubmit: () => void
   onClose: () => void
@@ -58,6 +60,7 @@ function EventForm({
   estimatedDate,
   preparationStartDate,
   coordinatorOptions,
+  hasSharedCoordinator,
   selectedCoordinatorProfileIds,
   error,
   submitting,
@@ -66,6 +69,7 @@ function EventForm({
   onPlanningDateChange,
   onEstimatedDateChange,
   onPreparationStartDateChange,
+  onSharedCoordinatorChange,
   onToggleCoordinator,
   onSubmit,
   desktop = false,
@@ -103,21 +107,46 @@ function EventForm({
           </section>
 
           <section className="rounded-xl border border-canvas-border bg-canvas p-4 sm:p-5">
-            <div className="flex items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-sm font-semibold text-brand-dark">3</span><div><h3 className="text-sm font-semibold text-ink">Ortak koordinatörler</h3><p className="mt-0.5 text-xs text-ink-soft">Etkinlik başka koordinatörlüklerle ortaksa bir veya daha fazla kişi seçebilirsiniz.</p></div></div>
-            {coordinatorOptions.length === 0 ? (
-              <p className="mt-4 text-sm text-ink-soft">Aktif dönemde seçilebilecek başka koordinatör bulunmuyor.</p>
-            ) : (
-              <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                {coordinatorOptions.map((member) => {
-                  const checked = selectedCoordinatorProfileIds.includes(member.profileId)
-                  return (
-                    <label key={member.profileId} className={`flex min-h-[52px] cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 transition ${checked ? 'border-brand bg-brand-soft/60' : 'border-canvas-border bg-canvas-surface hover:border-brand/40'}`}>
-                      <input type="checkbox" checked={checked} onChange={() => onToggleCoordinator(member.profileId)} disabled={submitting} className="h-4 w-4 shrink-0 accent-brand" />
-                      <span className="min-w-0"><span className="block truncate text-sm font-semibold text-ink">{member.displayName}</span><span className="block truncate text-xs text-ink-soft">{member.coordinatorRoleName ?? 'Koordinatör'}</span></span>
-                    </label>
-                  )
-                })}
+            <div className="flex items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-sm font-semibold text-brand-dark">3</span><div><h3 className="text-sm font-semibold text-ink">Ortak koordinatörler</h3><p className="mt-0.5 text-xs text-ink-soft">Etkinlik başka bir koordinatörlükle ortaksa ilgili kişileri birlikte yönetici olarak ekleyebilirsiniz.</p></div></div>
+
+            <fieldset className="mt-4">
+              <legend className="text-sm font-semibold text-ink">Ortak koordinatör var mı?</legend>
+              <div className="mt-2 grid grid-cols-2 gap-2" role="radiogroup" aria-label="Ortak koordinatör var mı?">
+                <label className={`flex min-h-[48px] cursor-pointer items-center justify-center rounded-lg border px-4 text-sm font-semibold transition ${!hasSharedCoordinator ? 'border-brand bg-brand-soft text-brand-dark' : 'border-canvas-border bg-canvas-surface text-ink-soft hover:border-brand/40'}`}>
+                  <input type="radio" name="has-shared-coordinator" checked={!hasSharedCoordinator} onChange={() => onSharedCoordinatorChange(false)} disabled={submitting} className="sr-only" />
+                  Hayır
+                </label>
+                <label className={`flex min-h-[48px] cursor-pointer items-center justify-center rounded-lg border px-4 text-sm font-semibold transition ${hasSharedCoordinator ? 'border-brand bg-brand-soft text-brand-dark' : 'border-canvas-border bg-canvas-surface text-ink-soft hover:border-brand/40'}`}>
+                  <input type="radio" name="has-shared-coordinator" checked={hasSharedCoordinator} onChange={() => onSharedCoordinatorChange(true)} disabled={submitting} className="sr-only" />
+                  Evet
+                </label>
               </div>
+            </fieldset>
+
+            {hasSharedCoordinator ? (
+              coordinatorOptions.length === 0 ? (
+                <p className="mt-4 rounded-lg border border-canvas-border bg-canvas-surface px-3 py-3 text-sm text-ink-soft">Aktif dönemde seçilebilecek başka koordinatör bulunmuyor.</p>
+              ) : (
+                <div className="mt-4">
+                  <p className="text-xs font-medium text-ink-soft">Bir veya daha fazla ortak koordinatör seçebilirsiniz.</p>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {coordinatorOptions.map((member) => {
+                      const checked = selectedCoordinatorProfileIds.includes(member.profileId)
+                      return (
+                        <label key={member.profileId} className={`flex min-h-[60px] cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 transition ${checked ? 'border-brand bg-brand-soft/60' : 'border-canvas-border bg-canvas-surface hover:border-brand/40'}`}>
+                          <input type="checkbox" checked={checked} onChange={() => onToggleCoordinator(member.profileId)} disabled={submitting} className="h-4 w-4 shrink-0 accent-brand" />
+                          <span className="min-w-0">
+                            <span className="block truncate text-xs font-semibold uppercase tracking-wide text-brand-dark">{member.coordinatorRoleName ?? 'Koordinatör'}</span>
+                            <span className="mt-0.5 block truncate text-sm font-semibold text-ink">{member.displayName}</span>
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            ) : (
+              <p className="mt-3 text-xs text-ink-soft">Hayır seçiliyken etkinlik yalnız ana koordinatör üzerinden oluşturulur.</p>
             )}
           </section>
         </div>
@@ -148,6 +177,7 @@ export default function NewEventPanel({
   estimatedDate,
   preparationStartDate,
   coordinatorOptions,
+  hasSharedCoordinator,
   selectedCoordinatorProfileIds,
   error,
   submitting,
@@ -156,6 +186,7 @@ export default function NewEventPanel({
   onPlanningDateChange,
   onEstimatedDateChange,
   onPreparationStartDateChange,
+  onSharedCoordinatorChange,
   onToggleCoordinator,
   onSubmit,
   onClose,
@@ -216,6 +247,7 @@ export default function NewEventPanel({
     estimatedDate,
     preparationStartDate,
     coordinatorOptions,
+    hasSharedCoordinator,
     selectedCoordinatorProfileIds,
     error,
     submitting,
@@ -224,6 +256,7 @@ export default function NewEventPanel({
     onPlanningDateChange,
     onEstimatedDateChange,
     onPreparationStartDateChange,
+    onSharedCoordinatorChange,
     onToggleCoordinator,
     onSubmit,
   }

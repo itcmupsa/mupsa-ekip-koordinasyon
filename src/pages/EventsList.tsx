@@ -158,6 +158,7 @@ export default function EventsList({ session }: { session: Session }) {
   const [estimatedDate, setEstimatedDate] = useState('')
   const [preparationStartDate, setPreparationStartDate] = useState('')
   const [coordinatorOptions, setCoordinatorOptions] = useState<EventCoordinatorOption[]>([])
+  const [hasSharedCoordinator, setHasSharedCoordinator] = useState(false)
   const [selectedCoordinatorProfileIds, setSelectedCoordinatorProfileIds] = useState<string[]>([])
   const [createError, setCreateError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -340,6 +341,11 @@ export default function EventsList({ session }: { session: Session }) {
     setReloadKey((value) => value + 1)
   }
 
+  function changeSharedCoordinator(value: boolean) {
+    setHasSharedCoordinator(value)
+    if (!value) setSelectedCoordinatorProfileIds([])
+  }
+
   function toggleCoordinator(profileIdToToggle: string) {
     setSelectedCoordinatorProfileIds((current) =>
       current.includes(profileIdToToggle)
@@ -362,6 +368,10 @@ export default function EventsList({ session }: { session: Session }) {
       setCreateError('Planlama tarihi zorunludur.')
       return
     }
+    if (hasSharedCoordinator && selectedCoordinatorProfileIds.length === 0) {
+      setCreateError('Ortak koordinatör için en az bir kişi seçmelisin.')
+      return
+    }
 
     setCreateState('submitting')
     const { error } = await supabase.rpc('create_event_with_coordinators', {
@@ -371,7 +381,7 @@ export default function EventsList({ session }: { session: Session }) {
       p_planning_date: planningDate,
       p_estimated_date: estimatedDate || null,
       p_preparation_start_date: preparationStartDate || null,
-      p_coordinator_profile_ids: selectedCoordinatorProfileIds,
+      p_coordinator_profile_ids: hasSharedCoordinator ? selectedCoordinatorProfileIds : [],
     })
 
     if (error) {
@@ -385,6 +395,7 @@ export default function EventsList({ session }: { session: Session }) {
     setPlanningDate(new Date().toISOString().slice(0, 10))
     setEstimatedDate('')
     setPreparationStartDate('')
+    setHasSharedCoordinator(false)
     setSelectedCoordinatorProfileIds([])
     setCreateState('closed')
     setSuccessMessage('Etkinlik başarıyla oluşturuldu.')
@@ -503,6 +514,7 @@ export default function EventsList({ session }: { session: Session }) {
           estimatedDate={estimatedDate}
           preparationStartDate={preparationStartDate}
           coordinatorOptions={coordinatorOptions}
+          hasSharedCoordinator={hasSharedCoordinator}
           selectedCoordinatorProfileIds={selectedCoordinatorProfileIds}
           error={createError}
           submitting={createState === 'submitting'}
@@ -511,6 +523,7 @@ export default function EventsList({ session }: { session: Session }) {
           onPlanningDateChange={setPlanningDate}
           onEstimatedDateChange={setEstimatedDate}
           onPreparationStartDateChange={setPreparationStartDate}
+          onSharedCoordinatorChange={changeSharedCoordinator}
           onToggleCoordinator={toggleCoordinator}
           onSubmit={() => void handleCreateEvent()}
           onClose={closeCreateForm}
