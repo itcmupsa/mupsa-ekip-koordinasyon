@@ -72,6 +72,15 @@ Gerçek cihazlarda en az bir iPhone/PWA ve bir ikinci cihaz ile test bildirimi g
 - Durum: Uygulama tamamlandı. `event_coordinators` canlı Supabase'e uygulandı; ortak koordinatör seçimi, filtre davranışı, etkinlik detay yönetimi ve ortak koordinatör düzenleme yetkisi kodlandı. Lint/build/diff-check ve linked Supabase lint/dry-run/push doğrulamaları geçti. Git commit/push tamamlandı. Canlı UI doğrulaması bağlı Chrome DOM okuması takıldığı için bu turda tamamlanamadı; veri oluşturulmadı.
 - 2026-08-28 UI iyileştirmesi: Yeni etkinlik formunda "Ortak koordinatör var mı? Hayır / Evet" progressive disclosure eklendi. Varsayılan Hayır; Evet seçilince kişi listesi açılıyor. Her seçenek "Koordinatörlük" üstte, "İsim" altta gösteriliyor. Evet seçiliyken en az bir kişi seçme doğrulaması eklendi. Mevcut etkinlik detayındaki ana/ortak koordinatör kartlarında ve ekleme select'inde de koordinatörlük + isim birlikte gösteriliyor. Lint/build/git diff check PASS; commit/push sırada.
 
+## 2026-08-28 Etkinlik düzenleme yetkisi + manuel hazırlık tarihi regresyonu
+- Hedef: Süper yönetici etkinlik düzenleme kontrollerinin görünmemesi ve mevcut etkinlikte hazırlık başlangıç tarihinin değiştirilememesi sorunlarını düzeltmek.
+- Git bulgusu: Etkinlik düzenleme `5b3dd03` ile eklendi. Hazırlık tarihi ilk başta manueldi; `1ccf721` (2026-08-09) ile otomatik/disabled hale getirildi. 2026-08-28 manuel hazırlık tarihi çalışmasında yeni etkinlik/farkındalık ve DB triggerları düzeltilmişti ancak `EventDetail.tsx` atlanmıştı.
+- Yetki bulgusu: `EventDetail` düzenleme görünürlüğü `appRole === 'super_admin'` sonucuna bağlı. Kullanıcı ekran görüntüsünde `Ekip Yönetimi` menüsü de yoktu; açık oturum frontend tarafından süper yönetici görülmüyordu. `useMembershipStatus` artık üyelik satırına ek olarak veritabanının yetkili `is_super_admin()` RPC sonucunu kullanıyor; böylece frontend yetkisi DB ile aynı kaynaktan doğrulanıyor.
+- Değişen yollar: `src/pages/EventDetail.tsx`, `src/hooks/useMembershipStatus.ts`.
+- Düzeltme: Mevcut etkinlik düzenleme formunda hazırlık başlangıç tarihi tekrar manuel ve kaydedilebilir; update payload `preparation_start_date` içeriyor.
+- Doğrulama: `npm run lint` PASS (0/0), `npm run build` PASS, `git diff --check` PASS.
+- Sonraki adım: Commit/push; Vercel sonrası aynı süper yönetici oturumunda `Ekip Yönetimi` ve `Düzenle` kontrollerini canlı doğrula. RPC false dönerse aktif dönem `period_memberships.app_role` verisi ayrıca kontrol edilmeli.
+
 ## 2026-08-28 Etkinlikler arama + ortak etkinlik rozeti
 - Hedef: Etkinlikler sayfasında ortak etkinlikleri kart üzerinde hızlı ayırt etmek ve büyüyen listede başlıktan kolay arama sağlamak.
 - Değişen yol: `src/pages/EventsList.tsx`.

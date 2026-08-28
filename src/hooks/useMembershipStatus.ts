@@ -59,7 +59,7 @@ export function useMembershipStatus(session: Session | null): MembershipStatus {
     async function loadStatus() {
       const userId = session!.user.id
       const fallbackName = session!.user.email ?? 'Kullanıcı'
-      const [profileResult, membershipResult] = await Promise.all([
+      const [profileResult, membershipResult, superAdminResult] = await Promise.all([
         supabase.from('profiles').select('display_name').eq('id', userId).maybeSingle(),
         supabase
           .from('period_memberships')
@@ -69,6 +69,7 @@ export function useMembershipStatus(session: Session | null): MembershipStatus {
           .eq('periods.is_active', true)
           .limit(1)
           .maybeSingle(),
+        supabase.rpc('is_super_admin'),
       ])
       if (!isMounted) return
 
@@ -90,7 +91,7 @@ export function useMembershipStatus(session: Session | null): MembershipStatus {
         setPeriodLabel(activePeriod.label ?? null)
         setProfileId(userId)
         setPeriodId(membership.period_id ?? null)
-        setAppRole((membership.app_role as AppRole | null) ?? null)
+        setAppRole(superAdminResult.data === true ? 'super_admin' : ((membership.app_role as AppRole | null) ?? null))
         setCoordinatorRoleName(coordinatorRole?.name ?? null)
         setCoordinatorRoleSlug(coordinatorRole?.slug ?? null)
       } else {
