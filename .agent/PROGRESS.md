@@ -64,6 +64,15 @@ Tamamlandı. Supabase migration uygulandı, `deliver-push-notifications` Edge Fu
 ## Sonraki adım
 Gerçek cihazlarda en az bir iPhone/PWA ve bir ikinci cihaz ile test bildirimi gönderip teslim davranışını gözlemle; gerekirse teslim gözlemlenebilirliğini ayrıca geliştir.
 
+## 2026-08-28 Manuel hazırlık tarihi
+- Hedef: Etkinlik ve farkındalık oluştururken hazırlık başlangıç tarihini sistemin otomatik hesaplaması yerine kullanıcı seçsin.
+- Değişen yollar: `src/components/events/NewEventPanel.tsx`, `src/pages/EventsList.tsx`, `src/pages/AwarenessPosts.tsx`, iki yeni Supabase migration.
+- Karar: Hazırlık tarihi isteğe bağlıdır; mevcut kayıtlar korunur. MUPİ farkındalık önerisi varsa önerilen hazırlık tarihi forma önceden gelir ama kullanıcı değiştirebilir.
+- Supabase: `20260828202000_allow_manual_preparation_dates.sql` canlı veritabanına uygulandı; otomatik trigger fonksiyonları artık tarihi ezmiyor.
+- Ek doğrulama: DB lint sırasında önceki push claim fonksiyonunda değişken/kolon belirsizliği yakalandı; `20260828202100_fix_push_claim_variable_resolution.sql` ile düzeltildi ve canlı DB lint `No schema errors found` verdi.
+- Doğrulama: `npm run lint`, `npm run build`, `git diff --check`, Supabase dry-run ve linked lint PASS.
+- Sonraki adım: Git commit/push ve canlı formları veri kaydetmeden doğrula.
+
 ## 2026-08-28 Takvim aylık sayaç düzeltmesi
 - Hedef: Takvim ay başlığı altındaki etkinlik/görev/farkındalık sayılarını dönem toplamı yerine seçili aya ait benzersiz kayıt sayılarıyla göstermek.
 - Değişen yol: `src/pages/Calendar.tsx`.

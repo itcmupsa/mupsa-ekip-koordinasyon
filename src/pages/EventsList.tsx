@@ -139,6 +139,7 @@ export default function EventsList({ session }: { session: Session }) {
   const [description, setDescription] = useState('')
   const [planningDate, setPlanningDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [estimatedDate, setEstimatedDate] = useState('')
+  const [preparationStartDate, setPreparationStartDate] = useState('')
   const [createError, setCreateError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [selectedCoordinatorRoleId, setSelectedCoordinatorRoleId] = useState('all')
@@ -322,6 +323,7 @@ export default function EventsList({ session }: { session: Session }) {
       owner_id: profileId,
       planning_date: planningDate,
       estimated_date: estimatedDate || null,
+      preparation_start_date: preparationStartDate || null,
     })
 
     if (error) {
@@ -334,6 +336,7 @@ export default function EventsList({ session }: { session: Session }) {
     setDescription('')
     setPlanningDate(new Date().toISOString().slice(0, 10))
     setEstimatedDate('')
+    setPreparationStartDate('')
     setCreateState('closed')
     setSuccessMessage('Etkinlik başarıyla oluşturuldu.')
     setReloadKey((current) => current + 1)
@@ -438,12 +441,14 @@ export default function EventsList({ session }: { session: Session }) {
           description={description}
           planningDate={planningDate}
           estimatedDate={estimatedDate}
+          preparationStartDate={preparationStartDate}
           error={createError}
           submitting={createState === 'submitting'}
           onTitleChange={setTitle}
           onDescriptionChange={setDescription}
           onPlanningDateChange={setPlanningDate}
           onEstimatedDateChange={setEstimatedDate}
+          onPreparationStartDateChange={setPreparationStartDate}
           onSubmit={() => void handleCreateEvent()}
           onClose={closeCreateForm}
         />

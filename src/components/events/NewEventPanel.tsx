@@ -6,12 +6,14 @@ interface NewEventPanelProps {
   description: string
   planningDate: string
   estimatedDate: string
+  preparationStartDate: string
   error: string | null
   submitting: boolean
   onTitleChange: (value: string) => void
   onDescriptionChange: (value: string) => void
   onPlanningDateChange: (value: string) => void
   onEstimatedDateChange: (value: string) => void
+  onPreparationStartDateChange: (value: string) => void
   onSubmit: () => void
   onClose: () => void
 }
@@ -45,12 +47,14 @@ function EventForm({
   description,
   planningDate,
   estimatedDate,
+  preparationStartDate,
   error,
   submitting,
   onTitleChange,
   onDescriptionChange,
   onPlanningDateChange,
   onEstimatedDateChange,
+  onPreparationStartDateChange,
   onSubmit,
   desktop = false,
 }: EventFormProps) {
@@ -78,12 +82,12 @@ function EventForm({
           </section>
 
           <section className="rounded-xl border border-canvas-border bg-canvas p-4 sm:p-5">
-            <div className="flex items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-sm font-semibold text-amber-800">2</span><div><h3 className="text-sm font-semibold text-ink">Tarih planlaması</h3><p className="mt-0.5 text-xs text-ink-soft">Planlama ve tahmini etkinlik tarihleri.</p></div></div>
+            <div className="flex items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-sm font-semibold text-amber-800">2</span><div><h3 className="text-sm font-semibold text-ink">Tarih planlaması</h3><p className="mt-0.5 text-xs text-ink-soft">Planlama, hazırlık ve tahmini etkinlik tarihlerini belirleyin.</p></div></div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className="grid gap-1.5 text-sm font-medium text-ink">Planlama tarihi<input type="date" value={planningDate} onChange={(event) => onPlanningDateChange(event.target.value)} disabled={submitting} className={fieldClass} /></label>
               <label className="grid gap-1.5 text-sm font-medium text-ink">Tahmini etkinlik tarihi<input type="date" value={estimatedDate} onChange={(event) => onEstimatedDateChange(event.target.value)} disabled={submitting} className={fieldClass} /></label>
+              <label className="grid gap-1.5 text-sm font-medium text-ink sm:col-span-2"><span>Hazırlık başlangıç tarihi <span className="text-xs font-normal text-ink-soft">(isteğe bağlı)</span></span><input type="date" value={preparationStartDate} onChange={(event) => onPreparationStartDateChange(event.target.value)} disabled={submitting} className={fieldClass} /></label>
             </div>
-            <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">Hazırlık başlangıç tarihi, etkinlik takvimine göre sistem tarafından otomatik hesaplanır.</p>
           </section>
         </div>
 
@@ -111,12 +115,14 @@ export default function NewEventPanel({
   description,
   planningDate,
   estimatedDate,
+  preparationStartDate,
   error,
   submitting,
   onTitleChange,
   onDescriptionChange,
   onPlanningDateChange,
   onEstimatedDateChange,
+  onPreparationStartDateChange,
   onSubmit,
   onClose,
 }: NewEventPanelProps) {
@@ -174,12 +180,14 @@ export default function NewEventPanel({
     description,
     planningDate,
     estimatedDate,
+    preparationStartDate,
     error,
     submitting,
     onTitleChange,
     onDescriptionChange,
     onPlanningDateChange,
     onEstimatedDateChange,
+    onPreparationStartDateChange,
     onSubmit,
   }
 

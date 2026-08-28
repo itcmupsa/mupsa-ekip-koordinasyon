@@ -168,13 +168,6 @@ function formatMonthYear(value: string | null): string {
   }).format(date)
 }
 
-function addDaysToDateOnly(value: string | null, days: number): string {
-  const date = parseDateOnly(value)
-  if (!date) return ''
-  date.setUTCDate(date.getUTCDate() + days)
-  return date.toISOString().slice(0, 10)
-}
-
 function isDelayed(shareDate: string | null, sharingStatus: string): boolean {
   if (!shareDate || sharingStatus === 'shared') return false
   const target = parseDateOnly(shareDate)
@@ -230,6 +223,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
   const [endDate, setEndDate] = useState('')
   const [estimatedDate, setEstimatedDate] = useState('')
   const [shareDate, setShareDate] = useState('')
+  const [preparationStartDate, setPreparationStartDate] = useState('')
   const [closingDate, setClosingDate] = useState('')
   const [designStatus, setDesignStatus] = useState('not_started')
   const [announcementStatus, setAnnouncementStatus] = useState('not_started')
@@ -442,6 +436,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
     setEndDate('')
     setEstimatedDate('')
     setShareDate('')
+    setPreparationStartDate('')
     setClosingDate('')
     setDesignStatus('not_started')
     setAnnouncementStatus('not_started')
@@ -474,6 +469,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
     setEndDate(post.endDate ?? '')
     setEstimatedDate(post.estimatedDate ?? '')
     setShareDate(post.shareDate ?? '')
+    setPreparationStartDate(post.preparationStartDate ?? '')
     setClosingDate(post.closingDate ?? '')
     setDesignStatus(post.designStatus)
     setAnnouncementStatus(post.announcementStatus)
@@ -500,6 +496,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
     setEndDate(suggestion.targetEndDate ?? suggestion.targetDate)
     setEstimatedDate(payload.suggested_share_date || suggestion.targetDate)
     setShareDate(payload.suggested_share_date || suggestion.targetDate)
+    setPreparationStartDate(payload.suggested_preparation_date || '')
     setNextAction('İçerik kapsamını ekipçe doğrula ve tasarım planını oluştur.')
     setNote(`MUPİ içerik taslağı (yayınlamadan önce doğrulayın):\n${payload.draft_text}\n\nGörsel fikri:\n${payload.visual_idea}\n\nEczacılık bağlantısı:\n${payload.pharmacy_relevance}\n\nKaynak: ${payload.source_name} — ${payload.source_url}`)
     setSuggestionTransferId(suggestion.id)
@@ -545,6 +542,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
       end_date: endDate || null,
       estimated_date: estimatedDate || null,
       share_date: shareDate || null,
+      preparation_start_date: preparationStartDate || null,
       closing_date: closingDate || null,
       design_status: designStatus,
       announcement_text_status: announcementStatus,
@@ -865,7 +863,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Bitiş günü<input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} disabled={isSaving} className={fieldClass} /></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Tahmini paylaşım<input type="date" value={estimatedDate} onChange={(event) => setEstimatedDate(event.target.value)} disabled={isSaving} className={fieldClass} /></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Paylaşım tarihi<input type="date" value={shareDate} onChange={(event) => setShareDate(event.target.value)} disabled={isSaving} className={fieldClass} /></label>
-                    <label className="grid gap-1.5 text-sm font-medium text-ink">Hazırlık başlangıcı <span className="font-normal text-ink-soft">(otomatik)</span><input type="date" value={shareDate ? addDaysToDateOnly(shareDate, -14) : addDaysToDateOnly(estimatedDate, -14)} disabled className={`${fieldClass} bg-canvas`} /></label>
+                    <label className="grid gap-1.5 text-sm font-medium text-ink">Hazırlık başlangıcı <span className="font-normal text-ink-soft">(isteğe bağlı)</span><input type="date" value={preparationStartDate} onChange={(event) => setPreparationStartDate(event.target.value)} disabled={isSaving} className={fieldClass} /></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Kapanış tarihi<input type="date" value={closingDate} onChange={(event) => setClosingDate(event.target.value)} disabled={isSaving} className={fieldClass} /></label>
                   </div></fieldset>
 
