@@ -112,6 +112,10 @@ function FilterIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><path d="M4 5h16l-6.2 7.1v5.4l-3.6 1.8v-7.2z" /></svg>
 }
 
+function SearchIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
+}
+
 function CheckIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true"><path d="m6.5 12.5 3.2 3.2 7.8-8" /></svg>
 }
@@ -163,6 +167,7 @@ export default function EventsList({ session }: { session: Session }) {
   const [createError, setCreateError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [selectedCoordinatorRoleId, setSelectedCoordinatorRoleId] = useState('all')
+  const [searchTerm, setSearchTerm] = useState('')
   const [showInactive, setShowInactive] = useState(false)
   const [updatingEventId, setUpdatingEventId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<EventRow | null>(null)
@@ -429,12 +434,25 @@ export default function EventsList({ session }: { session: Session }) {
   }, [events])
 
   const filteredEvents = useMemo(() => {
-    const matchingEvents = selectedCoordinatorRoleId === 'all'
+    const roleFilteredEvents = selectedCoordinatorRoleId === 'all'
       ? events
       : events.filter((event) =>
           event.ownerRoleId === selectedCoordinatorRoleId
           || event.coordinatorRoles.some((role) => role.id === selectedCoordinatorRoleId),
         )
+    const normalizedSearch = searchTerm.trim().toLocaleLowerCase('tr-TR')
+    const matchingEvents = normalizedSearch
+      ? roleFilteredEvents.filter((event) => {
+          const searchableText = [
+            event.title,
+            event.description ?? '',
+            event.ownerName,
+            event.ownerRoleName ?? '',
+            ...event.coordinatorRoles.map((role) => role.name),
+          ].join(' ').toLocaleLowerCase('tr-TR')
+          return searchableText.includes(normalizedSearch)
+        })
+      : roleFilteredEvents
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
@@ -454,7 +472,7 @@ export default function EventsList({ session }: { session: Session }) {
       if (firstTime !== secondTime) return firstIsUpcoming ? firstTime - secondTime : secondTime - firstTime
       return firstEvent.title.localeCompare(secondEvent.title, 'tr-TR')
     })
-  }, [events, selectedCoordinatorRoleId])
+  }, [events, searchTerm, selectedCoordinatorRoleId])
 
   if (statusLoading || loadState === 'loading') return <CenteredMessage text="Etkinlikler yükleniyor…" />
   if (!hasActiveMembership) return <CenteredMessage text="Bu sayfaya erişim yetkin yok." />
@@ -539,6 +557,25 @@ export default function EventsList({ session }: { session: Session }) {
               </div>
             </div>
 
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <label className="relative block w-full sm:max-w-md">
+                <span className="sr-only">Etkinlik ara</span>
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft"><SearchIcon /></span>
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Etkinlik ara"
+                  autoComplete="off"
+                  className="min-h-[46px] w-full rounded-lg border border-canvas-border bg-canvas pl-10 pr-10 text-sm text-ink outline-none transition placeholder:text-ink-soft focus:border-brand focus:ring-2 focus:ring-brand/20"
+                />
+                {searchTerm ? (
+                  <button type="button" onClick={() => setSearchTerm('')} aria-label="Etkinlik aramasını temizle" className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-lg leading-none text-ink-soft hover:bg-canvas-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">×</button>
+                ) : null}
+              </label>
+              <p className="text-xs font-medium text-ink-soft" aria-live="polite">{filteredEvents.length} etkinlik gösteriliyor</p>
+            </div>
+
             <div className="-mx-4 mt-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 sm:-mx-5 sm:px-5 lg:mx-0 lg:flex lg:flex-wrap lg:gap-4 lg:overflow-visible lg:px-0" role="radiogroup" aria-label="Etkinlikleri koordinatörlüğe göre filtrele">
               <button
                 type="button"
@@ -580,11 +617,15 @@ export default function EventsList({ session }: { session: Session }) {
           </div>
         ) : (
           filteredEvents.length === 0 ? (
-            <div className="mt-6 rounded-xl border border-canvas-border bg-canvas-surface px-4 py-8 text-center shadow-card"><p className="text-sm font-medium text-ink">Bu koordinatörlüğe ait etkinlik bulunmuyor.</p><button type="button" onClick={() => setSelectedCoordinatorRoleId('all')} className="mt-3 min-h-[44px] rounded-md px-3 text-sm font-medium text-brand-dark">Tüm etkinlikleri göster</button></div>
+            <div className="mt-6 rounded-xl border border-canvas-border bg-canvas-surface px-4 py-8 text-center shadow-card">
+              <p className="text-sm font-medium text-ink">{searchTerm.trim() ? 'Aramana uygun etkinlik bulunmuyor.' : 'Bu koordinatörlüğe ait etkinlik bulunmuyor.'}</p>
+              <button type="button" onClick={() => { setSearchTerm(''); setSelectedCoordinatorRoleId('all') }} className="mt-3 min-h-[44px] rounded-md px-3 text-sm font-medium text-brand-dark">Filtreleri temizle</button>
+            </div>
           ) : <>
           <ul className="mt-5 grid grid-cols-2 gap-2.5 lg:hidden">
             {filteredEvents.map((event) => {
               const roleBadges = eventCoordinatorRoles(event)
+              const isSharedEvent = event.coordinatorRoles.length > 0
               const displayDate = eventDisplayDate(event)
 
               return (
@@ -592,6 +633,7 @@ export default function EventsList({ session }: { session: Session }) {
                   <div className="flex flex-1 flex-col overflow-hidden rounded-xl p-3">
                     <div className="flex flex-wrap gap-1.5 text-[11px] leading-4">
                       <span className={`rounded-full px-2 py-1 font-medium ${statusClass(event.eventStatusSlug)}`}>{event.eventStatus}</span>
+                      {isSharedEvent ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 font-semibold text-amber-800">Ortak etkinlik</span> : null}
                       {roleBadges.map((role) => {
                         const presentation = coordinatorRolePresentation(role.slug, role.name)
                         return <span key={role.id} className={`max-w-full truncate rounded-full border px-2 py-1 font-semibold ${presentation.softClass}`} title={role.name}>{presentation.shortLabel}</span>
@@ -647,6 +689,7 @@ export default function EventsList({ session }: { session: Session }) {
           <ul className="mt-6 hidden grid-cols-3 gap-4 lg:grid">
             {filteredEvents.map((event) => {
               const roleBadges = eventCoordinatorRoles(event)
+              const isSharedEvent = event.coordinatorRoles.length > 0
               const displayDate = eventDisplayDate(event)
 
               return (
@@ -655,6 +698,7 @@ export default function EventsList({ session }: { session: Session }) {
                     <div className="flex flex-1 flex-col p-4">
                       <div className="flex flex-wrap items-center gap-2 text-xs">
                         <span className={`rounded-full px-2.5 py-1 font-medium ${statusClass(event.eventStatusSlug)}`}>{event.eventStatus}</span>
+                        {isSharedEvent ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 font-semibold text-amber-800">Ortak etkinlik</span> : null}
                         {roleBadges.map((role) => { const presentation = coordinatorRolePresentation(role.slug, role.name); return <span key={role.id} className={`inline-flex max-w-full items-center gap-1.5 truncate rounded-full border px-2.5 py-1 font-semibold ${presentation.softClass}`} title={role.name}><span className={`h-2 w-2 shrink-0 rounded-full ${presentation.dotClass}`} />{presentation.shortLabel}</span> })}
                         <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 font-medium text-red-700">Pasif</span>
                       </div>
@@ -665,6 +709,7 @@ export default function EventsList({ session }: { session: Session }) {
                     <Link to={`/app/etkinlikler/${event.id}`} aria-label={`${event.title} etkinliğini aç`} className="flex flex-1 flex-col p-4 transition hover:bg-canvas/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand">
                       <div className="flex flex-wrap items-center gap-2 text-xs">
                         <span className={`rounded-full px-2.5 py-1 font-medium ${statusClass(event.eventStatusSlug)}`}>{event.eventStatus}</span>
+                        {isSharedEvent ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 font-semibold text-amber-800">Ortak etkinlik</span> : null}
                         {roleBadges.map((role) => { const presentation = coordinatorRolePresentation(role.slug, role.name); return <span key={role.id} className={`inline-flex max-w-full items-center gap-1.5 truncate rounded-full border px-2.5 py-1 font-semibold ${presentation.softClass}`} title={role.name}><span className={`h-2 w-2 shrink-0 rounded-full ${presentation.dotClass}`} />{presentation.shortLabel}</span> })}
                       </div>
                       <p className="mt-3 truncate text-sm text-ink-soft" title={`Sorumlu: ${event.ownerName}`}>Sorumlu: {event.ownerName}</p>
