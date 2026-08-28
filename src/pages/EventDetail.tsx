@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import AppShell from '../components/AppShell'
+import EventCoordinatorsPanel from '../components/events/EventCoordinatorsPanel'
 import { useSession } from '../hooks/useSession'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
 import { supabase } from '../lib/supabaseClient'
@@ -3268,7 +3269,30 @@ export default function EventDetail() {
 
   const isOwner = !!event && !!profileId && event.ownerId === profileId
   const isSuperAdmin = appRole === 'super_admin'
-  const canEdit = isOwner || isSuperAdmin
+  const [isCoCoordinator, setIsCoCoordinator] = useState(false)
+
+  useEffect(() => {
+    if (!eventId || !profileId) {
+      setIsCoCoordinator(false)
+      return
+    }
+    let isMounted = true
+    async function loadCoCoordinatorStatus() {
+      const { data } = await supabase
+        .from('event_coordinators')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('profile_id', profileId)
+        .maybeSingle()
+      if (isMounted) setIsCoCoordinator(Boolean(data))
+    }
+    void loadCoCoordinatorStatus()
+    return () => {
+      isMounted = false
+    }
+  }, [eventId, profileId])
+
+  const canEdit = isOwner || isSuperAdmin || isCoCoordinator
 
   const sksMembers = processMembers.filter(m => m.processType === 'sks')
   const sksOwner = sksMembers.find((member) => member.responsibilityType === 'owner')
@@ -5032,6 +5056,8 @@ export default function EventDetail() {
           </div>
           </div>
         </section> : null}
+
+        <EventCoordinatorsPanel eventId={eventId ?? ''} />
 
         <section id="event-tasks" className="order-1 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

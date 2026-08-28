@@ -3,7 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { Link, useSearchParams } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import PermanentDeleteDialog from '../components/PermanentDeleteDialog'
-import NewEventPanel from '../components/events/NewEventPanel'
+import NewEventPanel, { type EventCoordinatorOption } from '../components/events/NewEventPanel'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
 import { supabase } from '../lib/supabaseClient'
 import { coordinatorRolePresentation } from '../lib/coordinatorRolePresentation'
@@ -22,6 +22,7 @@ interface EventRow {
   ownerRoleName: string | null
   ownerRoleId: string | null
   ownerRoleSlug: string | null
+  coordinatorRoles: Array<{ id: string; name: string; slug: string | null }>
   deletedAt: string | null
 }
 
@@ -34,12 +35,18 @@ interface CoordinatorRoleRelation {
 interface ProfileRow {
   profile_id: string
   period_display_name: string
+  is_active: boolean
   coordinator_roles: CoordinatorRoleRelation | CoordinatorRoleRelation[] | null
 }
 
 interface StatusRow {
   slug: string
   label: string
+}
+
+interface EventCoordinatorRow {
+  event_id: string
+  profile_id: string
 }
 
 type LoadState = 'loading' | 'ready' | 'error'
@@ -61,6 +68,16 @@ function eventDisplayDate(event: EventRow) {
 function pickOne<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null
   return Array.isArray(value) ? (value[0] ?? null) : value
+}
+
+function eventCoordinatorRoles(event: EventRow) {
+  const roles = [
+    ...(event.ownerRoleId && event.ownerRoleName
+      ? [{ id: event.ownerRoleId, name: event.ownerRoleName, slug: event.ownerRoleSlug }]
+      : []),
+    ...event.coordinatorRoles,
+  ]
+  return Array.from(new Map(roles.map((role) => [role.id, role])).values())
 }
 
 function statusClass(slug: string) {
@@ -140,6 +157,8 @@ export default function EventsList({ session }: { session: Session }) {
   const [planningDate, setPlanningDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [estimatedDate, setEstimatedDate] = useState('')
   const [preparationStartDate, setPreparationStartDate] = useState('')
+  const [coordinatorOptions, setCoordinatorOptions] = useState<EventCoordinatorOption[]>([])
+  const [selectedCoordinatorProfileIds, setSelectedCoordinatorProfileIds] = useState<string[]>([])
   const [createError, setCreateError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [selectedCoordinatorRoleId, setSelectedCoordinatorRoleId] = useState('all')
@@ -183,23 +202,23 @@ export default function EventsList({ session }: { session: Session }) {
       }
 
       const eventRows = eventData ?? []
-      const ownerIds = [...new Set(eventRows.map((event) => event.owner_id as string))]
+      const eventIds = eventRows.map((event) => event.id as string)
       const statusSlugs = [...new Set(eventRows.map((event) => event.event_status as string))]
-      const [profilesResult, statusesResult] = await Promise.all([
-        ownerIds.length > 0
-          ? supabase
-              .from('period_memberships')
-              .select('profile_id, period_display_name, coordinator_roles(id, name, slug)')
-              .eq('period_id', periodId)
-              .in('profile_id', ownerIds)
-          : Promise.resolve({ data: [], error: null }),
+      const [profilesResult, statusesResult, coordinatorsResult] = await Promise.all([
+        supabase
+          .from('period_memberships')
+          .select('profile_id, period_display_name, is_active, coordinator_roles(id, name, slug)')
+          .eq('period_id', periodId),
         statusSlugs.length > 0
           ? supabase.from('event_statuses').select('slug, label').in('slug', statusSlugs)
+          : Promise.resolve({ data: [], error: null }),
+        eventIds.length > 0
+          ? supabase.from('event_coordinators').select('event_id, profile_id').in('event_id', eventIds)
           : Promise.resolve({ data: [], error: null }),
       ])
 
       if (!isMounted) return
-      if (profilesResult.error || statusesResult.error) {
+      if (profilesResult.error || statusesResult.error || coordinatorsResult.error) {
         setLoadState('error')
         return
       }
@@ -218,6 +237,23 @@ export default function EventsList({ session }: { session: Session }) {
       const statuses = new Map(
         ((statusesResult.data ?? []) as StatusRow[]).map((status) => [status.slug, status.label]),
       )
+      const coordinatorProfileIdsByEvent = new Map<string, string[]>()
+      for (const row of (coordinatorsResult.data ?? []) as EventCoordinatorRow[]) {
+        const current = coordinatorProfileIdsByEvent.get(row.event_id) ?? []
+        current.push(row.profile_id)
+        coordinatorProfileIdsByEvent.set(row.event_id, current)
+      }
+
+      setCoordinatorOptions(
+        ((profilesResult.data ?? []) as ProfileRow[])
+          .filter((profile) => profile.is_active && profile.profile_id !== profileId)
+          .map((profile) => ({
+            profileId: profile.profile_id,
+            displayName: profile.period_display_name,
+            coordinatorRoleName: pickOne(profile.coordinator_roles)?.name ?? null,
+          }))
+          .sort((a, b) => a.displayName.localeCompare(b.displayName, 'tr-TR')),
+      )
 
       setEvents(
         eventRows.map((event) => ({
@@ -233,6 +269,11 @@ export default function EventsList({ session }: { session: Session }) {
           ownerRoleId: profiles.get(event.owner_id as string)?.roleId ?? null,
           ownerRoleName: profiles.get(event.owner_id as string)?.roleName ?? null,
           ownerRoleSlug: profiles.get(event.owner_id as string)?.roleSlug ?? null,
+          coordinatorRoles: (coordinatorProfileIdsByEvent.get(event.id as string) ?? [])
+            .map((coordinatorProfileId) => profiles.get(coordinatorProfileId))
+            .filter((profile): profile is { name: string; roleId: string | null; roleName: string | null; roleSlug: string | null } => Boolean(profile))
+            .filter((profile) => Boolean(profile.roleId && profile.roleName))
+            .map((profile) => ({ id: profile.roleId as string, name: profile.roleName as string, slug: profile.roleSlug })),
           deletedAt: (event.deleted_at as string | null) ?? null,
         })),
       )
@@ -243,7 +284,7 @@ export default function EventsList({ session }: { session: Session }) {
     return () => {
       isMounted = false
     }
-  }, [hasActiveMembership, isSuperAdmin, periodId, reloadKey, showInactive, statusLoading])
+  }, [hasActiveMembership, isSuperAdmin, periodId, profileId, reloadKey, showInactive, statusLoading])
 
   function openCreateForm() {
     setSuccessMessage(null)
@@ -299,6 +340,14 @@ export default function EventsList({ session }: { session: Session }) {
     setReloadKey((value) => value + 1)
   }
 
+  function toggleCoordinator(profileIdToToggle: string) {
+    setSelectedCoordinatorProfileIds((current) =>
+      current.includes(profileIdToToggle)
+        ? current.filter((profileIdValue) => profileIdValue !== profileIdToToggle)
+        : [...current, profileIdToToggle],
+    )
+  }
+
   async function handleCreateEvent() {
     setCreateError(null)
     if (!periodId || !profileId) {
@@ -315,15 +364,14 @@ export default function EventsList({ session }: { session: Session }) {
     }
 
     setCreateState('submitting')
-    const { error } = await supabase.from('events').insert({
-      period_id: periodId,
-      title: title.trim(),
-      description: description.trim() || null,
-      created_by: profileId,
-      owner_id: profileId,
-      planning_date: planningDate,
-      estimated_date: estimatedDate || null,
-      preparation_start_date: preparationStartDate || null,
+    const { error } = await supabase.rpc('create_event_with_coordinators', {
+      p_period_id: periodId,
+      p_title: title.trim(),
+      p_description: description.trim() || null,
+      p_planning_date: planningDate,
+      p_estimated_date: estimatedDate || null,
+      p_preparation_start_date: preparationStartDate || null,
+      p_coordinator_profile_ids: selectedCoordinatorProfileIds,
     })
 
     if (error) {
@@ -337,6 +385,7 @@ export default function EventsList({ session }: { session: Session }) {
     setPlanningDate(new Date().toISOString().slice(0, 10))
     setEstimatedDate('')
     setPreparationStartDate('')
+    setSelectedCoordinatorProfileIds([])
     setCreateState('closed')
     setSuccessMessage('Etkinlik başarıyla oluşturuldu.')
     setReloadKey((current) => current + 1)
@@ -349,13 +398,21 @@ export default function EventsList({ session }: { session: Session }) {
   const coordinatorRoleOptions = useMemo(() => {
     const options = new Map<string, { name: string; slug: string | null; count: number }>()
     for (const event of events) {
-      if (!event.ownerRoleId || !event.ownerRoleName) continue
-      const current = options.get(event.ownerRoleId)
-      options.set(event.ownerRoleId, {
-        name: event.ownerRoleName,
-        slug: event.ownerRoleSlug,
-        count: (current?.count ?? 0) + 1,
-      })
+      const roles = [
+        ...(event.ownerRoleId && event.ownerRoleName
+          ? [{ id: event.ownerRoleId, name: event.ownerRoleName, slug: event.ownerRoleSlug }]
+          : []),
+        ...event.coordinatorRoles,
+      ]
+      const uniqueRoles = new Map(roles.map((role) => [role.id, role]))
+      for (const role of uniqueRoles.values()) {
+        const current = options.get(role.id)
+        options.set(role.id, {
+          name: role.name,
+          slug: role.slug,
+          count: (current?.count ?? 0) + 1,
+        })
+      }
     }
     return Array.from(options, ([id, option]) => ({ id, ...option })).sort((a, b) => a.name.localeCompare(b.name, 'tr-TR'))
   }, [events])
@@ -363,7 +420,10 @@ export default function EventsList({ session }: { session: Session }) {
   const filteredEvents = useMemo(() => {
     const matchingEvents = selectedCoordinatorRoleId === 'all'
       ? events
-      : events.filter((event) => event.ownerRoleId === selectedCoordinatorRoleId)
+      : events.filter((event) =>
+          event.ownerRoleId === selectedCoordinatorRoleId
+          || event.coordinatorRoles.some((role) => role.id === selectedCoordinatorRoleId),
+        )
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
@@ -442,6 +502,8 @@ export default function EventsList({ session }: { session: Session }) {
           planningDate={planningDate}
           estimatedDate={estimatedDate}
           preparationStartDate={preparationStartDate}
+          coordinatorOptions={coordinatorOptions}
+          selectedCoordinatorProfileIds={selectedCoordinatorProfileIds}
           error={createError}
           submitting={createState === 'submitting'}
           onTitleChange={setTitle}
@@ -449,6 +511,7 @@ export default function EventsList({ session }: { session: Session }) {
           onPlanningDateChange={setPlanningDate}
           onEstimatedDateChange={setEstimatedDate}
           onPreparationStartDateChange={setPreparationStartDate}
+          onToggleCoordinator={toggleCoordinator}
           onSubmit={() => void handleCreateEvent()}
           onClose={closeCreateForm}
         />
@@ -508,7 +571,7 @@ export default function EventsList({ session }: { session: Session }) {
           ) : <>
           <ul className="mt-5 grid grid-cols-2 gap-2.5 lg:hidden">
             {filteredEvents.map((event) => {
-              const ownerRolePresentation = coordinatorRolePresentation(event.ownerRoleSlug, event.ownerRoleName ?? '')
+              const roleBadges = eventCoordinatorRoles(event)
               const displayDate = eventDisplayDate(event)
 
               return (
@@ -516,11 +579,10 @@ export default function EventsList({ session }: { session: Session }) {
                   <div className="flex flex-1 flex-col overflow-hidden rounded-xl p-3">
                     <div className="flex flex-wrap gap-1.5 text-[11px] leading-4">
                       <span className={`rounded-full px-2 py-1 font-medium ${statusClass(event.eventStatusSlug)}`}>{event.eventStatus}</span>
-                      {event.ownerRoleName ? (
-                        <span className={`max-w-full truncate rounded-full border px-2 py-1 font-semibold ${ownerRolePresentation.softClass}`} title={event.ownerRoleName}>
-                          {ownerRolePresentation.shortLabel}
-                        </span>
-                      ) : null}
+                      {roleBadges.map((role) => {
+                        const presentation = coordinatorRolePresentation(role.slug, role.name)
+                        return <span key={role.id} className={`max-w-full truncate rounded-full border px-2 py-1 font-semibold ${presentation.softClass}`} title={role.name}>{presentation.shortLabel}</span>
+                      })}
                       {event.deletedAt ? <span className="rounded-full border border-red-200 bg-red-50 px-2 py-1 font-medium text-red-700">Pasif</span> : null}
                     </div>
 
@@ -571,7 +633,7 @@ export default function EventsList({ session }: { session: Session }) {
 
           <ul className="mt-6 hidden grid-cols-3 gap-4 lg:grid">
             {filteredEvents.map((event) => {
-              const ownerRolePresentation = coordinatorRolePresentation(event.ownerRoleSlug, event.ownerRoleName ?? '')
+              const roleBadges = eventCoordinatorRoles(event)
               const displayDate = eventDisplayDate(event)
 
               return (
@@ -580,7 +642,7 @@ export default function EventsList({ session }: { session: Session }) {
                     <div className="flex flex-1 flex-col p-4">
                       <div className="flex flex-wrap items-center gap-2 text-xs">
                         <span className={`rounded-full px-2.5 py-1 font-medium ${statusClass(event.eventStatusSlug)}`}>{event.eventStatus}</span>
-                        {event.ownerRoleName ? <span className={`inline-flex max-w-full items-center gap-1.5 truncate rounded-full border px-2.5 py-1 font-semibold ${ownerRolePresentation.softClass}`} title={event.ownerRoleName}><span className={`h-2 w-2 shrink-0 rounded-full ${ownerRolePresentation.dotClass}`} />{ownerRolePresentation.shortLabel}</span> : null}
+                        {roleBadges.map((role) => { const presentation = coordinatorRolePresentation(role.slug, role.name); return <span key={role.id} className={`inline-flex max-w-full items-center gap-1.5 truncate rounded-full border px-2.5 py-1 font-semibold ${presentation.softClass}`} title={role.name}><span className={`h-2 w-2 shrink-0 rounded-full ${presentation.dotClass}`} />{presentation.shortLabel}</span> })}
                         <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 font-medium text-red-700">Pasif</span>
                       </div>
                       <p className="mt-3 truncate text-sm text-ink-soft" title={`Sorumlu: ${event.ownerName}`}>Sorumlu: {event.ownerName}</p>
@@ -590,7 +652,7 @@ export default function EventsList({ session }: { session: Session }) {
                     <Link to={`/app/etkinlikler/${event.id}`} aria-label={`${event.title} etkinliğini aç`} className="flex flex-1 flex-col p-4 transition hover:bg-canvas/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand">
                       <div className="flex flex-wrap items-center gap-2 text-xs">
                         <span className={`rounded-full px-2.5 py-1 font-medium ${statusClass(event.eventStatusSlug)}`}>{event.eventStatus}</span>
-                        {event.ownerRoleName ? <span className={`inline-flex max-w-full items-center gap-1.5 truncate rounded-full border px-2.5 py-1 font-semibold ${ownerRolePresentation.softClass}`} title={event.ownerRoleName}><span className={`h-2 w-2 shrink-0 rounded-full ${ownerRolePresentation.dotClass}`} />{ownerRolePresentation.shortLabel}</span> : null}
+                        {roleBadges.map((role) => { const presentation = coordinatorRolePresentation(role.slug, role.name); return <span key={role.id} className={`inline-flex max-w-full items-center gap-1.5 truncate rounded-full border px-2.5 py-1 font-semibold ${presentation.softClass}`} title={role.name}><span className={`h-2 w-2 shrink-0 rounded-full ${presentation.dotClass}`} />{presentation.shortLabel}</span> })}
                       </div>
                       <p className="mt-3 truncate text-sm text-ink-soft" title={`Sorumlu: ${event.ownerName}`}>Sorumlu: {event.ownerName}</p>
                       <h2 className="mt-3 line-clamp-2 break-words text-lg font-semibold leading-6 text-ink">{event.title}</h2>

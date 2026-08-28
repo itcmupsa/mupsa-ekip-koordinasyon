@@ -64,6 +64,13 @@ Tamamlandı. Supabase migration uygulandı, `deliver-push-notifications` Edge Fu
 ## Sonraki adım
 Gerçek cihazlarda en az bir iPhone/PWA ve bir ikinci cihaz ile test bildirimi gönderip teslim davranışını gözlemle; gerekirse teslim gözlemlenebilirliğini ayrıca geliştir.
 
+## 2026-08-28 Ortak koordinatör sistemi
+- Hedef: Bir etkinliğin tek ana sahibi korunurken birden fazla ortak koordinatör atanabilsin; ortak koordinatörler etkinliği genel olarak düzenleyebilsin, fakat ana sahiplik ve ortak koordinatör yönetimi kritik yetki olarak ana sahip/Süper Yönetici tarafında kalsın.
+- Plan: `event_coordinators` veri modeli + RLS/yetki fonksiyonları; etkinlik oluşturma formunda çoklu ortak koordinatör seçimi; Etkinlikler filtresinde ana veya ortak koordinatör rolüne göre tekil kart gösterimi; etkinlik detayında ortak koordinatörleri görüntüleme/yönetme; ortak koordinatör için genel etkinlik/görev düzenleme yetkisi; lint/build/Supabase lint+dry-run ve canlı salt-okunur doğrulama.
+- Filtre kararı: Mevcut üst koordinatör filtresi korunur. Ortak etkinlik ilgili tüm koordinatörlük filtrelerinde görünür, ancak `Tümü` listesinde yalnız bir kez görünür. Sayaçlar da aynı tekil etkinlik mantığını kullanır.
+- Yetki kararı: Ortak koordinatör etkinlik genel alanlarını ve bağlı görevleri yönetebilir; `owner_id`, `created_by`, dönem, kalıcı silme ve ortak koordinatör listesini değiştirme yetkisi yoktur. Ortak koordinatör ekleme/çıkarma ana sahip veya Süper Yöneticiye aittir.
+- Durum: Uygulama tamamlandı. `event_coordinators` canlı Supabase'e uygulandı; ortak koordinatör seçimi, filtre davranışı, etkinlik detay yönetimi ve ortak koordinatör düzenleme yetkisi kodlandı. Lint/build/diff-check ve linked Supabase lint/dry-run/push doğrulamaları geçti. Git commit/push ve canlı UI doğrulaması sırada.
+
 ## 2026-08-28 Manuel hazırlık tarihi
 - Hedef: Etkinlik ve farkındalık oluştururken hazırlık başlangıç tarihini sistemin otomatik hesaplaması yerine kullanıcı seçsin.
 - Değişen yollar: `src/components/events/NewEventPanel.tsx`, `src/pages/EventsList.tsx`, `src/pages/AwarenessPosts.tsx`, iki yeni Supabase migration.

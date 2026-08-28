@@ -1,5 +1,11 @@
 import { useEffect, useRef, type FormEvent } from 'react'
 
+export interface EventCoordinatorOption {
+  profileId: string
+  displayName: string
+  coordinatorRoleName: string | null
+}
+
 interface NewEventPanelProps {
   isOpen: boolean
   title: string
@@ -7,6 +13,8 @@ interface NewEventPanelProps {
   planningDate: string
   estimatedDate: string
   preparationStartDate: string
+  coordinatorOptions: EventCoordinatorOption[]
+  selectedCoordinatorProfileIds: string[]
   error: string | null
   submitting: boolean
   onTitleChange: (value: string) => void
@@ -14,6 +22,7 @@ interface NewEventPanelProps {
   onPlanningDateChange: (value: string) => void
   onEstimatedDateChange: (value: string) => void
   onPreparationStartDateChange: (value: string) => void
+  onToggleCoordinator: (profileId: string) => void
   onSubmit: () => void
   onClose: () => void
 }
@@ -48,6 +57,8 @@ function EventForm({
   planningDate,
   estimatedDate,
   preparationStartDate,
+  coordinatorOptions,
+  selectedCoordinatorProfileIds,
   error,
   submitting,
   onTitleChange,
@@ -55,6 +66,7 @@ function EventForm({
   onPlanningDateChange,
   onEstimatedDateChange,
   onPreparationStartDateChange,
+  onToggleCoordinator,
   onSubmit,
   desktop = false,
 }: EventFormProps) {
@@ -89,6 +101,25 @@ function EventForm({
               <label className="grid gap-1.5 text-sm font-medium text-ink sm:col-span-2"><span>Hazırlık başlangıç tarihi <span className="text-xs font-normal text-ink-soft">(isteğe bağlı)</span></span><input type="date" value={preparationStartDate} onChange={(event) => onPreparationStartDateChange(event.target.value)} disabled={submitting} className={fieldClass} /></label>
             </div>
           </section>
+
+          <section className="rounded-xl border border-canvas-border bg-canvas p-4 sm:p-5">
+            <div className="flex items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-sm font-semibold text-brand-dark">3</span><div><h3 className="text-sm font-semibold text-ink">Ortak koordinatörler</h3><p className="mt-0.5 text-xs text-ink-soft">Etkinlik başka koordinatörlüklerle ortaksa bir veya daha fazla kişi seçebilirsiniz.</p></div></div>
+            {coordinatorOptions.length === 0 ? (
+              <p className="mt-4 text-sm text-ink-soft">Aktif dönemde seçilebilecek başka koordinatör bulunmuyor.</p>
+            ) : (
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {coordinatorOptions.map((member) => {
+                  const checked = selectedCoordinatorProfileIds.includes(member.profileId)
+                  return (
+                    <label key={member.profileId} className={`flex min-h-[52px] cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 transition ${checked ? 'border-brand bg-brand-soft/60' : 'border-canvas-border bg-canvas-surface hover:border-brand/40'}`}>
+                      <input type="checkbox" checked={checked} onChange={() => onToggleCoordinator(member.profileId)} disabled={submitting} className="h-4 w-4 shrink-0 accent-brand" />
+                      <span className="min-w-0"><span className="block truncate text-sm font-semibold text-ink">{member.displayName}</span><span className="block truncate text-xs text-ink-soft">{member.coordinatorRoleName ?? 'Koordinatör'}</span></span>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+          </section>
         </div>
 
         {error ? (
@@ -116,6 +147,8 @@ export default function NewEventPanel({
   planningDate,
   estimatedDate,
   preparationStartDate,
+  coordinatorOptions,
+  selectedCoordinatorProfileIds,
   error,
   submitting,
   onTitleChange,
@@ -123,6 +156,7 @@ export default function NewEventPanel({
   onPlanningDateChange,
   onEstimatedDateChange,
   onPreparationStartDateChange,
+  onToggleCoordinator,
   onSubmit,
   onClose,
 }: NewEventPanelProps) {
@@ -181,6 +215,8 @@ export default function NewEventPanel({
     planningDate,
     estimatedDate,
     preparationStartDate,
+    coordinatorOptions,
+    selectedCoordinatorProfileIds,
     error,
     submitting,
     onTitleChange,
@@ -188,6 +224,7 @@ export default function NewEventPanel({
     onPlanningDateChange,
     onEstimatedDateChange,
     onPreparationStartDateChange,
+    onToggleCoordinator,
     onSubmit,
   }
 
