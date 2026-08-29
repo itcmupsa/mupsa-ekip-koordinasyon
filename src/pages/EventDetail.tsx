@@ -1157,7 +1157,6 @@ export default function EventDetail() {
   const [isSavingDates, setIsSavingDates] = useState(false)
   const [dateSaveError, setDateSaveError] = useState<string | null>(null)
   const [editEventStatus, setEditEventStatus] = useState('idea')
-  const [editReportStatus, setEditReportStatus] = useState('no')
   const [editOwnerId, setEditOwnerId] = useState('')
   const [editingProcessField, setEditingProcessField] = useState<'venue' | 'nextAction' | null>(null)
   const [processFieldValue, setProcessFieldValue] = useState('')
@@ -1199,7 +1198,7 @@ export default function EventDetail() {
   const [availableBudgetStatuses, setAvailableBudgetStatuses] = useState<BudgetStatusOption[]>([])
   const [availableEventDesignAnnouncementStatuses, setAvailableEventDesignAnnouncementStatuses] = useState<EventDesignAnnouncementStatusOption[]>([])
   const [availableEventAnnouncementStatuses, setAvailableEventAnnouncementStatuses] = useState<EventAnnouncementStatusOption[]>([])
-  const [availableEventReportStatuses, setAvailableEventReportStatuses] = useState<EventReportStatusOption[]>([])
+  const [_availableEventReportStatuses, setAvailableEventReportStatuses] = useState<EventReportStatusOption[]>([])
   const [availableEventStatuses, setAvailableEventStatuses] = useState<EventStatusOption[]>([])
   const [processingDependencyTaskId, setProcessingDependencyTaskId] = useState<string | null>(null)
   const [dependencyErrorMap, setDependencyErrorMap] = useState<Record<string, string>>({})
@@ -3526,7 +3525,6 @@ export default function EventDetail() {
     setEditEstimatedDate(extractDateOnly(event.estimatedDate))
     setEditConfirmedDate(extractDateOnly(event.confirmedDate))
     setEditEventStatus(event.eventStatus ?? 'idea')
-    setEditReportStatus(event.reportStatus)
     setEditOwnerId(event.ownerId ?? '')
     setSaveError(null)
     setSuccessMessage(null)
@@ -3604,7 +3602,6 @@ export default function EventDetail() {
       setEditEstimatedDate(extractDateOnly(event.estimatedDate))
       setEditConfirmedDate(extractDateOnly(event.confirmedDate))
       setEditEventStatus(event.eventStatus ?? 'idea')
-      setEditReportStatus(event.reportStatus)
       setEditOwnerId(event.ownerId ?? '')
     }
   }
@@ -3680,10 +3677,6 @@ export default function EventDetail() {
     setSaveError(null)
     const trimmedDescription = editDescription.trim()
     const nextDescription = trimmedDescription.length > 0 ? trimmedDescription : null
-    const nextPlanningDate = editPlanningDate || null
-    const nextPreparationStartDate = editPreparationStartDate || null
-    const nextEstimatedDate = editEstimatedDate || null
-    const nextConfirmedDate = editConfirmedDate || null
 
     if (isSuperAdmin && !editOwnerId) {
       setIsSaving(false)
@@ -3694,12 +3687,7 @@ export default function EventDetail() {
     const updatePayload = {
       title: trimmedTitle,
       description: nextDescription,
-      planning_date: nextPlanningDate,
-      preparation_start_date: nextPreparationStartDate,
-      estimated_date: nextEstimatedDate,
-      confirmed_date: nextConfirmedDate,
       event_status: editEventStatus,
-      report_status: editReportStatus,
       ...(isSuperAdmin ? { owner_id: editOwnerId } : {}),
     }
 
@@ -3709,7 +3697,7 @@ export default function EventDetail() {
       .eq('id', eventId)
       .eq('period_id', periodId)
       .is('deleted_at', null)
-      .select('title, description, event_status, planning_date, preparation_start_date, estimated_date, confirmed_date, report_status, owner_id')
+      .select('title, description, event_status, owner_id')
       .maybeSingle()
 
     setIsSaving(false)
@@ -3730,11 +3718,6 @@ export default function EventDetail() {
             title: (data.title as string) ?? trimmedTitle,
             description: (data.description as string | null) ?? nextDescription,
             eventStatus: (data.event_status as string | null) ?? editEventStatus,
-            planningDate: (data.planning_date as string | null) ?? nextPlanningDate,
-            preparationStartDate: data.preparation_start_date as string | null,
-            estimatedDate: (data.estimated_date as string | null) ?? nextEstimatedDate,
-            confirmedDate: (data.confirmed_date as string | null) ?? nextConfirmedDate,
-            reportStatus: (data.report_status as string | null) ?? editReportStatus,
             ownerId: (data.owner_id as string | null) ?? event.ownerId,
           }
         : current,
@@ -3806,7 +3789,6 @@ export default function EventDetail() {
   const activeSponsors = sponsors.filter((sponsor) => !sponsor.deletedAt)
   const sponsorTotal = activeSponsors.reduce((total, sponsor) => total + sponsor.amount, 0)
   const roleLabel = coordinatorRoleName ?? (isSuperAdmin ? 'Süper Yönetici' : 'Koordinatör')
-  const primaryDate = event.confirmedDate ?? event.estimatedDate
 
   return (
     <AppShell
@@ -3862,15 +3844,13 @@ export default function EventDetail() {
               </button>
             )}
           </div>
-          <dl className="mt-5 grid grid-cols-2 gap-0 border-t border-canvas-border pt-5 lg:grid-cols-5">
+          <dl className="mt-5 grid grid-cols-1 gap-0 border-t border-canvas-border pt-5 sm:grid-cols-3">
             {([
               ['status', 'Etkinlik durumu', displayedStatus, 'accent'],
               ['person', 'Sorumlu', displayedOwner, 'brand'],
               ['building', 'Koordinatörlük', ownerCoordinatorRoleName ?? NOT_SPECIFIED, 'brand'],
-              ['calendar', event.confirmedDate ? 'Kesin tarih' : 'Tahmini tarih', formatDate(primaryDate), 'accent'],
-              ['check', 'Açık görev', String(openTaskCount), 'brand'],
             ] as const).map(([icon, label, value, tone], index) => (
-              <div key={label} className={`flex min-w-0 items-center gap-3 py-3 sm:px-4 lg:py-0 ${index === 4 ? 'col-span-2 lg:col-span-1' : ''} ${index > 0 ? 'lg:border-l lg:border-canvas-border' : ''}`}>
+              <div key={label} className={`flex min-w-0 items-center gap-3 py-3 sm:px-4 sm:py-0 ${index > 0 ? 'sm:border-l sm:border-canvas-border' : ''}`}>
                 <EventIconBadge name={icon} tone={tone} />
                 <div className="min-w-0">
                   <dt className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">{label}</dt>
@@ -3919,16 +3899,14 @@ export default function EventDetail() {
         {isEditing ? (
           <div id="event-edit-form" className="mt-6 scroll-mt-28 overflow-hidden rounded-2xl border border-canvas-border bg-canvas-surface shadow-card">
             <div className="flex items-center justify-between gap-4 border-b border-canvas-border px-4 py-4 sm:px-6">
-              <div className="flex items-center gap-3"><EventIconBadge name="calendar" /><div><h2 className="text-lg font-semibold text-ink">Etkinliği düzenle</h2><p className="mt-0.5 text-xs text-ink-soft">Etkinlik bilgilerini güncelleyin ve yönetin.</p></div></div>
+              <div className="flex items-center gap-3"><EventIconBadge name="edit" /><div><h2 className="text-lg font-semibold text-ink">Etkinliği düzenle</h2><p className="mt-0.5 text-xs text-ink-soft">Etkinliğin temel bilgilerini ve ana sorumlusunu güncelleyin.</p></div></div>
               <button type="button" onClick={cancelEditing} disabled={isSaving} aria-label="Düzenleme penceresini kapat" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl text-ink-soft hover:bg-canvas disabled:opacity-60">×</button>
             </div>
 
             <div className="p-4 sm:p-6">
-              <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
                 {([
                   ['status', 'Durum', availableEventStatuses.find((status) => status.slug === editEventStatus)?.label ?? editEventStatus],
-                  ['calendar', 'Planlama', formatDate(editPlanningDate || null)],
-                  ['status', 'Tahmini tarih', formatDate(editEstimatedDate || null)],
                   ['person', 'Sorumlu', periodMembers.find((member) => member.profileId === editOwnerId)?.displayName ?? displayedOwner],
                 ] as const).map(([icon, label, value]) => <div key={label} className="flex min-h-[84px] items-center gap-3 rounded-xl border border-canvas-border bg-canvas p-3 sm:p-4"><EventIconBadge name={icon} /><div className="min-w-0"><p className="text-xs font-medium text-ink-soft">{label}</p><p className="mt-1 truncate text-sm font-semibold text-ink sm:text-base">{value}</p></div></div>)}
               </div>
@@ -3941,19 +3919,9 @@ export default function EventDetail() {
                       <label className="grid gap-1.5 text-sm font-medium text-ink-soft sm:col-span-2">Etkinlik adı<input id="event-title" type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} disabled={isSaving} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /></label>
                       <label className="grid gap-1.5 text-sm font-medium text-ink-soft sm:col-span-2">Açıklama<textarea id="event-description" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} disabled={isSaving} rows={4} className="rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /></label>
                       <label className="grid gap-1.5 text-sm font-medium text-ink-soft">Etkinlik durumu<select id="event-status" value={editEventStatus} onChange={(e) => setEditEventStatus(e.target.value)} disabled={isSaving || availableEventStatuses.length === 0} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink disabled:opacity-60">{availableEventStatuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}</select></label>
-                      <label className="grid gap-1.5 text-sm font-medium text-ink-soft">Rapor durumu<select id="event-report-status" value={editReportStatus} onChange={(e) => setEditReportStatus(e.target.value)} disabled={isSaving || availableEventReportStatuses.length === 0} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink disabled:opacity-60">{availableEventReportStatuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}</select></label>
                     </div>
                   </section>
 
-                  <section className="rounded-xl border border-canvas-border p-4 sm:p-5">
-                    <div className="flex items-center gap-2"><EventIconBadge name="calendar" /><h3 className="text-sm font-semibold text-ink">Tarih planlaması</h3></div>
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                      <label className="grid gap-1.5 text-sm font-medium text-ink-soft">Planlama tarihi<input id="event-planning-date" type="date" value={editPlanningDate} onChange={(e) => setEditPlanningDate(e.target.value)} disabled={isSaving} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /></label>
-                      <label className="grid gap-1.5 text-sm font-medium text-ink-soft">Tahmini etkinlik tarihi<input id="event-estimated-date" type="date" value={editEstimatedDate} onChange={(e) => setEditEstimatedDate(e.target.value)} disabled={isSaving} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /></label>
-                      <label className="grid gap-1.5 text-sm font-medium text-ink-soft">Hazırlık başlangıç tarihi<input id="event-preparation-start-date" type="date" value={editPreparationStartDate} onChange={(e) => setEditPreparationStartDate(e.target.value)} disabled={isSaving} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /><span className="text-xs font-normal">İsteğe bağlı; gerektiğinde elle değiştirebilirsiniz.</span></label>
-                      <label className="grid gap-1.5 text-sm font-medium text-ink-soft">Kesinleşmiş tarih<input id="event-confirmed-date" type="date" value={editConfirmedDate} onChange={(e) => setEditConfirmedDate(e.target.value)} disabled={isSaving} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /></label>
-                    </div>
-                  </section>
                 </div>
 
                 <aside className="rounded-xl border border-canvas-border p-4 sm:p-5">
@@ -3964,8 +3932,6 @@ export default function EventDetail() {
                   </div>
                   <div className="mt-5 space-y-3 border-t border-dashed border-canvas-border pt-5">
                     <div className="rounded-xl border border-brand/15 bg-brand-soft/40 p-4"><p className="text-xs text-ink-soft">Etkinlik durumu</p><p className="mt-1 font-semibold text-ink">{availableEventStatuses.find((status) => status.slug === editEventStatus)?.label ?? editEventStatus}</p></div>
-                    <div className="rounded-xl border border-brand/15 bg-brand-soft/40 p-4"><p className="text-xs text-ink-soft">Rapor durumu</p><p className="mt-1 font-semibold text-ink">{availableEventReportStatuses.find((status) => status.slug === editReportStatus)?.label ?? editReportStatus}</p></div>
-                    <p className="rounded-xl border border-canvas-border bg-canvas p-4 text-xs leading-5 text-ink-soft">Hazırlık başlangıç tarihi gerektiğinde elle düzenlenebilir.</p>
                   </div>
                 </aside>
               </div>
@@ -3985,7 +3951,7 @@ export default function EventDetail() {
             <div className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card">
               <div className="flex items-start justify-between gap-3">
                 <div><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Sonraki işlem</p><p className={`mt-2 text-sm font-semibold leading-5 ${event.nextAction ? 'text-ink' : 'italic text-ink-soft'}`}>{event.nextAction || 'Sonraki işlem belirlenmedi.'}</p></div>
-                {canEdit ? <button type="button" onClick={() => openProcessFieldEditing('nextAction')} className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-brand-dark hover:bg-brand-soft">Düzenle</button> : null}
+                <button type="button" onClick={() => openOperations('event-flow')} className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-ink-soft hover:bg-canvas hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">Operasyonda aç</button>
               </div>
             </div>
             <div className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card">
@@ -4017,10 +3983,10 @@ export default function EventDetail() {
             <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3"><EventIconBadge name="note" /><h2 className="text-base font-semibold text-ink">Etkinlik özeti</h2></div>
-                {canEdit && !isEditingGeneralNote ? <button type="button" onClick={() => setIsEditingGeneralNote(true)} className="flex min-h-[40px] items-center gap-2 rounded-md border border-brand/40 px-3 text-xs font-semibold text-brand-dark"><EventIcon name="edit" className="h-4 w-4" />Özeti düzenle</button> : null}
+                <button type="button" onClick={() => setActiveDetailTab('content')} className="min-h-10 shrink-0 rounded-md px-2 text-xs font-semibold text-ink-soft hover:bg-canvas hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">İçeriklerde aç</button>
               </div>
               <div className="mt-4">
-                {canEdit && isEditingGeneralNote ? (
+                {activeDetailTab === 'content' && canEdit && isEditingGeneralNote ? (
                   <div className="overflow-hidden rounded-xl border border-canvas-border bg-canvas">
                     <div className="p-4">
                       <label htmlFor="event-general-note" className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Güncel özet</label>
@@ -4045,7 +4011,7 @@ export default function EventDetail() {
                   event.generalNote ? (
                     <div className="rounded-xl border border-brand/10 bg-brand-soft/20 px-4 py-3.5"><p className="whitespace-pre-wrap text-sm leading-6 text-ink">{event.generalNote}</p></div>
                   ) : (
-                    <div className="rounded-xl border border-dashed border-canvas-border bg-canvas px-4 py-8 text-center"><p className="text-sm font-semibold text-ink">Henüz etkinlik özeti yok</p><p className="mt-1 text-xs text-ink-soft">Güncel durumu ekibe aktarmak için bir özet ekleyebilirsiniz.</p></div>
+                    <div className="rounded-lg border border-dashed border-canvas-border bg-canvas px-4 py-3"><p className="text-sm font-medium text-ink-soft">Henüz etkinlik özeti yok.</p></div>
                   )
                 )}
                 {generalNoteError ? <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{generalNoteError}</p> : null}
@@ -4072,11 +4038,6 @@ export default function EventDetail() {
                     <span className="inline-flex w-fit rounded-full bg-canvas-surface px-3 py-1 text-xs font-semibold text-ink">
                       {availableEventDesignAnnouncementStatuses.find((status) => status.slug === event.designAnnouncementStatus)?.label ?? event.designAnnouncementStatus}
                     </span>
-                    {canChangeDesignAnnouncementStatus ? (
-                      <button type="button" onClick={openDesignStatusEditing} className="inline-flex min-h-10 items-center rounded-md px-2 text-xs font-semibold text-brand-dark hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-                        Düzenle
-                      </button>
-                    ) : null}
                     <button type="button" onClick={() => openOperations('event-process-teams')} className="inline-flex min-h-10 items-center rounded-md px-2 text-xs font-semibold text-ink-soft hover:bg-canvas-surface hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
                       Operasyonda aç
                     </button>
@@ -4091,11 +4052,6 @@ export default function EventDetail() {
                     <span className="inline-flex w-fit rounded-full bg-canvas-surface px-3 py-1 text-xs font-semibold text-ink">
                       {availableEventAnnouncementStatuses.find((status) => status.slug === event.announcementStatus)?.label ?? event.announcementStatus}
                     </span>
-                    {canChangeAnnouncementStatus ? (
-                      <button type="button" onClick={openAnnouncementStatusEditing} className="inline-flex min-h-10 items-center rounded-md px-2 text-xs font-semibold text-brand-dark hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-                        Düzenle
-                      </button>
-                    ) : null}
                     <button type="button" onClick={() => openOperations('event-process-teams')} className="inline-flex min-h-10 items-center rounded-md px-2 text-xs font-semibold text-ink-soft hover:bg-canvas-surface hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
                       Operasyonda aç
                     </button>
@@ -4114,7 +4070,7 @@ export default function EventDetail() {
             <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3"><EventIconBadge name="calendar" /><h2 className="text-base font-semibold text-ink">Tarihler</h2></div>
-                {canEdit ? <button type="button" onClick={openDateEditing} className="min-h-[40px] shrink-0 rounded-md border border-brand/40 px-3 text-xs font-semibold text-brand-dark">Tarihleri düzenle</button> : null}
+                <button type="button" onClick={() => openOperations('event-flow')} className="min-h-[40px] shrink-0 rounded-md px-2 text-xs font-semibold text-ink-soft hover:bg-canvas hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">Operasyonda aç</button>
               </div>
               <div className="relative mt-5 space-y-5 pl-5 before:absolute before:bottom-3 before:left-[5px] before:top-3 before:border-l before:border-dashed before:border-brand/30">
                 {([
@@ -4129,12 +4085,34 @@ export default function EventDetail() {
             <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3"><EventIconBadge name="pin" /><div><h2 className="text-base font-semibold text-ink">Mekân</h2><p className="mt-1 text-xs text-ink-soft">Etkinliğin yapılacağı yer.</p></div></div>
-                {canEdit ? <button type="button" onClick={() => openProcessFieldEditing('venue')} className="min-h-[40px] shrink-0 rounded-md border border-brand/40 px-3 text-xs font-semibold text-brand-dark">Mekânı düzenle</button> : null}
+                <button type="button" onClick={() => openOperations('event-flow')} className="min-h-[40px] shrink-0 rounded-md px-2 text-xs font-semibold text-ink-soft hover:bg-canvas hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">Operasyonda aç</button>
               </div>
               <p className={`mt-4 text-sm ${event.venue ? 'text-ink' : 'italic text-ink-soft'}`}>{displayedVenue}</p>
             </section>
           </aside>
         </div>
+
+        {activeDetailTab === 'content' ? (
+          <section id="event-summary-content" className="mt-6 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3"><EventIconBadge name="note" /><div><h2 className="text-base font-semibold text-ink">Etkinlik özeti</h2><p className="mt-1 text-xs text-ink-soft">Genel Bakışta görünen kısa özeti burada yönetin.</p></div></div>
+              {canEdit && !isEditingGeneralNote ? <button type="button" onClick={() => setIsEditingGeneralNote(true)} className="min-h-10 rounded-md border border-brand/40 px-3 text-xs font-semibold text-brand-dark hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{event.generalNote ? 'Özeti düzenle' : 'Özet ekle'}</button> : null}
+            </div>
+            <div className="mt-4">
+              {canEdit && isEditingGeneralNote ? (
+                <div className="flex flex-col gap-3">
+                  <textarea value={generalNoteInputValue} onChange={(event) => setGeneralNoteInputValue(event.target.value)} disabled={isSavingGeneralNote} rows={4} placeholder="Etkinliğin güncel özetini yazın..." className="w-full rounded-lg border border-canvas-border bg-canvas px-3 py-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/10 disabled:opacity-60" />
+                  <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <button type="button" onClick={() => setIsEditingGeneralNote(false)} disabled={isSavingGeneralNote} className="min-h-11 rounded-md border border-canvas-border px-4 text-sm font-medium text-ink-soft disabled:opacity-60">İptal</button>
+                    <button type="button" onClick={() => void handleSaveGeneralNote()} disabled={isSavingGeneralNote} className="min-h-11 rounded-md bg-brand-dark px-5 text-sm font-semibold text-white disabled:opacity-60">{isSavingGeneralNote ? 'Kaydediliyor…' : 'Özeti kaydet'}</button>
+                  </div>
+                </div>
+              ) : <p className={`text-sm leading-6 ${event.generalNote ? 'text-ink' : 'italic text-ink-soft'}`}>{event.generalNote || 'Henüz etkinlik özeti yok.'}</p>}
+              {generalNoteError ? <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{generalNoteError}</p> : null}
+              {generalNoteSuccess && !isEditingGeneralNote ? <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">{generalNoteSuccess}</p> : null}
+            </div>
+          </section>
+        ) : null}
 
         {/* Kararlar Bölümü */}
         <div id="event-decisions" className={activeDetailTab === 'content' ? 'mt-4 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5' : 'hidden'}>
@@ -4778,29 +4756,43 @@ export default function EventDetail() {
         </div>
 
         <div id="event-operations" className={activeDetailTab === 'operations' ? 'mt-6 flex scroll-mt-28 flex-col gap-4' : 'hidden'}>
-        <section id="event-process-teams" className="order-1 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
-          <div className="flex items-center gap-3">
-            <EventIconBadge name="operations" />
-            <div>
-              <h2 className="text-base font-semibold text-ink">Süreç ekipleri</h2>
-              <p className="mt-1 text-xs text-ink-soft">Tasarım ve Duyuru / Yayın süreçlerinde kimlerin görev aldığını görün.</p>
+        <section id="event-flow" className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+          <div className="flex items-center gap-3"><EventIconBadge name="overview" /><div><h2 className="text-base font-semibold text-ink">Etkinlik akışı</h2><p className="mt-1 text-xs text-ink-soft">Sonraki işlem, tarihler ve mekân burada yönetilir.</p></div></div>
+          <div className="mt-4 grid gap-3 lg:grid-cols-3">
+            <div className="rounded-lg border border-canvas-border bg-canvas p-4">
+              <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Sonraki işlem</p><p className={`mt-2 text-sm font-semibold leading-5 ${event.nextAction ? 'text-ink' : 'italic text-ink-soft'}`}>{event.nextAction || 'Belirlenmedi.'}</p></div>{canEdit ? <button type="button" onClick={() => openProcessFieldEditing('nextAction')} className="min-h-9 rounded-md border border-brand/40 px-2.5 text-xs font-semibold text-brand-dark hover:bg-brand-soft">Düzenle</button> : null}</div>
+            </div>
+            <div className="rounded-lg border border-canvas-border bg-canvas p-4">
+              <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Takvim</p><p className="mt-2 text-sm font-semibold text-ink">{upcomingEventDate ? `${upcomingEventDate.label}: ${formatDate(upcomingEventDate.value)}` : 'Yaklaşan tarih yok.'}</p></div>{canEdit ? <button type="button" onClick={openDateEditing} className="min-h-9 rounded-md border border-brand/40 px-2.5 text-xs font-semibold text-brand-dark hover:bg-brand-soft">Düzenle</button> : null}</div>
+              <p className="mt-2 text-xs text-ink-soft">Planlama, hazırlık, tahmini ve kesinleşmiş tarih birlikte düzenlenir.</p>
+            </div>
+            <div className="rounded-lg border border-canvas-border bg-canvas p-4">
+              <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Mekân</p><p className={`mt-2 text-sm font-semibold ${event.venue ? 'text-ink' : 'italic text-ink-soft'}`}>{displayedVenue}</p></div>{canEdit ? <button type="button" onClick={() => openProcessFieldEditing('venue')} className="min-h-9 rounded-md border border-brand/40 px-2.5 text-xs font-semibold text-brand-dark hover:bg-brand-soft">Düzenle</button> : null}</div>
             </div>
           </div>
+        </section>
+
+        <section id="event-process-teams" className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+          <div className="flex items-center gap-3"><EventIconBadge name="operations" /><div><h2 className="text-base font-semibold text-ink">Süreç yönetimi</h2><p className="mt-1 text-xs text-ink-soft">Tasarım ve Duyuru / Yayın durumları ile ekip sorumluluklarını aynı yerde yönetin.</p></div></div>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {([
-              ['Tasarım', designProcessMembers],
-              ['Duyuru / Yayın', pressProcessMembers],
-            ] as const).map(([label, members]) => {
+              ['design', 'Tasarım', designProcessMembers],
+              ['press', 'Duyuru / Yayın', pressProcessMembers],
+            ] as const).map(([processType, label, members]) => {
               const owner = members.find((member) => member.responsibilityType === 'owner')
               const supporting = members.filter((member) => member.responsibilityType === 'supporting')
               const informed = members.filter((member) => member.responsibilityType === 'informed')
+              const statusLabel = processType === 'design'
+                ? (availableEventDesignAnnouncementStatuses.find((status) => status.slug === event.designAnnouncementStatus)?.label ?? event.designAnnouncementStatus)
+                : (availableEventAnnouncementStatuses.find((status) => status.slug === event.announcementStatus)?.label ?? event.announcementStatus)
+              const canChangeStatus = processType === 'design' ? canChangeDesignAnnouncementStatus : canChangeAnnouncementStatus
               return (
-                <div key={label} className="rounded-lg border border-canvas-border bg-canvas p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-semibold text-ink">{label}</h3>
-                    <span className="text-xs font-medium text-ink-soft">{members.length} kişi</span>
+                <div key={processType} className="rounded-lg border border-canvas-border bg-canvas p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div><h3 className="text-sm font-semibold text-ink">{label}</h3><span className="mt-2 inline-flex rounded-full bg-canvas-surface px-2.5 py-1 text-xs font-semibold text-ink">{statusLabel}</span></div>
+                    {canChangeStatus ? <button type="button" onClick={processType === 'design' ? openDesignStatusEditing : openAnnouncementStatusEditing} className="min-h-9 rounded-md border border-brand/40 px-2.5 text-xs font-semibold text-brand-dark hover:bg-brand-soft">Durumu düzenle</button> : null}
                   </div>
-                  <div className="mt-3 space-y-2 text-xs">
+                  <div className="mt-4 space-y-2 border-t border-canvas-border pt-3 text-xs">
                     <p><span className="font-semibold text-ink-soft">Ana sorumlu:</span> <span className="text-ink">{owner?.displayName ?? 'Atanmamış'}</span></p>
                     <p><span className="font-semibold text-ink-soft">Destekleyen:</span> <span className="text-ink">{supporting.length > 0 ? supporting.map((member) => member.displayName).join(', ') : 'Atanmamış'}</span></p>
                     <p><span className="font-semibold text-ink-soft">Bilgilendirilen:</span> <span className="text-ink">{informed.length > 0 ? informed.map((member) => member.displayName).join(', ') : 'Atanmamış'}</span></p>
@@ -4809,7 +4801,6 @@ export default function EventDetail() {
               )
             })}
           </div>
-          <p className="mt-3 text-xs text-ink-soft">Durum değişiklikleri Genel Bakışta; ekip ve görev ayrıntıları Operasyon içinde yönetilir.</p>
         </section>
 
         {/* SKS Süreci */}

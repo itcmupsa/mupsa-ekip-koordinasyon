@@ -166,3 +166,14 @@ Gerçek cihazlarda en az bir iPhone/PWA ve bir ikinci cihaz ile test bildirimi g
 - Baseline: `6890beb` değişmedi.
 - Doğrulama: İlk build denemesinde iki TypeScript hata yakalandı (nullable event status ve kaldırılmış content accordion state'i); düzeltildi. Sonrasında `npm run lint` PASS 0/0, `npm run build` PASS, `git diff --check` PASS.
 - Sonraki adım: Commit/push ve Vercel sonrası bağlı etkinlikte navigasyon akışını veri değiştirmeden doğrula.
+
+## 2026-08-29 Etkinlik detay bilgi mimarisi yeniden düzenleme
+- Hedef: Etkinlik detayını üç net role ayırmak: `Genel Bakış = salt-okunur durum`, `İçerikler = içerik/özet/rapor`, `Operasyon = yönetim`.
+- Genel Bakış: Tüm doğrudan düzenleme butonları kaldırıldı. Sonraki işlem, Tarihler, Mekân, Tasarım ve Duyuru/Yayın yalnız bilgi gösteriyor; ilgili yönetim alanına navigasyon sağlıyor. Boş Etkinlik özeti kompakt hale getirildi ve düzenleme `İçerikler` sekmesine taşındı.
+- Üst kart: Tekrar eden Tahmini/Kesin tarih ve Açık görev bilgileri kaldırıldı; yalnız Etkinlik durumu, Sorumlu ve Koordinatörlük kaldı. Açık görev ve yaklaşan tarih Genel Bakış hızlı özetinde tek kez gösteriliyor.
+- Operasyon: Yeni `Etkinlik akışı` bölümü Sonraki işlem, Takvim ve Mekân yönetimini bir araya getiriyor. `Süreç yönetimi` Tasarım ve Duyuru/Yayın durumlarını ekip sorumluluklarıyla aynı kartlarda topluyor; durum düzenleme yalnız burada yapılabiliyor. SKS, koordinatörler, görevler ve yetkili bütçe mevcut Operasyon yapısında kalıyor.
+- İçerikler: Etkinlik özeti ekleme/düzenleme buraya taşındı; kararlar, raporlar, bağlantılar ve dosyalar mevcut içerik alanında kalıyor. Etkinlik sonrası rapor çağrısı Genel Bakıştan yalnız navigasyon yapıyor.
+- Ana `Etkinliği düzenle`: Tarih ve rapor kontrolleri kaldırıldı; form yalnız başlık, açıklama, etkinlik durumu ve ana sorumluyu yönetiyor. Save payload da artık tarih/rapor alanlarını değiştirmiyor.
+- Veri/DB: Değişiklik yok. Baseline `6890beb` aynen korunuyor.
+- Doğrulama: `npm run lint` PASS 0/0, `npm run build` PASS (`tsc -b` + Vite), `git diff --check` PASS.
+- Sonraki adım: Commit/push ve Vercel sonrası Genel Bakış/İçerikler/Operasyon akışını salt-okunur canlı doğrula.
