@@ -3776,6 +3776,16 @@ export default function EventDetail() {
   const sponsorTotal = activeSponsors.reduce((total, sponsor) => total + sponsor.amount, 0)
   const roleLabel = coordinatorRoleName ?? (isSuperAdmin ? 'Süper Yönetici' : 'Koordinatör')
   const primaryDate = event.confirmedDate ?? event.estimatedDate
+  const lifecycleSteps = [
+    { slug: 'idea', label: 'Fikir' },
+    { slug: 'planning', label: 'Planlanıyor' },
+    { slug: 'confirmed', label: 'Kesinleşti' },
+    { slug: 'completed', label: 'Gerçekleşti' },
+    { slug: 'reported', label: 'Raporlandı' },
+    { slug: 'archived', label: 'Arşivlendi' },
+  ] as const
+  const lifecycleIndex = lifecycleSteps.findIndex((step) => step.slug === event.eventStatus)
+  const isExceptionalEventStatus = event.eventStatus === 'postponed' || event.eventStatus === 'cancelled'
 
   return (
     <AppShell
@@ -3848,6 +3858,33 @@ export default function EventDetail() {
               </div>
             ))}
           </dl>
+
+          <div className="mt-5 border-t border-canvas-border pt-5">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Etkinlik aşaması</p>
+                <p className="mt-1 text-xs text-ink-soft">Ana ilerleyişi tek bakışta takip edin.</p>
+              </div>
+              {isExceptionalEventStatus ? (
+                <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${event.eventStatus === 'cancelled' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800'}`}>{displayedStatus}</span>
+              ) : null}
+            </div>
+            <div className="mt-4 overflow-x-auto pb-1" aria-label="Etkinlik yaşam döngüsü">
+              <ol className="flex min-w-[620px] items-start">
+                {lifecycleSteps.map((step, index) => {
+                  const isCurrent = step.slug === event.eventStatus
+                  const isComplete = lifecycleIndex >= 0 && index < lifecycleIndex
+                  return (
+                    <li key={step.slug} className="relative flex flex-1 flex-col items-center text-center">
+                      {index > 0 ? <span className={`absolute right-1/2 top-[11px] h-0.5 w-full ${isComplete || isCurrent ? 'bg-brand' : 'bg-canvas-border'}`} aria-hidden="true" /> : null}
+                      <span className={`relative z-10 flex h-6 w-6 items-center justify-center rounded-full border-2 text-[10px] font-bold ${isCurrent ? 'border-brand bg-brand text-white' : isComplete ? 'border-brand bg-brand-soft text-brand-dark' : 'border-canvas-border bg-canvas-surface text-ink-soft'}`}>{isComplete ? '✓' : index + 1}</span>
+                      <span className={`mt-2 text-xs font-medium ${isCurrent ? 'text-brand-dark' : isComplete ? 'text-ink' : 'text-ink-soft'}`}>{step.label}</span>
+                    </li>
+                  )
+                })}
+              </ol>
+            </div>
+          </div>
           </div>
         </section>
 
@@ -3928,7 +3965,7 @@ export default function EventDetail() {
                   <div className="flex items-center gap-2"><EventIconBadge name="person" /><h3 className="text-sm font-semibold text-ink">Süreç bilgileri</h3></div>
                   <p className="mt-2 text-xs text-ink-soft">Etkinliğin sorumlusu ve önemli durumları.</p>
                   <div className="mt-5">
-                    {isSuperAdmin ? <label className="grid gap-1.5 text-sm font-medium text-ink-soft">Sorumlu<select id="event-owner" value={editOwnerId} onChange={(e) => setEditOwnerId(e.target.value)} disabled={isSaving || periodMembersLoadState === 'loading'} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink disabled:opacity-60"><option value="" disabled>Sorumlu seçin</option>{periodMembers.map((member) => <option key={member.profileId} value={member.profileId}>{member.displayName}</option>)}</select>{periodMembersLoadState === 'error' ? <span className="text-xs text-red-600">Üye listesi yüklenemedi.</span> : null}</label> : <div><p className="text-sm font-medium text-ink-soft">Sorumlu</p><p className="mt-1 flex min-h-[44px] items-center rounded-md border border-canvas-border bg-canvas px-3 text-sm text-ink">{displayedOwner}</p></div>}
+                    {isSuperAdmin ? <label className="grid gap-1.5 text-sm font-medium text-ink-soft">Sorumlu<select id="event-owner" value={editOwnerId} onChange={(e) => setEditOwnerId(e.target.value)} disabled={isSaving || periodMembersLoadState === 'loading'} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink disabled:opacity-60"><option value="" disabled>Sorumlu seçin</option>{periodMembers.map((member) => <option key={member.profileId} value={member.profileId}>{member.coordinatorRoleName ?? 'Ekip üyesi'} — {member.displayName}</option>)}</select>{periodMembersLoadState === 'error' ? <span className="text-xs text-red-600">Üye listesi yüklenemedi.</span> : null}</label> : <div><p className="text-sm font-medium text-ink-soft">Sorumlu</p><p className="mt-1 flex min-h-[44px] items-center rounded-md border border-canvas-border bg-canvas px-3 text-sm text-ink">{displayedOwner}</p></div>}
                   </div>
                   <div className="mt-5 space-y-3 border-t border-dashed border-canvas-border pt-5">
                     <div className="rounded-xl border border-brand/15 bg-brand-soft/40 p-4"><p className="text-xs text-ink-soft">Etkinlik durumu</p><p className="mt-1 font-semibold text-ink">{availableEventStatuses.find((status) => status.slug === editEventStatus)?.label ?? editEventStatus}</p></div>
@@ -4723,7 +4760,10 @@ export default function EventDetail() {
         <section className="order-2 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card">
           <button type="button" onClick={() => setIsSksSectionOpen((open) => !open)} aria-expanded={isSksSectionOpen} className="flex min-h-[44px] w-full items-center justify-between gap-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
             <div className="flex items-center gap-3"><EventIconBadge name="sks" /><div><h2 className="text-base font-semibold text-ink">SKS</h2><p className="mt-1 text-xs text-ink-soft">SKS durumu ve SKS ekibini yönetin.</p></div></div>
-            <span aria-hidden="true" className={`text-xl text-ink-soft transition-transform ${isSksSectionOpen ? 'rotate-180' : ''}`}>⌄</span>
+            <div className="flex items-center gap-2">
+              <span className="hidden rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand-dark sm:inline-flex">{event.sksStatus ? (availableSksStatuses.find((status) => status.slug === event.sksStatus)?.label ?? event.sksStatus) : 'Belirtilmemiş'}</span>
+              <span aria-hidden="true" className={`text-xl text-ink-soft transition-transform ${isSksSectionOpen ? 'rotate-180' : ''}`}>⌄</span>
+            </div>
           </button>
           <div className={isSksSectionOpen ? 'mt-4 flex flex-col gap-4 border-t border-canvas-border pt-4' : 'hidden'}>
             <div className="grid gap-4 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]">

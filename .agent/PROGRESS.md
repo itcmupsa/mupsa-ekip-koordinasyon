@@ -134,3 +134,13 @@ Gerçek cihazlarda en az bir iPhone/PWA ve bir ikinci cihaz ile test bildirimi g
 - Veri/DB: Yeni migration yok; canlı şema değişmedi.
 - Doğrulama: `supabase gen types typescript --linked` yeni alan/tabloyu doğruladı. `npm run lint` PASS 0/0, `npm run build` PASS, `git diff --check` PASS.
 - Sonraki adım: Commit/push ve Vercel sonrası canlı etkinlik detayının tekrar açıldığını doğrula.
+
+## 2026-08-29 Etkinlik detay kalan UI tamamlamaları
+- Hedef: Baseline `6890beb` korunarak kalan Etkinlik detay UI iyileştirmelerini tek akışta tamamlamak.
+- Genel Bakış: Üst bilgi kartına etkinliğin ana yaşam döngüsü eklendi: Fikir → Planlanıyor → Kesinleşti → Gerçekleşti → Raporlandı → Arşivlendi. Ertelendi/İptal durumları ayrı rozetle gösteriliyor. Görünüm salt-okunur; mevcut durum düzenleme akışını değiştirmiyor.
+- Düzenleme: Süper Yönetici ana sorumlu seçiminde artık `Koordinatörlük/Rol — İsim` birlikte gösteriliyor.
+- Operasyon: SKS kartı kapalıyken mevcut SKS durumu küçük rozet olarak görünür; ayrıntılı düzenleme yine Operasyon içindeki SKS panelinde kalır.
+- Bütçe: Mevcut güvenlik modeli doğrulandı; UI yalnız `super_admin` veya aktif `treasurer` için açılıyor, DB RPC/RLS de aynı kuralı uyguluyor. Etkinlik sahibi/ortak koordinatöre bütçe görünürlüğü eklenmedi.
+- Duyuru/Yayın: Kolon bazlı `events` SELECT kısıtı nedeniyle yeni `announcement_status` kolonunun authenticated rolüne açıkça grant edilmesi gerekiyordu. `20260829143000_grant_announcement_status_select.sql` linked Supabase'e uygulandı; artık Duyuru/Yayın durumu fallback yerine gerçek değerini okuyabilir.
+- Doğrulama: `npm run lint` PASS 0/0; `npm run build` PASS (`tsc -b` + Vite); `git diff --check` PASS; Supabase dry-run/push PASS; linked DB lint `No schema errors found`.
+- Sonraki adım: Commit/push ve Vercel sonrası bağlı canlı etkinlikte yaşam döngüsü, rol+isim sorumlu seçimi, SKS durum rozeti ve ayrı Duyuru/Yayın değerini veri değiştirmeden doğrula.
