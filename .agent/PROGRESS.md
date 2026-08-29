@@ -115,3 +115,14 @@ Gerçek cihazlarda en az bir iPhone/PWA ve bir ikinci cihaz ile test bildirimi g
 - Veri: Supabase migration veya veri modeli değişikliği yok; Tasarım ve Duyuru/Yayın ayrımı sonraki aşamaya bırakıldı.
 - Doğrulama: `npm run lint` PASS (0 warning/0 error), `npm run build` PASS, `git diff --check` PASS. Projede `typecheck` script'i yok; ilk typecheck denemesi bu nedenle çalışmadı, build içindeki `tsc -b` başarıyla geçti.
 - Sonraki adım: Git commit/push, Vercel otomatik deployment sonrası canlı etkinlikte yalnız ekranları açarak tarih modalı/süreç kartı/erişilebilirliği doğrula; canlı veri kaydetme.
+
+## 2026-08-29 Etkinlik süreç ayrımı aşama 2
+- Hedef: Referans `6890beb` değişmeden, Genel Bakış Süreçler kartından SKS'yi kaldırmak ve Tasarım ile Duyuru/Yayın durumlarını veri modelinde gerçekten ayırmak.
+- UI: Süreçler kartında artık yalnız `Tasarım` ve `Duyuru / Yayın` bulunuyor. SKS burada gösterilmiyor; ayrıntılı SKS yönetimi Operasyon sekmesinde kalıyor.
+- Tasarım durumları: Gerekli Değil / Brief Bekliyor / Tasarımda / Revizede / Hazır. Eski `Paylaşıldı` tasarım seçeneği pasifleştirildi ve mevcut `published` kayıtları Tasarım=`Hazır` olarak taşındı.
+- Duyuru/Yayın durumları: Gerekli Değil / İçerik Bekliyor / Yayın Planlandı / Yayınlandı. Yeni `events.announcement_status` alanı ve `event_announcement_statuses` referans tablosu eklendi.
+- Veri taşıma: Eski birleşik Tasarım/Duyuru durumundan Duyuru/Yayın durumu türetildi; `published` -> `Yayınlandı`, tasarımın aktif aşamaları -> `İçerik Bekliyor`, `not_required` -> `Gerekli Değil`.
+- Yetki: Tasarım sürecinin ana sorumlusu yalnız Tasarım durumunu; Basın/Yayın sürecinin ana sorumlusu yalnız Duyuru/Yayın durumunu değiştirebilir. Süper Yönetici ikisini de değiştirebilir. Bütçe görünürlüğü/yetkisi değiştirilmedi.
+- Migration: `20260829133000_split_design_and_announcement_statuses.sql` ve takip `20260829133100_refine_design_status_labels.sql` linked Supabase'e uygulandı. Migration geçmişi canlıda uygulandı; DB lint temiz.
+- Doğrulama: `npm run lint` PASS 0/0, `npm run build` PASS (`tsc -b` + Vite), Supabase linked lint PASS, dry-run/push PASS.
+- Sonraki adım: Git diff-check, commit/push ve Vercel sonrası canlı sayfada Tasarım/Duyuru ayrımını veri kaydetmeden doğrula.

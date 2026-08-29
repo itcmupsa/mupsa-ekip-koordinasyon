@@ -13,6 +13,7 @@ interface EventBasicInfo {
   sksStatus: string | null
   budgetStatus: string | null
   designAnnouncementStatus: string
+  announcementStatus: string
   reportStatus: string
   estimatedBudget: number | null
   approvedBudget: number | null
@@ -154,6 +155,11 @@ interface BudgetStatusOption {
 }
 
 interface EventDesignAnnouncementStatusOption {
+  slug: string
+  label: string
+}
+
+interface EventAnnouncementStatusOption {
   slug: string
   label: string
 }
@@ -1192,6 +1198,7 @@ export default function EventDetail() {
   const [availableSksStatuses, setAvailableSksStatuses] = useState<SksStatusOption[]>([])
   const [availableBudgetStatuses, setAvailableBudgetStatuses] = useState<BudgetStatusOption[]>([])
   const [availableEventDesignAnnouncementStatuses, setAvailableEventDesignAnnouncementStatuses] = useState<EventDesignAnnouncementStatusOption[]>([])
+  const [availableEventAnnouncementStatuses, setAvailableEventAnnouncementStatuses] = useState<EventAnnouncementStatusOption[]>([])
   const [availableEventReportStatuses, setAvailableEventReportStatuses] = useState<EventReportStatusOption[]>([])
   const [availableEventStatuses, setAvailableEventStatuses] = useState<EventStatusOption[]>([])
   const [processingDependencyTaskId, setProcessingDependencyTaskId] = useState<string | null>(null)
@@ -1218,6 +1225,11 @@ export default function EventDetail() {
   const [designAnnouncementStatusSuccess, setDesignAnnouncementStatusSuccess] = useState<string | null>(null)
   const [isDesignStatusEditorOpen, setIsDesignStatusEditorOpen] = useState(false)
   const [designStatusDraft, setDesignStatusDraft] = useState('not_required')
+  const [isAnnouncementStatusEditorOpen, setIsAnnouncementStatusEditorOpen] = useState(false)
+  const [announcementStatusDraft, setAnnouncementStatusDraft] = useState('not_required')
+  const [isUpdatingAnnouncementStatus, setIsUpdatingAnnouncementStatus] = useState(false)
+  const [announcementStatusError, setAnnouncementStatusError] = useState<string | null>(null)
+  const [announcementStatusSuccess, setAnnouncementStatusSuccess] = useState<string | null>(null)
 
   // Budget State
   const [isEditingBudget, setIsEditingBudget] = useState(false)
@@ -1345,7 +1357,7 @@ export default function EventDetail() {
 
       const { data, error } = await supabase
         .from('events')
-        .select('title, description, event_status, sks_status, design_announcement_status, report_status, planning_date, preparation_start_date, estimated_date, confirmed_date, owner_id, venue, next_action, general_note')
+        .select('title, description, event_status, sks_status, design_announcement_status, announcement_status, report_status, planning_date, preparation_start_date, estimated_date, confirmed_date, owner_id, venue, next_action, general_note')
         .eq('id', eventId)
         .eq('period_id', periodId)
         .is('deleted_at', null)
@@ -1382,6 +1394,7 @@ export default function EventDetail() {
         sksStatus: (data.sks_status as string | null) ?? null,
         budgetStatus: budgetData?.budget_status ?? null,
         designAnnouncementStatus: (data.design_announcement_status as string | null) ?? 'not_required',
+        announcementStatus: (data.announcement_status as string | null) ?? 'not_required',
         reportStatus: (data.report_status as string | null) ?? 'no',
         estimatedBudget: parseNullableNumber(budgetData?.estimated_budget),
         approvedBudget: parseNullableNumber(budgetData?.approved_budget),
@@ -1500,6 +1513,7 @@ export default function EventDetail() {
         { data: sksData },
         { data: budgetData },
         { data: designAnnouncementData },
+        { data: announcementData },
         { data: reportStatusData },
         { data: eventStatusData },
       ] = await Promise.all([
@@ -1507,6 +1521,7 @@ export default function EventDetail() {
         supabase.from('sks_statuses').select('slug, label').order('sort_order', { ascending: true }),
         hasBudgetAccess ? supabase.from('budget_statuses').select('slug, label').order('sort_order', { ascending: true }) : Promise.resolve({ data: [] }),
         supabase.from('event_design_announcement_statuses').select('slug, label').order('sort_order', { ascending: true }),
+        supabase.from('event_announcement_statuses').select('slug, label').order('sort_order', { ascending: true }),
         supabase.from('event_report_statuses').select('slug, label').order('sort_order', { ascending: true }),
         supabase.from('event_statuses').select('slug, label').order('sort_order', { ascending: true }),
       ])
@@ -1516,6 +1531,7 @@ export default function EventDetail() {
       setAvailableSksStatuses((sksData ?? []) as SksStatusOption[])
       setAvailableBudgetStatuses((budgetData ?? []) as BudgetStatusOption[])
       setAvailableEventDesignAnnouncementStatuses((designAnnouncementData ?? []) as EventDesignAnnouncementStatusOption[])
+      setAvailableEventAnnouncementStatuses((announcementData ?? []) as EventAnnouncementStatusOption[])
       setAvailableEventReportStatuses((reportStatusData ?? []) as EventReportStatusOption[])
       setAvailableEventStatuses((eventStatusData ?? []) as EventStatusOption[])
     }
@@ -3042,12 +3058,12 @@ export default function EventDetail() {
       setDesignAnnouncementStatusError(error.message.includes('kilitli')
         ? 'Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.'
         : error.code === '42501' || error.message.includes('yetkiniz')
-          ? 'Tasarım / Duyuru durumunu değiştirme yetkiniz bulunmuyor.'
-          : 'Tasarım / Duyuru durumu güncellenirken bir hata oluştu.')
+          ? 'Tasarım durumunu değiştirme yetkiniz bulunmuyor.'
+          : 'Tasarım durumu güncellenirken bir hata oluştu.')
       return false
     }
 
-    setDesignAnnouncementStatusSuccess('Tasarım / Duyuru durumu başarıyla güncellendi.')
+    setDesignAnnouncementStatusSuccess('Tasarım durumu başarıyla güncellendi.')
     setEvent((previous) => (previous ? { ...previous, designAnnouncementStatus: newSlug } : previous))
     return true
   }
@@ -3063,6 +3079,37 @@ export default function EventDetail() {
   async function handleSaveDesignStatus() {
     const saved = await handleUpdateDesignAnnouncementStatus(designStatusDraft)
     if (saved) setIsDesignStatusEditorOpen(false)
+  }
+
+  function openAnnouncementStatusEditing() {
+    if (!event) return
+    setAnnouncementStatusDraft(event.announcementStatus)
+    setAnnouncementStatusError(null)
+    setAnnouncementStatusSuccess(null)
+    setIsAnnouncementStatusEditorOpen(true)
+  }
+
+  async function handleSaveAnnouncementStatus() {
+    if (!profileId || !eventId) return
+    setIsUpdatingAnnouncementStatus(true)
+    setAnnouncementStatusError(null)
+    setAnnouncementStatusSuccess(null)
+
+    const { error } = await supabase.from('events').update({ announcement_status: announcementStatusDraft }).eq('id', eventId)
+    setIsUpdatingAnnouncementStatus(false)
+
+    if (error) {
+      setAnnouncementStatusError(error.message.includes('kilitli')
+        ? 'Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.'
+        : error.code === '42501' || error.message.includes('yetkiniz')
+          ? 'Duyuru / Yayın durumunu değiştirme yetkiniz bulunmuyor.'
+          : 'Duyuru / Yayın durumu güncellenirken bir hata oluştu.')
+      return
+    }
+
+    setAnnouncementStatusSuccess('Duyuru / Yayın durumu başarıyla güncellendi.')
+    setEvent((previous) => (previous ? { ...previous, announcementStatus: announcementStatusDraft } : previous))
+    setIsAnnouncementStatusEditorOpen(false)
   }
 
   async function handleSaveBudget() {
@@ -3310,11 +3357,17 @@ export default function EventDetail() {
   const canChangeSksStatus = isSuperAdmin || isSksOwner
   const canManageSksTeam = isSuperAdmin || isOwner || isSksOwner
   const isDesignOwner = processMembers.some(
-    (member) => (member.processType === 'design' || member.processType === 'press')
+    (member) => member.processType === 'design'
+      && member.profileId === profileId
+      && member.responsibilityType === 'owner',
+  )
+  const isPressOwner = processMembers.some(
+    (member) => member.processType === 'press'
       && member.profileId === profileId
       && member.responsibilityType === 'owner',
   )
   const canChangeDesignAnnouncementStatus = isSuperAdmin || isDesignOwner
+  const canChangeAnnouncementStatus = isSuperAdmin || isPressOwner
 
   const canChangeBudgetFields = hasBudgetAccess
 
@@ -3939,23 +3992,14 @@ export default function EventDetail() {
                 <EventIconBadge name="operations" />
                 <div>
                   <h2 className="text-base font-semibold text-ink">Süreçler</h2>
-                  <p className="mt-1 text-xs text-ink-soft">Etkinliğin operasyonel aşamalarını tek bakışta takip edin.</p>
+                  <p className="mt-1 text-xs text-ink-soft">Tasarım ve Duyuru / Yayın akışlarını ayrı ayrı takip edin.</p>
                 </div>
               </div>
               <div className="mt-4 divide-y divide-canvas-border rounded-lg border border-canvas-border bg-canvas">
                 <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-ink">SKS</p>
-                    <p className="mt-0.5 text-xs text-ink-soft">Başvuru ve onay süreci</p>
-                  </div>
-                  <span className="inline-flex w-fit rounded-full bg-brand-soft px-3 py-1 text-xs font-semibold text-brand-dark">
-                    {event.sksStatus ? (availableSksStatuses.find((status) => status.slug === event.sksStatus)?.label ?? event.sksStatus) : 'Durum belirtilmemiş'}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-ink">Tasarım / Duyuru</p>
-                    <p className="mt-0.5 text-xs text-ink-soft">Tasarım ve yayın hazırlığının mevcut durumu</p>
+                    <p className="text-sm font-semibold text-ink">Tasarım</p>
+                    <p className="mt-0.5 text-xs text-ink-soft">Brief, tasarım ve revize aşamaları</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                     <span className="inline-flex w-fit rounded-full bg-canvas-surface px-3 py-1 text-xs font-semibold text-ink">
@@ -3968,10 +4012,28 @@ export default function EventDetail() {
                     ) : null}
                   </div>
                 </div>
+                <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-ink">Duyuru / Yayın</p>
+                    <p className="mt-0.5 text-xs text-ink-soft">İçerik hazırlığı, yayın planı ve paylaşım</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    <span className="inline-flex w-fit rounded-full bg-canvas-surface px-3 py-1 text-xs font-semibold text-ink">
+                      {availableEventAnnouncementStatuses.find((status) => status.slug === event.announcementStatus)?.label ?? event.announcementStatus}
+                    </span>
+                    {canChangeAnnouncementStatus ? (
+                      <button type="button" onClick={openAnnouncementStatusEditing} className="inline-flex min-h-10 items-center rounded-md px-2 text-xs font-semibold text-brand-dark hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                        Düzenle
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
               </div>
               {designAnnouncementStatusError ? <p className="mt-3 text-xs text-red-600">{designAnnouncementStatusError}</p> : null}
               {designAnnouncementStatusSuccess ? <p className="mt-3 text-xs text-green-600">{designAnnouncementStatusSuccess}</p> : null}
-              <p className="mt-3 text-xs text-ink-soft">Süreç ekipleri ve ayrıntılı yönetim Operasyon sekmesinde yer alır.</p>
+              {announcementStatusError ? <p className="mt-3 text-xs text-red-600">{announcementStatusError}</p> : null}
+              {announcementStatusSuccess ? <p className="mt-3 text-xs text-green-600">{announcementStatusSuccess}</p> : null}
+              <p className="mt-3 text-xs text-ink-soft">SKS ayrıntıları Operasyon sekmesinde; burada yalnız Tasarım ve Duyuru / Yayın takip edilir.</p>
             </section>
           </div>
 
@@ -5286,22 +5348,47 @@ export default function EventDetail() {
         </section>
         </div>
 
+        {isAnnouncementStatusEditorOpen ? (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/45 p-0 backdrop-blur-[1px] sm:items-center sm:p-6 lg:pl-[calc(15rem+1.5rem)]">
+            <button type="button" aria-label="Duyuru ve yayın düzenleme penceresini kapat" tabIndex={-1} onClick={() => !isUpdatingAnnouncementStatus && setIsAnnouncementStatusEditorOpen(false)} disabled={isUpdatingAnnouncementStatus} className="absolute inset-0 disabled:cursor-wait" />
+            <section role="dialog" aria-modal="true" aria-labelledby="announcement-status-dialog-title" className="relative w-full overflow-hidden rounded-t-2xl border border-canvas-border bg-canvas-surface shadow-2xl sm:max-w-lg sm:rounded-2xl" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+              <div className="flex items-start justify-between gap-4 border-b border-canvas-border px-4 py-4 sm:px-5">
+                <div className="flex min-w-0 items-center gap-3"><EventIconBadge name="operations" /><div><h2 id="announcement-status-dialog-title" className="text-lg font-semibold text-ink">Duyuru / Yayın durumu</h2><p className="mt-1 text-xs leading-5 text-ink-soft">İçerik hazırlığı ve yayın aşamasını güncelleyin.</p></div></div>
+                <button type="button" onClick={() => setIsAnnouncementStatusEditorOpen(false)} disabled={isUpdatingAnnouncementStatus} aria-label="Kapat" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-canvas-border text-xl leading-none text-ink-soft hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60">×</button>
+              </div>
+              <div className="p-4 sm:p-5">
+                <label htmlFor="announcement-status-quick-edit" className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                  Süreç durumu
+                  <select id="announcement-status-quick-edit" autoFocus value={announcementStatusDraft} onChange={(e) => setAnnouncementStatusDraft(e.target.value)} disabled={isUpdatingAnnouncementStatus || availableEventAnnouncementStatuses.length === 0} className="min-h-11 rounded-lg border border-canvas-border bg-canvas px-3 py-2.5 text-sm font-normal normal-case tracking-normal text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60">
+                    {availableEventAnnouncementStatuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}
+                  </select>
+                </label>
+                {announcementStatusError ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{announcementStatusError}</p> : null}
+              </div>
+              <div className="flex flex-col-reverse gap-2 border-t border-canvas-border bg-canvas px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
+                <button type="button" onClick={() => setIsAnnouncementStatusEditorOpen(false)} disabled={isUpdatingAnnouncementStatus} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-brand px-5 text-sm font-semibold text-brand-dark transition hover:bg-brand-soft disabled:opacity-60 sm:w-auto">İptal</button>
+                <button type="button" onClick={() => void handleSaveAnnouncementStatus()} disabled={isUpdatingAnnouncementStatus} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand-dark px-6 text-sm font-semibold text-white transition hover:bg-brand disabled:opacity-60 sm:w-auto">{isUpdatingAnnouncementStatus ? 'Kaydediliyor…' : 'Durumu kaydet'}</button>
+              </div>
+            </section>
+          </div>
+        ) : null}
+
         {isDesignStatusEditorOpen ? (
           <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/45 p-0 backdrop-blur-[1px] sm:items-center sm:p-6 lg:pl-[calc(15rem+1.5rem)]">
             <button type="button" aria-label="Süreç düzenleme penceresini kapat" tabIndex={-1} onClick={() => !isUpdatingDesignAnnouncementStatus && setIsDesignStatusEditorOpen(false)} disabled={isUpdatingDesignAnnouncementStatus} className="absolute inset-0 disabled:cursor-wait" />
             <section role="dialog" aria-modal="true" aria-labelledby="design-status-dialog-title" className="relative w-full overflow-hidden rounded-t-2xl border border-canvas-border bg-canvas-surface shadow-2xl sm:max-w-lg sm:rounded-2xl" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
               <div className="flex items-start justify-between gap-4 border-b border-canvas-border px-4 py-4 sm:px-5">
-                <div className="flex min-w-0 items-center gap-3"><EventIconBadge name="operations" /><div><h2 id="design-status-dialog-title" className="text-lg font-semibold text-ink">Tasarım / Duyuru durumu</h2><p className="mt-1 text-xs leading-5 text-ink-soft">Bu aşamada mevcut ortak süreç durumunu güncelleyin.</p></div></div>
+                <div className="flex min-w-0 items-center gap-3"><EventIconBadge name="operations" /><div><h2 id="design-status-dialog-title" className="text-lg font-semibold text-ink">Tasarım durumu</h2><p className="mt-1 text-xs leading-5 text-ink-soft">Brief, tasarım ve revize aşamasını güncelleyin.</p></div></div>
                 <button type="button" onClick={() => setIsDesignStatusEditorOpen(false)} disabled={isUpdatingDesignAnnouncementStatus} aria-label="Kapat" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-canvas-border text-xl leading-none text-ink-soft hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60">×</button>
               </div>
               <div className="p-4 sm:p-5">
                 <label htmlFor="design-status-quick-edit" className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
                   Süreç durumu
                   <select id="design-status-quick-edit" autoFocus value={designStatusDraft} onChange={(e) => setDesignStatusDraft(e.target.value)} disabled={isUpdatingDesignAnnouncementStatus || availableEventDesignAnnouncementStatuses.length === 0} className="min-h-11 rounded-lg border border-canvas-border bg-canvas px-3 py-2.5 text-sm font-normal normal-case tracking-normal text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60">
-                    {availableEventDesignAnnouncementStatuses.map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}
+                    {availableEventDesignAnnouncementStatuses.filter((status) => status.slug !== 'published').map((status) => <option key={status.slug} value={status.slug}>{status.label}</option>)}
                   </select>
                 </label>
-                <p className="mt-3 text-xs leading-5 text-ink-soft">Bu alan şu an Tasarım ve Duyuru/Yayın için ortak durumu gösterir.</p>
+                <p className="mt-3 text-xs leading-5 text-ink-soft">Tasarım hazır olduğunda Duyuru / Yayın süreci ayrı olarak takip edilir.</p>
                 {designAnnouncementStatusError ? <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{designAnnouncementStatusError}</p> : null}
               </div>
               <div className="flex flex-col-reverse gap-2 border-t border-canvas-border bg-canvas px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
