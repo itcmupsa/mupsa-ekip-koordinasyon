@@ -3768,6 +3768,10 @@ export default function EventDetail() {
     .filter((item) => Number.isFinite(item.time) && item.time >= todayStart.getTime())
     .sort((a, b) => a.time - b.time)[0] ?? null
   const activeReportCount = reports.filter((report) => !report.deletedAt).length
+  const latestDecision = decisions.find((decision) => !decision.deletedAt) ?? null
+  const sksStatusLabel = event.sksStatus
+    ? (availableSksStatuses.find((status) => status.slug === event.sksStatus)?.label ?? event.sksStatus)
+    : 'Belirtilmemiş'
   const shouldPromptForReport = Boolean(event.eventStatus && ['completed', 'reported', 'archived'].includes(event.eventStatus)) && activeReportCount === 0
 
   function openOperations(sectionId = 'event-operations') {
@@ -3781,6 +3785,13 @@ export default function EventDetail() {
     setActiveDetailTab('content')
     window.setTimeout(() => {
       document.getElementById('event-reports')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 0)
+  }
+
+  function openDecisions() {
+    setActiveDetailTab('content')
+    window.setTimeout(() => {
+      document.getElementById('event-decisions')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 0)
   }
 
@@ -3947,21 +3958,29 @@ export default function EventDetail() {
         ) : null}
 
         {activeDetailTab === 'overview' ? (
-          <section className="mt-6 grid gap-3 sm:grid-cols-3" aria-label="Etkinlik hızlı özeti">
-            <div className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card">
-              <div className="flex items-start justify-between gap-3">
-                <div><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Sonraki işlem</p><p className={`mt-2 text-sm font-semibold leading-5 ${event.nextAction ? 'text-ink' : 'italic text-ink-soft'}`}>{event.nextAction || 'Sonraki işlem belirlenmedi.'}</p></div>
-                <button type="button" onClick={() => openOperations('event-flow')} className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-ink-soft hover:bg-canvas hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">Operasyonda aç</button>
-              </div>
+          <section className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-5" aria-label="Etkinlik hızlı özeti">
+            <button type="button" onClick={() => openOperations('event-flow')} className="rounded-lg border border-canvas-border bg-canvas-surface px-3 py-3 text-left shadow-card transition hover:border-brand/40 hover:bg-brand-soft/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Sonraki işlem</p>
+              <p className={`mt-1.5 line-clamp-2 text-sm font-semibold leading-5 ${event.nextAction ? 'text-ink' : 'italic text-ink-soft'}`}>{event.nextAction || 'Belirlenmedi'}</p>
+            </button>
+            <div className="rounded-lg border border-canvas-border bg-canvas-surface px-3 py-3 shadow-card">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Yaklaşan tarih</p>
+              {upcomingEventDate ? <><p className="mt-1.5 text-sm font-semibold text-ink">{formatDate(upcomingEventDate.value)}</p><p className="mt-0.5 truncate text-xs text-ink-soft">{upcomingEventDate.label}</p></> : <p className="mt-1.5 text-sm italic text-ink-soft">Yok</p>}
             </div>
-            <div className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card">
-              <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Yaklaşan tarih</p>
-              {upcomingEventDate ? <><p className="mt-2 text-sm font-semibold text-ink">{formatDate(upcomingEventDate.value)}</p><p className="mt-1 text-xs text-ink-soft">{upcomingEventDate.label}</p></> : <p className="mt-2 text-sm italic text-ink-soft">Yaklaşan tarih yok.</p>}
-            </div>
-            <button type="button" onClick={() => openOperations('event-tasks')} className="rounded-xl border border-canvas-border bg-canvas-surface p-4 text-left shadow-card transition hover:border-brand/40 hover:bg-brand-soft/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-              <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Açık görev</p>
-              <p className="mt-2 text-sm font-semibold text-ink">{openTaskCount} açık görev</p>
-              <p className="mt-1 line-clamp-1 text-xs text-ink-soft">{nextOpenTask ? nextOpenTask.title : 'Açık görev bulunmuyor.'}</p>
+            <button type="button" onClick={() => openOperations('event-tasks')} className="rounded-lg border border-canvas-border bg-canvas-surface px-3 py-3 text-left shadow-card transition hover:border-brand/40 hover:bg-brand-soft/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Açık görev</p>
+              <p className="mt-1.5 text-sm font-semibold text-ink">{openTaskCount}</p>
+              <p className="mt-0.5 line-clamp-1 text-xs text-ink-soft">{nextOpenTask ? nextOpenTask.title : 'Açık görev yok'}</p>
+            </button>
+            <button type="button" onClick={() => openOperations()} className="rounded-lg border border-canvas-border bg-canvas-surface px-3 py-3 text-left shadow-card transition hover:border-brand/40 hover:bg-brand-soft/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">SKS</p>
+              <p className="mt-1.5 line-clamp-2 text-sm font-semibold text-ink">{sksStatusLabel}</p>
+              <p className="mt-0.5 text-xs text-ink-soft">Operasyonda yönetilir</p>
+            </button>
+            <button type="button" onClick={openDecisions} className="rounded-lg border border-canvas-border bg-canvas-surface px-3 py-3 text-left shadow-card transition hover:border-brand/40 hover:bg-brand-soft/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Son karar</p>
+              <p className={`mt-1.5 line-clamp-2 text-sm font-semibold leading-5 ${latestDecision ? 'text-ink' : 'italic text-ink-soft'}`}>{latestDecision?.title ?? 'Karar yok'}</p>
+              {latestDecision ? <p className="mt-0.5 text-xs text-ink-soft">{formatDate(latestDecision.decidedAt)}</p> : null}
             </button>
           </section>
         ) : null}

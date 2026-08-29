@@ -177,3 +177,11 @@ Gerçek cihazlarda en az bir iPhone/PWA ve bir ikinci cihaz ile test bildirimi g
 - Veri/DB: Değişiklik yok. Baseline `6890beb` aynen korunuyor.
 - Doğrulama: `npm run lint` PASS 0/0, `npm run build` PASS (`tsc -b` + Vite), `git diff --check` PASS.
 - Sonraki adım: Commit/push ve Vercel sonrası Genel Bakış/İçerikler/Operasyon akışını salt-okunur canlı doğrula.
+
+## 2026-08-29 Genel Bakış kompakt özet + koordinatör paneli
+- Hedef: Genel Bakışı daha kompakt ve karar odaklı yapmak; SKS ve son kararı görünür kılmak; Operasyon'daki Etkinlik koordinatörleri bölümünü küçültüp okunaklı hale getirmek.
+- Genel Bakış: Hızlı özet 5 kompakt kutuya dönüştürüldü: Sonraki işlem, Yaklaşan tarih, Açık görev, SKS ve Son karar. SKS yalnız durum olarak gösteriliyor ve Operasyon'a gider; düzenleme Genel Bakışta yok. Son karar mevcut aktif karar listesindeki en güncel kaydı gösteriyor ve İçerikler > Kararlar alanına gider.
+- Koordinatör paneli: Büyük iki kart + büyük ekleme formu kaldırıldı. Ana koordinatör ve ortak koordinatörler tek kompakt satır/kart içinde gösteriliyor; ortaklar rozet/pill şeklinde. Ekleme alanı tek satırlık select + buton haline getirildi. Yetkiler ve ekle/kaldır davranışı değişmedi.
+- Veri/DB: Değişiklik yok. Baseline `6890beb` korunuyor.
+- Doğrulama: İlk build `setOpenContentSection` kalıntısını yakaladı; karar navigasyonu mevcut `event-decisions` bölümüne doğrudan scroll edecek şekilde düzeltildi. Sonrasında `npm run lint` PASS 0/0, `npm run build` PASS, `git diff --check` PASS.
+- Sonraki adım: Commit/push ve Vercel sonrası Genel Bakış hızlı özetini ve kompakt koordinatör panelini canlıda kontrol et.

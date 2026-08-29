@@ -138,41 +138,66 @@ export default function EventCoordinatorsPanel({ eventId }: { eventId: string })
   }
 
   if (loading) {
-    return <section className="order-1 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5"><p className="text-sm text-ink-soft">Koordinatörler yükleniyor…</p></section>
+    return <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card"><p className="text-sm text-ink-soft">Koordinatörler yükleniyor…</p></section>
   }
 
   return (
-    <section id="event-coordinators" className="order-1 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
-      <div>
-        <h2 className="text-base font-semibold text-ink">Etkinlik koordinatörleri</h2>
-        <p className="mt-1 text-xs text-ink-soft">Ana koordinatör etkinliğin sahibi olarak kalır. Ortak koordinatörler etkinliğin genel alanlarını ve görevlerini birlikte yönetebilir.</p>
+    <section id="event-coordinators" className="scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-ink">Etkinlik koordinatörleri</h2>
+          <p className="mt-1 text-xs text-ink-soft">Ana koordinatör etkinliğin sahibi; ortak koordinatörler genel yönetimi paylaşır.</p>
+        </div>
+        <span className="inline-flex w-fit rounded-full bg-canvas px-2.5 py-1 text-xs font-semibold text-ink-soft">{coordinatorMembers.length} ortak</span>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-brand/20 bg-brand-soft/35 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-brand-dark">Ana koordinatör</p>
-          <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-brand-dark">{owner?.roleName ?? 'Koordinatör'}</p>
-          <p className="mt-1 text-sm font-semibold text-ink">{owner?.displayName ?? 'Belirtilmedi'}</p>
-        </div>
-        <div className="rounded-xl border border-canvas-border bg-canvas p-4">
-          <div className="flex items-center justify-between gap-2"><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Ortak koordinatörler</p><span className="rounded-full bg-canvas-surface px-2 py-0.5 text-xs font-semibold text-ink-soft">{coordinatorMembers.length}</span></div>
-          {coordinatorMembers.length === 0 ? <p className="mt-3 text-sm text-ink-soft">Bu etkinlik henüz ortak değil.</p> : (
-            <div className="mt-3 grid gap-2">
-              {coordinatorMembers.map(({ coordinator, member }) => (
-                <div key={coordinator.id} className="flex items-center justify-between gap-3 rounded-lg border border-canvas-border bg-canvas-surface px-3 py-2">
-                  <div className="min-w-0"><p className="truncate text-xs font-semibold uppercase tracking-wide text-brand-dark">{member.roleName ?? 'Koordinatör'}</p><p className="mt-0.5 truncate text-sm font-semibold text-ink">{member.displayName}</p></div>
-                  {canManage ? <button type="button" onClick={() => void removeCoordinator(coordinator.id)} disabled={removingId === coordinator.id} className="min-h-10 shrink-0 rounded-md px-3 text-xs font-semibold text-danger hover:bg-danger-soft disabled:opacity-50">{removingId === coordinator.id ? 'Kaldırılıyor…' : 'Kaldır'}</button> : null}
-                </div>
-              ))}
+      <div className="mt-4 rounded-lg border border-canvas-border bg-canvas px-3 py-3 sm:px-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-dark">Ana koordinatör</p>
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <p className="text-sm font-semibold text-ink">{owner?.displayName ?? 'Belirtilmedi'}</p>
+              <span className="text-xs text-ink-soft">{owner?.roleName ?? 'Koordinatör'}</span>
             </div>
-          )}
+          </div>
+
+          <div className="min-w-0 flex-1 lg:max-w-[65%]">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Ortak koordinatörler</p>
+            {coordinatorMembers.length === 0 ? (
+              <p className="mt-1 text-sm text-ink-soft">Ortak koordinatör yok.</p>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {coordinatorMembers.map(({ coordinator, member }) => (
+                  <div key={coordinator.id} className="inline-flex max-w-full items-center gap-2 rounded-full border border-canvas-border bg-canvas-surface py-1.5 pl-3 pr-1.5">
+                    <span className="min-w-0 truncate text-xs font-semibold text-ink">{member.displayName}</span>
+                    <span className="hidden text-[11px] text-ink-soft md:inline">{member.roleName ?? 'Koordinatör'}</span>
+                    {canManage ? (
+                      <button
+                        type="button"
+                        onClick={() => void removeCoordinator(coordinator.id)}
+                        disabled={removingId === coordinator.id}
+                        aria-label={`${member.displayName} ortak koordinatörünü kaldır`}
+                        className="inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-[11px] font-semibold text-danger hover:bg-danger-soft disabled:opacity-50"
+                      >
+                        {removingId === coordinator.id ? '…' : 'Kaldır'}
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {canManage && availableMembers.length > 0 ? (
-        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-canvas-border bg-canvas p-4 sm:flex-row sm:items-end">
-          <label className="grid flex-1 gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">Ortak koordinatör ekle<select value={selectedProfileId} onChange={(event) => setSelectedProfileId(event.target.value)} disabled={saving} className="min-h-11 rounded-lg border border-canvas-border bg-canvas-surface px-3 text-sm font-medium normal-case tracking-normal text-ink"><option value="">Koordinatörlük ve kişi seçin</option>{availableMembers.map((member) => <option key={member.profileId} value={member.profileId}>{member.roleName ?? 'Koordinatör'} — {member.displayName}</option>)}</select></label>
-          <button type="button" onClick={() => void addCoordinator()} disabled={saving || !selectedProfileId} className="min-h-11 rounded-lg bg-brand-dark px-4 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Ekleniyor…' : 'Ekle'}</button>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <label className="sr-only" htmlFor="event-shared-coordinator-select">Ortak koordinatör seç</label>
+          <select id="event-shared-coordinator-select" value={selectedProfileId} onChange={(event) => setSelectedProfileId(event.target.value)} disabled={saving} className="min-h-10 flex-1 rounded-lg border border-canvas-border bg-canvas px-3 text-sm font-medium text-ink">
+            <option value="">Ortak koordinatör ekle…</option>
+            {availableMembers.map((member) => <option key={member.profileId} value={member.profileId}>{member.roleName ?? 'Koordinatör'} — {member.displayName}</option>)}
+          </select>
+          <button type="button" onClick={() => void addCoordinator()} disabled={saving || !selectedProfileId} className="min-h-10 rounded-lg bg-brand-dark px-4 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Ekleniyor…' : 'Ekle'}</button>
         </div>
       ) : null}
 
