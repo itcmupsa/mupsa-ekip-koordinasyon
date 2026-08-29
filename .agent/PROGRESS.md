@@ -156,3 +156,13 @@ Gerçek cihazlarda en az bir iPhone/PWA ve bir ikinci cihaz ile test bildirimi g
 - Baseline: `6890beb` değişmedi.
 - Doğrulama: `npm run lint` PASS 0/0, `npm run build` PASS, `git diff --check` PASS.
 - Sonraki adım: Commit/push ve canlıda yeni Genel Bakış düzenini salt-okunur doğrulamak.
+
+## 2026-08-29 Genel Bakış → Operasyon / İçerikler bağlantısı
+- Hedef: Genel Bakış yalnız durum özeti versin; ayrıntılı ekip/görev yönetimi Operasyon'a, etkinlik sonrası rapor İçerikler'e bağlansın.
+- Genel Bakış: Tasarım ve Duyuru/Yayın satırlarına `Operasyonda aç` aksiyonu eklendi; Operasyon sekmesindeki süreç ekipleri bölümüne kaydırıyor.
+- Operasyon: Yeni `Süreç ekipleri` özeti eklendi. Tasarım ve Duyuru/Yayın için ana sorumlu, destekleyen ve bilgilendirilen kişiler mevcut `event_process_members` verisinden gösteriliyor. Açık görev hızlı kartı doğrudan Operasyon > Görevler bölümüne gidiyor.
+- Rapor: Etkinlik durumu Gerçekleşti/Raporlandı/Arşivlendi olup aktif rapor yoksa Genel Bakışta küçük `Etkinlik raporu henüz hazırlanmadı` uyarısı görünür; `Raporu hazırla` İçerikler > Raporlar bölümüne götürür. Etkinlik öncesinde rapor öne çıkarılmaz.
+- Veri/DB: Yeni tablo, kolon veya migration yok; mevcut veriler ve yetkiler kullanılıyor.
+- Baseline: `6890beb` değişmedi.
+- Doğrulama: İlk build denemesinde iki TypeScript hata yakalandı (nullable event status ve kaldırılmış content accordion state'i); düzeltildi. Sonrasında `npm run lint` PASS 0/0, `npm run build` PASS, `git diff --check` PASS.
+- Sonraki adım: Commit/push ve Vercel sonrası bağlı etkinlikte navigasyon akışını veri değiştirmeden doğrula.

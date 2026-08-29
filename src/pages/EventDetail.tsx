@@ -3370,15 +3370,13 @@ export default function EventDetail() {
   const isSksOwner = sksOwner?.profileId === profileId
   const canChangeSksStatus = isSuperAdmin || isSksOwner
   const canManageSksTeam = isSuperAdmin || isOwner || isSksOwner
-  const isDesignOwner = processMembers.some(
-    (member) => member.processType === 'design'
-      && member.profileId === profileId
-      && member.responsibilityType === 'owner',
+  const designProcessMembers = processMembers.filter((member) => member.processType === 'design')
+  const pressProcessMembers = processMembers.filter((member) => member.processType === 'press')
+  const isDesignOwner = designProcessMembers.some(
+    (member) => member.profileId === profileId && member.responsibilityType === 'owner',
   )
-  const isPressOwner = processMembers.some(
-    (member) => member.processType === 'press'
-      && member.profileId === profileId
-      && member.responsibilityType === 'owner',
+  const isPressOwner = pressProcessMembers.some(
+    (member) => member.profileId === profileId && member.responsibilityType === 'owner',
   )
   const canChangeDesignAnnouncementStatus = isSuperAdmin || isDesignOwner
   const canChangeAnnouncementStatus = isSuperAdmin || isPressOwner
@@ -3786,6 +3784,22 @@ export default function EventDetail() {
     .map((item) => ({ ...item, time: new Date(`${item.value}T00:00:00`).getTime() }))
     .filter((item) => Number.isFinite(item.time) && item.time >= todayStart.getTime())
     .sort((a, b) => a.time - b.time)[0] ?? null
+  const activeReportCount = reports.filter((report) => !report.deletedAt).length
+  const shouldPromptForReport = Boolean(event.eventStatus && ['completed', 'reported', 'archived'].includes(event.eventStatus)) && activeReportCount === 0
+
+  function openOperations(sectionId = 'event-operations') {
+    setActiveDetailTab('operations')
+    window.setTimeout(() => {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 0)
+  }
+
+  function openReports() {
+    setActiveDetailTab('content')
+    window.setTimeout(() => {
+      document.getElementById('event-reports')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 0)
+  }
 
   const treasurerMember = periodMembers.find((member) => member.coordinatorRoleSlug === 'treasurer')
   const remainingBudget = event.approvedBudget === null ? null : event.approvedBudget - (event.actualExpense ?? 0)
@@ -3978,10 +3992,22 @@ export default function EventDetail() {
               <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Yaklaşan tarih</p>
               {upcomingEventDate ? <><p className="mt-2 text-sm font-semibold text-ink">{formatDate(upcomingEventDate.value)}</p><p className="mt-1 text-xs text-ink-soft">{upcomingEventDate.label}</p></> : <p className="mt-2 text-sm italic text-ink-soft">Yaklaşan tarih yok.</p>}
             </div>
-            <button type="button" onClick={() => setActiveDetailTab('operations')} className="rounded-xl border border-canvas-border bg-canvas-surface p-4 text-left shadow-card transition hover:border-brand/40 hover:bg-brand-soft/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+            <button type="button" onClick={() => openOperations('event-tasks')} className="rounded-xl border border-canvas-border bg-canvas-surface p-4 text-left shadow-card transition hover:border-brand/40 hover:bg-brand-soft/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
               <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Açık görev</p>
               <p className="mt-2 text-sm font-semibold text-ink">{openTaskCount} açık görev</p>
               <p className="mt-1 line-clamp-1 text-xs text-ink-soft">{nextOpenTask ? nextOpenTask.title : 'Açık görev bulunmuyor.'}</p>
+            </button>
+          </section>
+        ) : null}
+
+        {activeDetailTab === 'overview' && shouldPromptForReport ? (
+          <section className="mt-4 flex flex-col gap-3 rounded-xl border border-brand/25 bg-brand-soft/35 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div>
+              <p className="text-sm font-semibold text-ink">Etkinlik raporu henüz hazırlanmadı.</p>
+              <p className="mt-1 text-xs leading-5 text-ink-soft">Etkinlik tamamlandıktan sonra raporu İçerikler bölümünde hazırlayabilirsiniz.</p>
+            </div>
+            <button type="button" onClick={openReports} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg bg-brand-dark px-4 text-sm font-semibold text-white transition hover:bg-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+              Raporu hazırla
             </button>
           </section>
         ) : null}
@@ -4051,6 +4077,9 @@ export default function EventDetail() {
                         Düzenle
                       </button>
                     ) : null}
+                    <button type="button" onClick={() => openOperations('event-process-teams')} className="inline-flex min-h-10 items-center rounded-md px-2 text-xs font-semibold text-ink-soft hover:bg-canvas-surface hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                      Operasyonda aç
+                    </button>
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -4067,6 +4096,9 @@ export default function EventDetail() {
                         Düzenle
                       </button>
                     ) : null}
+                    <button type="button" onClick={() => openOperations('event-process-teams')} className="inline-flex min-h-10 items-center rounded-md px-2 text-xs font-semibold text-ink-soft hover:bg-canvas-surface hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                      Operasyonda aç
+                    </button>
                   </div>
                 </div>
               </div>
@@ -4745,7 +4777,41 @@ export default function EventDetail() {
           )}
         </div>
 
-        <div className={activeDetailTab === 'operations' ? 'mt-6 flex flex-col gap-4' : 'hidden'}>
+        <div id="event-operations" className={activeDetailTab === 'operations' ? 'mt-6 flex scroll-mt-28 flex-col gap-4' : 'hidden'}>
+        <section id="event-process-teams" className="order-1 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+          <div className="flex items-center gap-3">
+            <EventIconBadge name="operations" />
+            <div>
+              <h2 className="text-base font-semibold text-ink">Süreç ekipleri</h2>
+              <p className="mt-1 text-xs text-ink-soft">Tasarım ve Duyuru / Yayın süreçlerinde kimlerin görev aldığını görün.</p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {([
+              ['Tasarım', designProcessMembers],
+              ['Duyuru / Yayın', pressProcessMembers],
+            ] as const).map(([label, members]) => {
+              const owner = members.find((member) => member.responsibilityType === 'owner')
+              const supporting = members.filter((member) => member.responsibilityType === 'supporting')
+              const informed = members.filter((member) => member.responsibilityType === 'informed')
+              return (
+                <div key={label} className="rounded-lg border border-canvas-border bg-canvas p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-ink">{label}</h3>
+                    <span className="text-xs font-medium text-ink-soft">{members.length} kişi</span>
+                  </div>
+                  <div className="mt-3 space-y-2 text-xs">
+                    <p><span className="font-semibold text-ink-soft">Ana sorumlu:</span> <span className="text-ink">{owner?.displayName ?? 'Atanmamış'}</span></p>
+                    <p><span className="font-semibold text-ink-soft">Destekleyen:</span> <span className="text-ink">{supporting.length > 0 ? supporting.map((member) => member.displayName).join(', ') : 'Atanmamış'}</span></p>
+                    <p><span className="font-semibold text-ink-soft">Bilgilendirilen:</span> <span className="text-ink">{informed.length > 0 ? informed.map((member) => member.displayName).join(', ') : 'Atanmamış'}</span></p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <p className="mt-3 text-xs text-ink-soft">Durum değişiklikleri Genel Bakışta; ekip ve görev ayrıntıları Operasyon içinde yönetilir.</p>
+        </section>
+
         {/* SKS Süreci */}
         <section className="order-2 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card">
           <button type="button" onClick={() => setIsSksSectionOpen((open) => !open)} aria-expanded={isSksSectionOpen} className="flex min-h-[44px] w-full items-center justify-between gap-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
