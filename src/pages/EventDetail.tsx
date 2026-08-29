@@ -1357,7 +1357,7 @@ export default function EventDetail() {
 
       const { data, error } = await supabase
         .from('events')
-        .select('title, description, event_status, sks_status, design_announcement_status, announcement_status, report_status, planning_date, preparation_start_date, estimated_date, confirmed_date, owner_id, venue, next_action, general_note')
+        .select('title, description, event_status, sks_status, design_announcement_status, report_status, planning_date, preparation_start_date, estimated_date, confirmed_date, owner_id, venue, next_action, general_note')
         .eq('id', eventId)
         .eq('period_id', periodId)
         .is('deleted_at', null)
@@ -1381,11 +1381,9 @@ export default function EventDetail() {
         const { data: loadedBudget, error: budgetError } = await supabase
           .rpc('get_event_budget', { target_event_id: eventId })
           .maybeSingle()
-        if (budgetError) {
-          setLoadState('error')
-          return
+        if (!budgetError) {
+          budgetData = loadedBudget as EventBudgetData | null
         }
-        budgetData = loadedBudget as EventBudgetData | null
       }
       setEvent({
         title: data.title as string,
@@ -1394,7 +1392,7 @@ export default function EventDetail() {
         sksStatus: (data.sks_status as string | null) ?? null,
         budgetStatus: budgetData?.budget_status ?? null,
         designAnnouncementStatus: (data.design_announcement_status as string | null) ?? 'not_required',
-        announcementStatus: (data.announcement_status as string | null) ?? 'not_required',
+        announcementStatus: 'not_required',
         reportStatus: (data.report_status as string | null) ?? 'no',
         estimatedBudget: parseNullableNumber(budgetData?.estimated_budget),
         approvedBudget: parseNullableNumber(budgetData?.approved_budget),
@@ -1410,6 +1408,22 @@ export default function EventDetail() {
         generalNote: (data.general_note as string | null) ?? null,
       })
       setLoadState('ready')
+
+      const { data: announcementData } = await supabase
+        .from('events')
+        .select('announcement_status')
+        .eq('id', eventId)
+        .eq('period_id', periodId)
+        .is('deleted_at', null)
+        .maybeSingle()
+
+      if (!isMounted) return
+      if (announcementData) {
+        setEvent((current) => current ? {
+          ...current,
+          announcementStatus: (announcementData.announcement_status as string | null) ?? 'not_required',
+        } : current)
+      }
 
       if (eventStatus) {
         const { data: statusData } = await supabase

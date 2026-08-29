@@ -126,3 +126,11 @@ Gerçek cihazlarda en az bir iPhone/PWA ve bir ikinci cihaz ile test bildirimi g
 - Migration: `20260829133000_split_design_and_announcement_statuses.sql` ve takip `20260829133100_refine_design_status_labels.sql` linked Supabase'e uygulandı. Migration geçmişi canlıda uygulandı; DB lint temiz.
 - Doğrulama: `npm run lint` PASS 0/0, `npm run build` PASS (`tsc -b` + Vite), Supabase linked lint PASS, dry-run/push PASS.
 - Sonraki adım: Git diff-check, commit/push ve Vercel sonrası canlı sayfada Tasarım/Duyuru ayrımını veri kaydetmeden doğrula.
+
+## 2026-08-29 Etkinlik detay yükleme hotfix
+- Sorun: Süreç ayrımı sonrası tüm etkinlik detayları `Etkinlik yüklenirken bir hata oluştu.` ekranına düşüyordu.
+- Teşhis: Linked Supabase şemasında `events.announcement_status` ve yeni referans tablo mevcut; migration kayıp değil. Ancak ana etkinlik yükleme akışı yeni Duyuru/Yayın alanını ve yetkili bütçe RPC'sini kritik yolun içine almıştı. Bu ikincil sorgulardan herhangi biri hata verdiğinde tüm etkinlik sayfası çöküyordu.
+- Düzeltme: Ana event sorgusu yeniden yalnız stabil temel alanları yüklüyor. `announcement_status` ayrı, hataya dayanıklı ikinci sorguyla yükleniyor; hata olursa varsayılan `Gerekli Değil` ile sayfa açık kalıyor. `get_event_budget` RPC hatası da artık tüm etkinlik detayını kapatmıyor; bütçe verisi boş kalıyor.
+- Veri/DB: Yeni migration yok; canlı şema değişmedi.
+- Doğrulama: `supabase gen types typescript --linked` yeni alan/tabloyu doğruladı. `npm run lint` PASS 0/0, `npm run build` PASS, `git diff --check` PASS.
+- Sonraki adım: Commit/push ve Vercel sonrası canlı etkinlik detayının tekrar açıldığını doğrula.
