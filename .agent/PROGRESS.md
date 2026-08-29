@@ -104,3 +104,14 @@ Gerçek cihazlarda en az bir iPhone/PWA ve bir ikinci cihaz ile test bildirimi g
 - Karar: Etkinlik aynı ayda hem hazırlık hem etkinlik tarihi taşısa da bir kez sayılır; farkındalık tarih aralığı seçili ayla kesişiyorsa bir kez sayılır; görevler son tarih ayına göre sayılır.
 - Doğrulama: `npm run lint`, `npm run build`, `git diff --check` PASS.
 - Sonraki adım: Commit/push ve canlı Takvimde ay değiştirerek sayaçların değiştiğini doğrulamak.
+
+## 2026-08-29 Etkinlik Genel Bakış UI aşama 1
+- Hedef: Veri modelini değiştirmeden Etkinlik Genel Bakış ekranındaki tarih/süreç karışıklığını ve hızlı düzenleme tutarsızlığını düzeltmek.
+- Baseline: `6890beb` (`fix: restore event editing controls`). Beğenilmezse yalnız bu UI çalışmasının commit'i geri alınacak.
+- Değişen yol: `src/pages/EventDetail.tsx`.
+- UI: `Tarihleri düzenle` artık yalnız dört tarih alanını açan odaklı modal kullanıyor; hazırlık başlangıç tarihi manuel kalıyor. Tarihler kartından Tasarım/Duyuru ve rapor durumu çıkarıldı.
+- UI: Genel Bakış sol kolonuna ayrı `Süreçler` kartı eklendi. SKS kendi gerçek durumuyla, Tasarım/Duyuru mevcut birleşik veri modeliyle gösteriliyor. Tasarım/Duyuru değişikliği anlık select yerine ayrı odaklı düzenleme modalından kaydediliyor. Rapor ana süreç kartında öne çıkarılmadı.
+- UI: Sonraki işlem ve Mekân mevcut odaklı hızlı düzenleme pencerelerini kullanmaya devam ediyor. Tam `Etkinliği düzenle` formundaki eski otomatik hazırlık açıklaması manuel davranışla uyumlu hale getirildi.
+- Veri: Supabase migration veya veri modeli değişikliği yok; Tasarım ve Duyuru/Yayın ayrımı sonraki aşamaya bırakıldı.
+- Doğrulama: `npm run lint` PASS (0 warning/0 error), `npm run build` PASS, `git diff --check` PASS. Projede `typecheck` script'i yok; ilk typecheck denemesi bu nedenle çalışmadı, build içindeki `tsc -b` başarıyla geçti.
+- Sonraki adım: Git commit/push, Vercel otomatik deployment sonrası canlı etkinlikte yalnız ekranları açarak tarih modalı/süreç kartı/erişilebilirliği doğrula; canlı veri kaydetme.
