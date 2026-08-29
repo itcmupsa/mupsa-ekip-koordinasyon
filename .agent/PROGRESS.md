@@ -143,4 +143,6 @@ Gerçek cihazlarda en az bir iPhone/PWA ve bir ikinci cihaz ile test bildirimi g
 - Bütçe: Mevcut güvenlik modeli doğrulandı; UI yalnız `super_admin` veya aktif `treasurer` için açılıyor, DB RPC/RLS de aynı kuralı uyguluyor. Etkinlik sahibi/ortak koordinatöre bütçe görünürlüğü eklenmedi.
 - Duyuru/Yayın: Kolon bazlı `events` SELECT kısıtı nedeniyle yeni `announcement_status` kolonunun authenticated rolüne açıkça grant edilmesi gerekiyordu. `20260829143000_grant_announcement_status_select.sql` linked Supabase'e uygulandı; artık Duyuru/Yayın durumu fallback yerine gerçek değerini okuyabilir.
 - Doğrulama: `npm run lint` PASS 0/0; `npm run build` PASS (`tsc -b` + Vite); `git diff --check` PASS; Supabase dry-run/push PASS; linked DB lint `No schema errors found`.
-- Sonraki adım: Commit/push ve Vercel sonrası bağlı canlı etkinlikte yaşam döngüsü, rol+isim sorumlu seçimi, SKS durum rozeti ve ayrı Duyuru/Yayın değerini veri değiştirmeden doğrula.
+- Git: `feca2bf feat: complete event detail workflow UI` commit edildi ve `origin/main` pushlandı. Baseline `6890beb` değişmedi.
+- Canlı doğrulama: Vercel sonrası bağlı Chrome `inspect` işi Bridge tarafında takılı kaldı; bu turda yeni DOM görünümü canlı doğrulanamadı. Hiçbir etkinlik verisi değiştirilmedi.
+- Sonraki adım: Bağlı sekme yeniden yanıt verdiğinde yaşam döngüsü, rol+isim sorumlu seçimi, SKS durum rozeti ve gerçek Duyuru/Yayın değerini salt-okunur doğrula.
