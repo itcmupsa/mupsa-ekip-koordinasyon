@@ -3762,13 +3762,30 @@ export default function EventDetail() {
   const displayedStatus = statusLabel ?? event.eventStatus ?? 'Durum belirtilmemiş'
   const displayedOwner = event.ownerId ? ownerName ?? NOT_SPECIFIED : NOT_SPECIFIED
   const displayedVenue = event.venue || NOT_SPECIFIED
-  const displayedNextAction = event.nextAction || NOT_SPECIFIED
   const canExpandEventDescription =
     !!event.description &&
     (event.description.length > 120 || event.description.split(/\r?\n/).length > 2)
-  const openTaskCount = tasks.filter(
+  const openTasks = tasks.filter(
     (task) => !task.deletedAt && task.progressStatusSlug !== 'completed' && task.progressStatusSlug !== 'cancelled',
-  ).length
+  )
+  const openTaskCount = openTasks.length
+  const nextOpenTask = [...openTasks].sort((a, b) => {
+    if (!a.deadlineAt && !b.deadlineAt) return 0
+    if (!a.deadlineAt) return 1
+    if (!b.deadlineAt) return -1
+    return new Date(a.deadlineAt).getTime() - new Date(b.deadlineAt).getTime()
+  })[0] ?? null
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
+  const upcomingEventDate = [
+    { label: 'Hazırlık başlangıcı', value: event.preparationStartDate },
+    { label: 'Tahmini etkinlik tarihi', value: event.estimatedDate },
+    { label: 'Kesinleşmiş tarih', value: event.confirmedDate },
+  ]
+    .filter((item): item is { label: string; value: string } => Boolean(item.value))
+    .map((item) => ({ ...item, time: new Date(`${item.value}T00:00:00`).getTime() }))
+    .filter((item) => Number.isFinite(item.time) && item.time >= todayStart.getTime())
+    .sort((a, b) => a.time - b.time)[0] ?? null
 
   const treasurerMember = periodMembers.find((member) => member.coordinatorRoleSlug === 'treasurer')
   const remainingBudget = event.approvedBudget === null ? null : event.approvedBudget - (event.actualExpense ?? 0)
@@ -3776,16 +3793,6 @@ export default function EventDetail() {
   const sponsorTotal = activeSponsors.reduce((total, sponsor) => total + sponsor.amount, 0)
   const roleLabel = coordinatorRoleName ?? (isSuperAdmin ? 'Süper Yönetici' : 'Koordinatör')
   const primaryDate = event.confirmedDate ?? event.estimatedDate
-  const lifecycleSteps = [
-    { slug: 'idea', label: 'Fikir' },
-    { slug: 'planning', label: 'Planlanıyor' },
-    { slug: 'confirmed', label: 'Kesinleşti' },
-    { slug: 'completed', label: 'Gerçekleşti' },
-    { slug: 'reported', label: 'Raporlandı' },
-    { slug: 'archived', label: 'Arşivlendi' },
-  ] as const
-  const lifecycleIndex = lifecycleSteps.findIndex((step) => step.slug === event.eventStatus)
-  const isExceptionalEventStatus = event.eventStatus === 'postponed' || event.eventStatus === 'cancelled'
 
   return (
     <AppShell
@@ -3859,32 +3866,6 @@ export default function EventDetail() {
             ))}
           </dl>
 
-          <div className="mt-5 border-t border-canvas-border pt-5">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Etkinlik aşaması</p>
-                <p className="mt-1 text-xs text-ink-soft">Ana ilerleyişi tek bakışta takip edin.</p>
-              </div>
-              {isExceptionalEventStatus ? (
-                <span className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${event.eventStatus === 'cancelled' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800'}`}>{displayedStatus}</span>
-              ) : null}
-            </div>
-            <div className="mt-4 overflow-x-auto pb-1" aria-label="Etkinlik yaşam döngüsü">
-              <ol className="flex min-w-[620px] items-start">
-                {lifecycleSteps.map((step, index) => {
-                  const isCurrent = step.slug === event.eventStatus
-                  const isComplete = lifecycleIndex >= 0 && index < lifecycleIndex
-                  return (
-                    <li key={step.slug} className="relative flex flex-1 flex-col items-center text-center">
-                      {index > 0 ? <span className={`absolute right-1/2 top-[11px] h-0.5 w-full ${isComplete || isCurrent ? 'bg-brand' : 'bg-canvas-border'}`} aria-hidden="true" /> : null}
-                      <span className={`relative z-10 flex h-6 w-6 items-center justify-center rounded-full border-2 text-[10px] font-bold ${isCurrent ? 'border-brand bg-brand text-white' : isComplete ? 'border-brand bg-brand-soft text-brand-dark' : 'border-canvas-border bg-canvas-surface text-ink-soft'}`}>{isComplete ? '✓' : index + 1}</span>
-                      <span className={`mt-2 text-xs font-medium ${isCurrent ? 'text-brand-dark' : isComplete ? 'text-ink' : 'text-ink-soft'}`}>{step.label}</span>
-                    </li>
-                  )
-                })}
-              </ol>
-            </div>
-          </div>
           </div>
         </section>
 
@@ -3985,7 +3966,27 @@ export default function EventDetail() {
           </div>
         ) : null}
 
-        <div id="event-notes" className={activeDetailTab === 'overview' ? 'mt-6 grid scroll-mt-28 gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.85fr)]' : 'hidden'}>
+        {activeDetailTab === 'overview' ? (
+          <section className="mt-6 grid gap-3 sm:grid-cols-3" aria-label="Etkinlik hızlı özeti">
+            <div className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card">
+              <div className="flex items-start justify-between gap-3">
+                <div><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Sonraki işlem</p><p className={`mt-2 text-sm font-semibold leading-5 ${event.nextAction ? 'text-ink' : 'italic text-ink-soft'}`}>{event.nextAction || 'Sonraki işlem belirlenmedi.'}</p></div>
+                {canEdit ? <button type="button" onClick={() => openProcessFieldEditing('nextAction')} className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-brand-dark hover:bg-brand-soft">Düzenle</button> : null}
+              </div>
+            </div>
+            <div className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card">
+              <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Yaklaşan tarih</p>
+              {upcomingEventDate ? <><p className="mt-2 text-sm font-semibold text-ink">{formatDate(upcomingEventDate.value)}</p><p className="mt-1 text-xs text-ink-soft">{upcomingEventDate.label}</p></> : <p className="mt-2 text-sm italic text-ink-soft">Yaklaşan tarih yok.</p>}
+            </div>
+            <button type="button" onClick={() => setActiveDetailTab('operations')} className="rounded-xl border border-canvas-border bg-canvas-surface p-4 text-left shadow-card transition hover:border-brand/40 hover:bg-brand-soft/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+              <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Açık görev</p>
+              <p className="mt-2 text-sm font-semibold text-ink">{openTaskCount} açık görev</p>
+              <p className="mt-1 line-clamp-1 text-xs text-ink-soft">{nextOpenTask ? nextOpenTask.title : 'Açık görev bulunmuyor.'}</p>
+            </button>
+          </section>
+        ) : null}
+
+        <div id="event-notes" className={activeDetailTab === 'overview' ? 'mt-4 grid scroll-mt-28 gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.85fr)]' : 'hidden'}>
           <div className="space-y-4">
             <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
               <div className="flex items-center justify-between gap-3">
@@ -4026,17 +4027,6 @@ export default function EventDetail() {
               </div>
             </section>
 
-            <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3"><EventIconBadge name="task" /><div><h2 className="text-base font-semibold text-ink">Sonraki işlem</h2><p className="mt-1 text-xs text-ink-soft">Ekibin sıradaki somut adımı.</p></div></div>
-              </div>
-              <div className="mt-4 rounded-lg border border-accent/25 bg-accent-soft/45 p-4">
-                <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-semibold uppercase text-accent">Önerilen</span>
-                <p className={`mt-3 text-sm font-semibold leading-6 ${event.nextAction ? 'text-ink' : 'italic text-ink-soft'}`}>{displayedNextAction}</p>
-                <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-ink-soft"><span>Sorumlu: {displayedOwner}</span><span>Planlanan tarih: {formatDate(primaryDate)}</span></div>
-              </div>
-              {canEdit ? <button type="button" onClick={() => openProcessFieldEditing('nextAction')} className="mt-4 flex min-h-[40px] items-center gap-2 rounded-md border border-brand/40 px-3 text-xs font-semibold text-brand-dark"><EventIcon name="edit" className="h-4 w-4" />Sonraki işlemi düzenle</button> : null}
-            </section>
 
             <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
               <div className="flex items-center gap-3">

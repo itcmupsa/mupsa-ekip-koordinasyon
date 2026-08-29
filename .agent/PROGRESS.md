@@ -146,3 +146,13 @@ Gerçek cihazlarda en az bir iPhone/PWA ve bir ikinci cihaz ile test bildirimi g
 - Git: `feca2bf feat: complete event detail workflow UI` commit edildi ve `origin/main` pushlandı. Baseline `6890beb` değişmedi.
 - Canlı doğrulama: Vercel sonrası bağlı Chrome `inspect` işi Bridge tarafında takılı kaldı; bu turda yeni DOM görünümü canlı doğrulanamadı. Hiçbir etkinlik verisi değiştirilmedi.
 - Sonraki adım: Bağlı sekme yeniden yanıt verdiğinde yaşam döngüsü, rol+isim sorumlu seçimi, SKS durum rozeti ve gerçek Duyuru/Yayın değerini salt-okunur doğrula.
+
+## 2026-08-29 Etkinlik Genel Bakış plan düzeltmesi
+- Kullanıcı geri bildirimi: Plan dışı eklenen Fikir → Planlanıyor → Kesinleşti → Gerçekleşti → Raporlandı → Arşivlendi yaşam döngüsü çizgisi istenmedi; kaldırıldı.
+- Plan uyumu: Genel Bakış üstüne üç kompakt hızlı özet eklendi: `Sonraki işlem`, `Yaklaşan tarih`, `Açık görev`. Sonraki işlem burada doğrudan odaklı düzenleme penceresini açıyor; `Önerilen` etiketi ve büyük tekrarlayan Sonraki işlem kartı kaldırıldı.
+- Yaklaşan tarih: Hazırlık başlangıcı / tahmini etkinlik tarihi / kesinleşmiş tarih içinden bugünden sonraki en yakın tarih gösteriliyor; yoksa açıkça `Yaklaşan tarih yok.` yazıyor.
+- Açık görev: Açık görev sayısını ve son tarihi en yakın açık görevin adını gösteriyor; kart Operasyon sekmesine geçiyor.
+- Mevcut planın diğer parçaları korunuyor: Tarihler sadece tarihleri içeriyor ve odaklı tarih modalı açıyor; Genel Bakış Süreçler kartında yalnız Tasarım + Duyuru/Yayın var; SKS Operasyon'da; bütçe yalnız finans yetkisi/Süper Yönetici; Tasarım ve Duyuru/Yayın ayrı veri alanları.
+- Baseline: `6890beb` değişmedi.
+- Doğrulama: `npm run lint` PASS 0/0, `npm run build` PASS, `git diff --check` PASS.
+- Sonraki adım: Commit/push ve canlıda yeni Genel Bakış düzenini salt-okunur doğrulamak.
