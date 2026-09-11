@@ -7,11 +7,15 @@ import { supabase } from '../lib/supabaseClient'
 import { deleteCalendarEntryPermanently } from '../lib/permanentDeletion'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
 import { coordinatorRolePresentation } from '../lib/coordinatorRolePresentation'
+import { dateKeyInIstanbul } from '../lib/prCalendar'
+import CalendarTabs from '../components/calendar/CalendarTabs'
 
 type LoadState = 'loading' | 'ready' | 'error'
 type FormMode = 'closed' | 'create' | 'edit'
 type EntryType = 'academic' | 'official' | 'meeting' | 'other'
 type CalendarFilter = 'all' | CalendarItem['kind']
+export type CalendarKind = 'events' | 'awareness'
+type CalendarScope = CalendarKind | 'pr'
 
 const WEEKDAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
 const ENTRY_TYPES: Array<{ value: EntryType; label: string }> = [
@@ -67,11 +71,14 @@ interface ManualEntry {
   endDate: string | null
   note: string | null
   deletedAt: string | null
+  calendarScopes: CalendarScope[]
+  color: string
 }
 
 interface TaskRow {
   id: string
   eventId: string | null
+  awarenessPostId: string | null
   eventTitle: string
   title: string
   deadlineAt: string
@@ -80,6 +87,7 @@ interface TaskRow {
 interface RpcTaskRow {
   id: string
   event_id: string | null
+  awareness_post_id: string | null
   event_title: string
   title: string
   deadline_at: string
@@ -92,6 +100,7 @@ interface CalendarItem {
   linkTo?: string
   coordinatorRoleName?: string | null
   coordinatorRoleSlug?: string | null
+  color?: string
 }
 
 interface CalendarCell {
@@ -189,7 +198,7 @@ function TagIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><path d="M20 13 13 20l-9-9V4h7l9 9Z" /><circle cx="8.5" cy="8.5" r="1.25" /></svg>
 }
 
-export default function Calendar({ session }: { session: Session }) {
+export default function Calendar({ session, calendarKind = 'events' }: { session: Session; calendarKind?: CalendarKind }) {
   const [searchParams] = useSearchParams()
   const { displayName, hasActiveMembership, periodId, periodLabel, appRole, coordinatorRoleName, loading: statusLoading } = useMembershipStatus(session)
   const isSuperAdmin = appRole === 'super_admin'
@@ -201,6 +210,7 @@ export default function Calendar({ session }: { session: Session }) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<CalendarFilter>('all')
   const [showAllUpcoming, setShowAllUpcoming] = useState(false)
+  const [showStandaloneTasks, setShowStandaloneTasks] = useState(false)
   const [events, setEvents] = useState<EventRow[]>([])
   const [awarenessPosts, setAwarenessPosts] = useState<AwarenessRow[]>([])
   const [manualEntries, setManualEntries] = useState<ManualEntry[]>([])
@@ -217,6 +227,8 @@ export default function Calendar({ session }: { session: Session }) {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [note, setNote] = useState('')
+  const [calendarScopes, setCalendarScopes] = useState<CalendarScope[]>([calendarKind])
+  const [color, setColor] = useState('#7c3aed')
   const [formError, setFormError] = useState<string | null>(null)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
 
@@ -271,9 +283,8 @@ export default function Calendar({ session }: { session: Session }) {
   }, [periodId])
 
   useEffect(() => {
-    if (!periodId) return
-    const today = new Date()
-    const todayKey = dateKey(new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())))
+    if (!periodId || parseDateOnly(searchParams.get('date'))) return
+    const todayKey = dateKeyInIstanbul()
     const start = periodStartsOn ?? todayKey
     const end = periodEndsOn ?? todayKey
     const initialKey = todayKey < start ? start : todayKey > end ? end : todayKey
@@ -282,7 +293,7 @@ export default function Calendar({ session }: { session: Session }) {
     setViewYear(initialDate.getUTCFullYear())
     setViewMonth(initialDate.getUTCMonth())
     setSelectedDate(initialKey)
-  }, [periodId, periodStartsOn, periodEndsOn])
+  }, [periodId, periodStartsOn, periodEndsOn, searchParams])
 
   useEffect(() => {
     if (statusLoading) return
@@ -298,7 +309,7 @@ export default function Calendar({ session }: { session: Session }) {
 
       let manualQuery = supabase
         .from('calendar_entries')
-        .select('id, title, entry_type, start_date, end_date, note, deleted_at')
+        .select('id, title, entry_type, start_date, end_date, note, deleted_at, calendar_scopes, color')
         .eq('period_id', periodId)
         .order('start_date', { ascending: true })
       if (!showInactive || !isSuperAdmin) manualQuery = manualQuery.is('deleted_at', null)
@@ -315,7 +326,7 @@ export default function Calendar({ session }: { session: Session }) {
           .eq('period_id', periodId)
           .is('deleted_at', null),
         manualQuery,
-        supabase.rpc('get_my_calendar_task_deadlines', { target_period_id: periodId }),
+        supabase.rpc('get_my_calendar_task_deadlines_v2', { target_period_id: periodId }),
         supabase
           .from('period_memberships')
           .select('profile_id, coordinator_roles(name, slug)')
@@ -364,10 +375,13 @@ export default function Calendar({ session }: { session: Session }) {
         endDate: (row.end_date as string | null) ?? null,
         note: (row.note as string | null) ?? null,
         deletedAt: (row.deleted_at as string | null) ?? null,
+        calendarScopes: ((row.calendar_scopes as CalendarScope[] | null) ?? ['events', 'awareness']).filter((scope): scope is CalendarScope => scope === 'events' || scope === 'awareness' || scope === 'pr'),
+        color: typeof row.color === 'string' && /^#[0-9A-Fa-f]{6}$/.test(row.color) ? row.color : '#7c3aed',
       })))
       setTasks(((taskResult.data ?? []) as RpcTaskRow[]).map((row) => ({
         id: row.id as string,
         eventId: (row.event_id as string | null) ?? null,
+        awarenessPostId: (row.awareness_post_id as string | null) ?? null,
         eventTitle: row.event_title as string,
         title: row.title as string,
         deadlineAt: row.deadline_at as string,
@@ -389,7 +403,7 @@ export default function Calendar({ session }: { session: Session }) {
       map.set(key, items)
     }
 
-    for (const event of events) {
+    if (calendarKind === 'events') for (const event of events) {
       const role = { coordinatorRoleName: event.ownerRoleName, coordinatorRoleSlug: event.ownerRoleSlug }
       add(event.preparationStartDate, { id: `${event.id}-preparation`, label: `${event.title} · Hazırlık başlangıcı`, kind: 'event', linkTo: `/app/etkinlikler/${event.id}`, ...role })
       const eventDate = event.confirmedDate ?? event.estimatedDate
@@ -402,35 +416,41 @@ export default function Calendar({ session }: { session: Session }) {
       })
     }
 
-    for (const post of awarenessPosts) {
+    if (calendarKind === 'awareness') for (const post of awarenessPosts) {
       if (post.startDate) {
         const end = post.endDate ?? post.startDate
         for (const key of dateKeysBetween(post.startDate, end)) {
-          add(key, { id: `${post.id}-range-${key}`, label: `${post.awarenessName} · Farkındalık dönemi`, kind: 'awareness', linkTo: '/app/farkindalik' })
+          add(key, { id: `${post.id}-range-${key}`, label: `${post.awarenessName} · Farkındalık dönemi`, kind: 'awareness', linkTo: `/app/farkindalik?record=${encodeURIComponent(post.id)}` })
         }
       }
-      add(post.preparationStartDate, { id: `${post.id}-preparation`, label: `${post.awarenessName} · Hazırlık başlangıcı`, kind: 'awareness', linkTo: '/app/farkindalik' })
-      add(post.estimatedDate, { id: `${post.id}-estimated`, label: `${post.awarenessName} · Tahmini paylaşım`, kind: 'awareness', linkTo: '/app/farkindalik' })
-      add(post.shareDate, { id: `${post.id}-share`, label: `${post.awarenessName} · Paylaşım`, kind: 'awareness', linkTo: '/app/farkindalik' })
-      add(post.closingDate, { id: `${post.id}-closing`, label: `${post.awarenessName} · Kapanış`, kind: 'awareness', linkTo: '/app/farkindalik' })
+      const linkTo = `/app/farkindalik?record=${encodeURIComponent(post.id)}`
+      add(post.preparationStartDate, { id: `${post.id}-preparation`, label: `${post.awarenessName} · Hazırlık başlangıcı`, kind: 'awareness', linkTo })
+      add(post.estimatedDate, { id: `${post.id}-estimated`, label: `${post.awarenessName} · Tahmini paylaşım`, kind: 'awareness', linkTo })
+      add(post.shareDate, { id: `${post.id}-share`, label: `${post.awarenessName} · Paylaşım`, kind: 'awareness', linkTo })
+      add(post.closingDate, { id: `${post.id}-closing`, label: `${post.awarenessName} · Kapanış`, kind: 'awareness', linkTo })
     }
 
-    for (const entry of manualEntries) {
+    for (const entry of manualEntries.filter((entry) => entry.calendarScopes.includes(calendarKind))) {
       const end = entry.endDate ?? entry.startDate
       for (const key of dateKeysBetween(entry.startDate, end)) {
-        add(key, { id: `${entry.id}-${key}`, label: `${entry.title} · ${entry.entryType}`, kind: 'manual' })
+        add(key, { id: `${entry.id}-${key}`, label: `${entry.title} · ${entry.entryType}`, kind: 'manual', color: entry.color })
       }
     }
 
     for (const task of tasks) {
+      const belongsToCalendar = calendarKind === 'events'
+        ? Boolean(task.eventId)
+        : Boolean(task.awarenessPostId)
+      const isStandalone = !task.eventId && !task.awarenessPostId
+      if (!belongsToCalendar && !(showStandaloneTasks && isStandalone)) continue
       const date = new Date(task.deadlineAt)
       if (Number.isNaN(date.getTime())) continue
-      const key = dateKey(new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())))
-      add(key, { id: task.id, label: `${task.title} · Görev son tarihi`, kind: 'task', linkTo: task.eventId ? `/app/etkinlikler/${task.eventId}` : '/app/gorevler' })
+      const key = dateKeyInIstanbul(date)
+      add(key, { id: task.id, label: `${task.title} · Görev son tarihi`, kind: 'task', linkTo: `/app/gorevler?task=${encodeURIComponent(task.id)}` })
     }
 
     return map
-  }, [awarenessPosts, events, manualEntries, tasks])
+  }, [awarenessPosts, calendarKind, events, manualEntries, showStandaloneTasks, tasks])
 
   const calendarCells = useMemo(() => {
     const first = new Date(Date.UTC(viewYear, viewMonth, 1))
@@ -475,38 +495,49 @@ export default function Calendar({ session }: { session: Session }) {
       return start <= monthEnd && rangeEnd >= monthStart
     }
 
-    const eventCount = events.filter((event) => {
+    const eventCount = calendarKind === 'events' ? events.filter((event) => {
       const eventDate = event.confirmedDate ?? event.estimatedDate
       return isInMonth(event.preparationStartDate) || isInMonth(eventDate)
-    }).length
+    }).length : 0
 
-    const awarenessCount = awarenessPosts.filter((post) => (
+    const awarenessCount = calendarKind === 'awareness' ? awarenessPosts.filter((post) => (
       rangeIntersectsMonth(post.startDate, post.endDate)
       || isInMonth(post.preparationStartDate)
       || isInMonth(post.estimatedDate)
       || isInMonth(post.shareDate)
       || isInMonth(post.closingDate)
-    )).length
+    )).length : 0
 
     const taskCount = tasks.filter((task) => {
+      const belongsToCalendar = calendarKind === 'events' ? Boolean(task.eventId) : Boolean(task.awarenessPostId)
+      const isStandalone = !task.eventId && !task.awarenessPostId
+      if (!belongsToCalendar && !(showStandaloneTasks && isStandalone)) return false
       const deadline = new Date(task.deadlineAt)
       if (Number.isNaN(deadline.getTime())) return false
-      const key = dateKey(new Date(Date.UTC(deadline.getFullYear(), deadline.getMonth(), deadline.getDate())))
+      const key = dateKeyInIstanbul(deadline)
       return key >= monthStart && key <= monthEnd
     }).length
 
     return { eventCount, taskCount, awarenessCount }
-  }, [awarenessPosts, events, tasks, viewMonth, viewYear])
+  }, [awarenessPosts, calendarKind, events, showStandaloneTasks, tasks, viewMonth, viewYear])
 
   const selectedItems = selectedDate ? filteredItemsByDate.get(selectedDate) ?? [] : []
 
-  const filterOptions = useMemo(() => [
-    { value: 'all' as const, label: 'Tümü', count: events.length + awarenessPosts.length + tasks.length + manualEntries.filter((entry) => !entry.deletedAt).length, dot: '' },
-    { value: 'event' as const, label: 'Etkinlik', count: events.length, dot: ITEM_STYLES.event.dot },
-    { value: 'awareness' as const, label: 'Farkındalık', count: awarenessPosts.length, dot: ITEM_STYLES.awareness.dot },
-    { value: 'task' as const, label: 'Görev', count: tasks.length, dot: ITEM_STYLES.task.dot },
-    { value: 'manual' as const, label: 'Manuel kayıt', count: manualEntries.filter((entry) => !entry.deletedAt).length, dot: ITEM_STYLES.manual.dot },
-  ], [awarenessPosts.length, events.length, manualEntries, tasks.length])
+  const scopedManualEntries = useMemo(() => manualEntries.filter((entry) => entry.calendarScopes.includes(calendarKind)), [calendarKind, manualEntries])
+  const scopedTasks = useMemo(() => tasks.filter((task) => {
+    const belongsToCalendar = calendarKind === 'events' ? Boolean(task.eventId) : Boolean(task.awarenessPostId)
+    return belongsToCalendar || (showStandaloneTasks && !task.eventId && !task.awarenessPostId)
+  }), [calendarKind, showStandaloneTasks, tasks])
+  const filterOptions = useMemo(() => {
+    const primaryKind: 'event' | 'awareness' = calendarKind === 'events' ? 'event' : 'awareness'
+    const primaryCount = calendarKind === 'events' ? events.length : awarenessPosts.length
+    return [
+      { value: 'all' as const, label: 'Tümü', count: primaryCount + scopedTasks.length + scopedManualEntries.filter((entry) => !entry.deletedAt).length, dot: '' },
+      { value: primaryKind, label: ITEM_STYLES[primaryKind].label, count: primaryCount, dot: ITEM_STYLES[primaryKind].dot },
+      { value: 'task' as const, label: 'Görev', count: scopedTasks.length, dot: ITEM_STYLES.task.dot },
+      { value: 'manual' as const, label: 'Manuel kayıt', count: scopedManualEntries.filter((entry) => !entry.deletedAt).length, dot: ITEM_STYLES.manual.dot },
+    ]
+  }, [awarenessPosts.length, calendarKind, events.length, scopedManualEntries, scopedTasks.length])
 
   const upcomingItems = useMemo(() => {
     const now = new Date()
@@ -531,6 +562,8 @@ export default function Calendar({ session }: { session: Session }) {
     setStartDate('')
     setEndDate('')
     setNote('')
+    setCalendarScopes([calendarKind])
+    setColor('#7c3aed')
     setFormError(null)
   }
 
@@ -547,6 +580,8 @@ export default function Calendar({ session }: { session: Session }) {
     setStartDate(entry.startDate)
     setEndDate(entry.endDate ?? '')
     setNote(entry.note ?? '')
+    setCalendarScopes(entry.calendarScopes.length > 0 ? entry.calendarScopes : [calendarKind])
+    setColor(entry.color)
     setFormError(null)
     setActionMessage(null)
     setFormMode('edit')
@@ -567,6 +602,14 @@ export default function Calendar({ session }: { session: Session }) {
       setFormError('Bitiş tarihi başlangıç tarihinden önce olamaz.')
       return
     }
+    if (calendarScopes.length === 0) {
+      setFormError('Kayıt için en az bir takvim seçin.')
+      return
+    }
+    if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+      setFormError('Renk #RRGGBB biçiminde olmalıdır.')
+      return
+    }
 
     setSaving(true)
     const payload = {
@@ -575,6 +618,8 @@ export default function Calendar({ session }: { session: Session }) {
       start_date: startDate,
       end_date: endDate || null,
       note: note.trim() || null,
+      calendar_scopes: calendarScopes,
+      color,
     }
     const result = formMode === 'create'
       ? await supabase.from('calendar_entries').insert({ period_id: periodId, created_by: session.user.id, ...payload }).select('id').single()
@@ -642,8 +687,8 @@ export default function Calendar({ session }: { session: Session }) {
             <p className="text-sm text-ink-soft">
               Aktif dönem: <span className="font-medium text-brand-dark">{periodLabel ?? 'Belirtilmedi'}</span>
             </p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-ink">Takvim</h1>
-            <p className="mt-1 text-sm text-ink-soft">Etkinlikleri, farkındalık çalışmalarını ve görev tarihlerini birlikte görüntüle.</p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-ink">{calendarKind === 'events' ? 'Etkinlik Takvimi' : 'Farkındalık Takvimi'}</h1>
+            <p className="mt-1 text-sm text-ink-soft">{calendarKind === 'events' ? 'Etkinlik tarihlerini ve yalnızca bu etkinliklerle ilişkili yetkili görevleri görüntüle.' : 'Farkındalık çalışmalarının tarihlerini ve yalnızca ilgili yetkili görevleri görüntüle.'}</p>
           </div>
 
           {isSuperAdmin ? (
@@ -663,6 +708,8 @@ export default function Calendar({ session }: { session: Session }) {
             </div>
           ) : null}
         </div>
+
+        <CalendarTabs />
 
         {actionMessage ? (
           <p role="status" className="mt-5 rounded-md border border-canvas-border bg-canvas-surface px-3 py-2 text-sm text-ink-soft">{actionMessage}</p>
@@ -689,6 +736,8 @@ export default function Calendar({ session }: { session: Session }) {
                     <div className="grid gap-4 p-4 sm:p-5">
                       <label className="grid gap-1.5 text-sm font-medium text-ink">Başlık<input value={title} onChange={(event) => setTitle(event.target.value)} disabled={saving} placeholder="Örn. Değerlendirme toplantısı" className={calendarFieldClass} /></label>
                       <label className="grid gap-1.5 text-sm font-medium text-ink">Kategori<select value={entryType} onChange={(event) => setEntryType(event.target.value as EntryType)} disabled={saving} className={calendarFieldClass}>{ENTRY_TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+                      <fieldset className="grid gap-2 rounded-xl border border-canvas-border bg-canvas p-3"><legend className="px-1 text-sm font-medium text-ink">Görüneceği takvimler</legend>{(['events', 'awareness', 'pr'] as CalendarScope[]).map((scope) => <label key={scope} className="flex min-h-[36px] items-center gap-2 text-sm text-ink-soft"><input type="checkbox" checked={calendarScopes.includes(scope)} disabled={saving} onChange={(event) => setCalendarScopes((current) => event.target.checked ? [...current, scope] : current.filter((value) => value !== scope))} className="h-4 w-4 accent-brand" />{scope === 'events' ? 'Etkinlik Takvimi' : scope === 'awareness' ? 'Farkındalık Takvimi' : 'PR Takvimi'}</label>)}</fieldset>
+                      <label className="grid gap-1.5 text-sm font-medium text-ink">Renk <span className="text-xs font-normal text-ink-soft">(isteğe bağlı)</span><span className="flex items-center gap-3"><input type="color" value={color} onChange={(event) => setColor(event.target.value)} disabled={saving} className="h-11 w-14 rounded border border-canvas-border bg-canvas p-1" aria-label="Kayıt rengi" /><input value={color} onChange={(event) => setColor(event.target.value)} disabled={saving} maxLength={7} className={calendarFieldClass} /></span></label>
                       <label className="grid gap-1.5 text-sm font-medium text-ink"><span className="flex items-center justify-between"><span>Not <span className="text-xs font-normal text-ink-soft">(isteğe bağlı)</span></span><span className="text-xs font-normal text-ink-soft">{note.length} karakter</span></span><textarea value={note} onChange={(event) => setNote(event.target.value)} rows={5} disabled={saving} placeholder="Kaydın amacı, konumu veya önemli ayrıntıları" className={`${calendarFieldClass} min-h-32 resize-y`} /></label>
                     </div>
                   </section>
@@ -737,6 +786,11 @@ export default function Calendar({ session }: { session: Session }) {
           ))}
         </div>
 
+        <label className="mt-3 inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-canvas-border bg-canvas-surface px-3 text-sm text-ink-soft shadow-card">
+          <input type="checkbox" checked={showStandaloneTasks} onChange={(event) => setShowStandaloneTasks(event.target.checked)} className="h-4 w-4 accent-brand" />
+          Görevlerim (bağımsız görevler)
+        </label>
+
         <div className="mt-4 grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <section className="min-w-0 rounded-xl border border-canvas-border bg-canvas-surface p-3 shadow-card sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
@@ -767,12 +821,12 @@ export default function Calendar({ session }: { session: Session }) {
                   >
                     <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${isSelected ? 'text-white' : isToday ? 'bg-brand-dark text-white' : cell.isCurrentMonth ? 'text-ink' : 'text-ink-soft/45'}`}>{Number(cell.key.slice(-2))}</span>
                     <span className="mt-1 flex flex-wrap gap-1 sm:hidden" aria-hidden="true">
-                      {items.slice(0, 3).map((item) => <span key={item.id} className={`h-1.5 w-1.5 rounded-full ${calendarItemStyle(item).dot} ${isSelected ? 'ring-1 ring-white/70' : ''}`} />)}
+                      {items.slice(0, 3).map((item) => <span key={item.id} style={item.kind === 'manual' ? { backgroundColor: item.color } : undefined} className={`h-1.5 w-1.5 rounded-full ${calendarItemStyle(item).dot} ${isSelected ? 'ring-1 ring-white/70' : ''}`} />)}
                       {items.length > 3 ? <span className={`text-[9px] leading-none ${isSelected ? 'text-white/80' : 'text-ink-soft'}`}>+{items.length - 3}</span> : null}
                     </span>
                     <span className="hidden sm:block">
-                      {items.length > 0 ? <span className="mt-1 flex flex-wrap items-center gap-1" aria-hidden="true">{items.slice(0, 4).map((item) => <span key={item.id} className={`h-2 w-2 rounded-full ${calendarItemStyle(item).dot} ${isSelected ? 'ring-1 ring-white/70' : ''}`} />)}{items.length > 4 ? <span className={`text-[10px] font-medium ${isSelected ? 'text-white/80' : 'text-ink-soft'}`}>+{items.length - 4}</span> : null}</span> : null}
-                      {items.length === 1 ? <span title={items[0].label} className={`mt-1 block truncate rounded border px-1 py-0.5 text-[10px] font-medium leading-4 ${calendarItemStyle(items[0]).badge}`}>{items[0].label}</span> : null}
+                      {items.length > 0 ? <span className="mt-1 flex flex-wrap items-center gap-1" aria-hidden="true">{items.slice(0, 4).map((item) => <span key={item.id} style={item.kind === 'manual' ? { backgroundColor: item.color } : undefined} className={`h-2 w-2 rounded-full ${calendarItemStyle(item).dot} ${isSelected ? 'ring-1 ring-white/70' : ''}`} />)}{items.length > 4 ? <span className={`text-[10px] font-medium ${isSelected ? 'text-white/80' : 'text-ink-soft'}`}>+{items.length - 4}</span> : null}</span> : null}
+                      {items.slice(0, 2).map((item) => <span key={item.id} title={item.label} className={`mt-1 block truncate rounded border px-1 py-0.5 text-[10px] font-medium leading-4 ${calendarItemStyle(item).badge}`}>{item.label}</span>)}{items.length > 2 ? <span className="mt-1 block text-[10px]">+{items.length - 2} kayıt · Günü aç</span> : null}
                     </span>
                   </button>
                 )
@@ -801,7 +855,7 @@ export default function Calendar({ session }: { session: Session }) {
                   {selectedItems.map((item) => {
                     const content = (
                       <span className={`flex min-h-[44px] items-start gap-2 rounded-lg border px-3 py-2.5 text-sm ${calendarItemStyle(item).badge}`}>
-                        <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${calendarItemStyle(item).dot}`} />
+                        <span style={item.kind === 'manual' ? { backgroundColor: item.color } : undefined} className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${calendarItemStyle(item).dot}`} />
                         <span className="break-words">{item.label}</span>
                       </span>
                     )
@@ -822,7 +876,7 @@ export default function Calendar({ session }: { session: Session }) {
                     const content = (
                       <span className="grid min-h-[56px] grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-2 py-2.5">
                         <span className="text-center"><span className="block text-sm font-semibold text-ink">{day}</span><span className="block text-[10px] text-ink-soft">{month}</span></span>
-                        <span className="min-w-0"><span className="flex items-center gap-2"><span className={`h-2 w-2 shrink-0 rounded-full ${calendarItemStyle(item).dot}`} /><span className="truncate text-xs font-medium text-ink">{item.label}</span></span></span>
+                        <span className="min-w-0"><span className="flex items-center gap-2"><span style={item.kind === 'manual' ? { backgroundColor: item.color } : undefined} className={`h-2 w-2 shrink-0 rounded-full ${calendarItemStyle(item).dot}`} /><span className="truncate text-xs font-medium text-ink">{item.label}</span></span></span>
                         <span className={`rounded border px-1.5 py-1 text-[10px] font-medium ${calendarItemStyle(item).badge}`}>{ITEM_STYLES[item.kind].label}</span>
                       </span>
                     )
@@ -835,11 +889,11 @@ export default function Calendar({ session }: { session: Session }) {
           </aside>
         </div>
 
-        {isSuperAdmin && showInactive && manualEntries.some((entry) => entry.deletedAt) ? (
+        {isSuperAdmin && showInactive && scopedManualEntries.some((entry) => entry.deletedAt) ? (
           <section className="mt-5 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
             <h2 className="mb-3 text-base font-semibold text-ink">Pasif manuel kayıtlar</h2>
             <ul className="space-y-2">
-              {manualEntries.filter((entry) => entry.deletedAt).map((entry) => (
+              {scopedManualEntries.filter((entry) => entry.deletedAt).map((entry) => (
                 <li key={entry.id} className="flex flex-col gap-2 rounded-lg border border-canvas-border bg-canvas p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                   <span>{entry.title} · {formatDate(entry.startDate)}</span>
                   <span className="flex flex-wrap gap-2">
@@ -852,11 +906,11 @@ export default function Calendar({ session }: { session: Session }) {
           </section>
         ) : null}
 
-        {isSuperAdmin && manualEntries.some((entry) => !entry.deletedAt) ? (
+        {isSuperAdmin && scopedManualEntries.some((entry) => !entry.deletedAt) ? (
           <section className="mt-5 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
             <h2 className="mb-3 text-base font-semibold text-ink">Manuel kayıtlar</h2>
             <ul className="space-y-2">
-              {manualEntries.filter((entry) => !entry.deletedAt).map((entry) => (
+              {scopedManualEntries.filter((entry) => !entry.deletedAt).map((entry) => (
                 <li key={entry.id} className="flex flex-col gap-2 rounded-lg border border-canvas-border bg-canvas p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                   <span className="break-words">{entry.title} · {formatDate(entry.startDate)}{entry.endDate ? ` – ${formatDate(entry.endDate)}` : ''}</span>
                   <span className="flex flex-wrap gap-2">

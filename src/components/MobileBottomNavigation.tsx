@@ -42,8 +42,8 @@ export default function MobileBottomNavigation({ isMoreOpen, onMoreClick }: Mobi
         <NavLink to="/app/gorevler" className={({ isActive }) => itemClass(isActive)}>
           {({ isActive }) => <><NavigationIcon name="tasks" className="h-5 w-5" strokeWidth={isActive ? 2 : 1.75} /><span>Görevler</span></>}
         </NavLink>
-        <NavLink to="/app/takvim" className={({ isActive }) => itemClass(isActive)}>
-          {({ isActive }) => <><NavigationIcon name="calendar" className="h-5 w-5" strokeWidth={isActive ? 2 : 1.75} /><span>Takvim</span></>}
+        <NavLink to="/app/takvimler" className={({ isActive }) => itemClass(isActive)}>
+          {({ isActive }) => <><NavigationIcon name="calendar" className="h-5 w-5" strokeWidth={isActive ? 2 : 1.75} /><span>Takvimler</span></>}
         </NavLink>
         <button
           type="button"

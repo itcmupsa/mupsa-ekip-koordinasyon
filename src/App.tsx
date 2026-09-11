@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useSession } from './hooks/useSession'
 import Login from './pages/Login'
 import AuthCallback from './pages/AuthCallback'
@@ -11,6 +11,8 @@ import SetPassword from './pages/SetPassword'
 import AccountSettings from './pages/AccountSettings'
 import AwarenessPosts from './pages/AwarenessPosts'
 import Calendar from './pages/Calendar'
+import CalendarHub from './pages/CalendarHub'
+import PrCalendar from './pages/PrCalendar'
 import Tasks from './pages/Tasks'
 import { syncExistingPushSubscription } from './lib/pushNotifications'
 
@@ -42,11 +44,20 @@ export default function App() {
     <Route path="/app/etkinlikler" element={session ? <EventsList session={session} /> : <Navigate to="/login" replace />} />
     <Route path="/app/etkinlikler/:eventId" element={session ? <EventDetail /> : <Navigate to="/login" replace />} />
     <Route path="/app/farkindalik" element={session ? <AwarenessPosts session={session} /> : <Navigate to="/login" replace />} />
-    <Route path="/app/takvim" element={session ? <Calendar session={session} /> : <Navigate to="/login" replace />} />
+    <Route path="/app/takvim" element={session ? <LegacyCalendarRoute /> : <Navigate to="/login" replace />} />
+    <Route path="/app/takvimler" element={session ? <CalendarHub session={session} /> : <Navigate to="/login" replace />} />
+    <Route path="/app/takvimler/etkinlik" element={session ? <Calendar key="events" session={session} calendarKind="events" /> : <Navigate to="/login" replace />} />
+    <Route path="/app/takvimler/farkindalik" element={session ? <Calendar key="awareness" session={session} calendarKind="awareness" /> : <Navigate to="/login" replace />} />
+    <Route path="/app/takvimler/pr" element={session ? <PrCalendar session={session} /> : <Navigate to="/login" replace />} />
     <Route path="/app/gorevler" element={session ? <Tasks session={session} /> : <Navigate to="/login" replace />} />
     <Route path="/app/yonetim/uyeler" element={session ? <AdminMembers session={session} /> : <Navigate to="/login" replace />} />
     <Route path="/app/ayarlar/sifre" element={session ? <SetPassword /> : <Navigate to="/login" replace />} />
     <Route path="/app/ayarlar" element={session ? <AccountSettings session={session} /> : <Navigate to="/login" replace />} />
     <Route path="*" element={<Navigate to={session ? '/app' : '/login'} replace />} />
   </Routes>
+}
+
+function LegacyCalendarRoute() {
+  const location = useLocation()
+  return <Navigate to={location.search ? `/app/takvimler/etkinlik${location.search}` : '/app/takvimler'} replace />
 }

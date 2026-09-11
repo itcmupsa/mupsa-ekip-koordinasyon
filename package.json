@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test:push": "node --test supabase/functions/_shared/pushDeliveryPolicy.test.mjs",
+    "test:pr-calendar": "node --test --experimental-strip-types tests/prCalendar.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {

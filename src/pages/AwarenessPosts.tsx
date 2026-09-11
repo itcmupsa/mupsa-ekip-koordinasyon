@@ -233,6 +233,12 @@ export default function AwarenessPosts({ session }: { session: Session }) {
   const [pressResponsibleId, setPressResponsibleId] = useState('')
   const [nextAction, setNextAction] = useState('')
   const [note, setNote] = useState('')
+  const selectedRecordId = searchParams.get('record')
+
+  useEffect(() => {
+    if (!selectedRecordId || !posts.some((post) => post.id === selectedRecordId)) return
+    window.setTimeout(() => document.getElementById(`awareness-${selectedRecordId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
+  }, [posts, selectedRecordId])
   const [driveFolderUrl, setDriveFolderUrl] = useState('')
   const [designUrl, setDesignUrl] = useState('')
   const [shareUrl, setShareUrl] = useState('')
@@ -754,7 +760,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
             ].filter((item): item is { label: string; url: string } => Boolean(item.url))
 
             return (
-              <article key={post.id} className={`overflow-hidden rounded-2xl border bg-canvas-surface shadow-card ${post.deletedAt ? 'border-danger/25 opacity-75' : 'border-canvas-border'}`}>
+              <article id={`awareness-${post.id}`} key={post.id} className={`overflow-hidden rounded-2xl border bg-canvas-surface shadow-card ${post.deletedAt ? 'border-danger/25 opacity-75' : 'border-canvas-border'} ${post.id === selectedRecordId ? 'ring-2 ring-brand ring-offset-2' : ''}`}>
                 <div className="p-4 sm:p-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex min-w-0 gap-3">
