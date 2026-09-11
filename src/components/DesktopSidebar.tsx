@@ -19,7 +19,7 @@ const baseNavItems: NavItem[] = [
   { label: 'Ana Sayfa', to: '/app', end: true, icon: 'home' },
   { label: 'Görevler', to: '/app/gorevler', icon: 'tasks' },
   { label: 'Etkinlikler', to: '/app/etkinlikler', icon: 'events' },
-  { label: 'Takvim', to: '/app/takvim', icon: 'calendar' },
+  { label: 'Takvimler', to: '/app/takvimler', icon: 'calendar' },
   { label: 'Farkındalık', to: '/app/farkindalik', icon: 'awareness' },
 ]
 

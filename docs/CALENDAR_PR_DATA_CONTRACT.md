@@ -1,0 +1,15 @@
+# Calendar Hub and PR data contract
+
+`calendar_entries` remains the source for manually created calendar records. Each record now has `calendar_scopes` and `color`. Existing records receive `['events', 'awareness']`, so they deliberately stay off the PR calendar until an authorized editor opts in. A scope is a nonempty, duplicate-free subset of `events`, `awareness`, and `pr`. `color` is always a six-digit hex colour and defaults to `#7c3aed`.
+
+`pr_calendar_entries` is the separate source for Basın Yayın planning. `scheduled_date` is required and `scheduled_time` is optional. The time is a wall time in `Europe/Istanbul`, not a timestamp. `entry_kind` is `publication`, `shooting`, or `other`; `status` is `draft`, `planned`, `in_progress`, `ready`, `completed`, or `cancelled`. There is intentionally no approval state or approval workflow.
+
+The optional `event_id`, `awareness_post_id`, `task_id`, and `related_pr_entry_id` preserve navigation links. An entry can choose at most one event or awareness record. Links must be active and in the same period. A linked task must belong to that same selected event or awareness record (or be a central task with neither parent). A PR entry cannot relate to itself. Optional links use `ON DELETE SET NULL` so the protected permanent-delete routines for legacy event, task, and awareness records can still clean up safely.
+
+Only an active profile with an active membership in the target active period may read active PR records. A super admin membership in that same target period can also read soft-deleted records. Writes require the same target-period conditions plus either `app_role = super_admin` or coordinator role slug `press-and-publication-coordinator`. The frontend must ask `can_manage_pr_calendar(target_period_id)` and use its boolean result; it must not infer management permission from a global role. In particular, a super-admin membership from an older or inactive period grants nothing.
+
+`get_my_calendar_task_deadlines_v2(target_period_id)` is additive. It preserves the original result fields (`id`, `event_id`, `event_title`, `title`, `deadline_at`) and adds `awareness_post_id`. It returns only active primary/supporting assignees in the target active period; completed, cancelled, soft-deleted, and inactive-parent tasks are omitted. The older RPC remains unchanged for existing callers.
+
+PR audit rows use entity type `pr_calendar_entry`. Audit payloads include identifiers, schedule, status, display metadata, relation identifiers, and soft-delete state. `notes` and `reference_url` are deliberately excluded.
+
+Locked periods reject PR writes even for administrators. Unchanged historical links remain editable when a parent is soft-deleted. Soft-delete/restore uses `set_pr_calendar_entry_inactive(uuid, boolean)`, which independently checks target-period management permission before the update. Permanent client deletion has no grant.

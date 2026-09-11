@@ -17,7 +17,7 @@ function ManualIcon() { return <svg {...iconProps}><circle cx="12" cy="12" r="1.
 const kindIcons: Record<AgendaItemKind, () => ReactElement> = { event: EventIcon, awareness: AwarenessIcon, task: TaskIcon, manual: ManualIcon }
 function ChevronIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0 text-ink-soft" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg> }
 
-export default function WeeklyAgendaCard({ items, calendarTo = '/app/takvim', className = '' }: WeeklyAgendaCardProps) {
+export default function WeeklyAgendaCard({ items, calendarTo = '/app/takvimler', className = '' }: WeeklyAgendaCardProps) {
   return (
     <div className={['rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5', className].filter(Boolean).join(' ')}>
       <div className="mb-3 flex items-center justify-between gap-3"><h2 className="text-base font-semibold text-ink">Bu hafta</h2><Link to={calendarTo} className="flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-brand-dark hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"><span>Tam takvimi aç</span><ChevronIcon /></Link></div>

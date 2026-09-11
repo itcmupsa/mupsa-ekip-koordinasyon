@@ -522,7 +522,7 @@ export default function AppHome({ session }: { session: Session }) {
           kind: 'manual' as const,
           kindLabel: 'Manuel takvim kaydı',
           date: (entry.start_date as string | null) ?? null,
-          href: `/app/takvim?date=${encodeURIComponent(entry.start_date as string)}`,
+          href: `/app/takvimler/etkinlik?date=${encodeURIComponent(entry.start_date as string)}`,
         })),
       ]
 

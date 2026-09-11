@@ -351,6 +351,14 @@ export default function Tasks({ session }: { session: Session }) {
     if (!normalizedSearch) return true
     return `${task.title} ${contextTitle(task)}`.toLocaleLowerCase('tr-TR').includes(normalizedSearch)
   })
+  const selectedTaskId = searchParams.get('task')
+
+  const selectedTaskVisible = visibleTasks.some((task) => task.id === selectedTaskId)
+  useEffect(() => {
+    if (!selectedTaskId || !selectedTaskVisible) return
+    const timeout = window.setTimeout(() => document.getElementById(`task-${selectedTaskId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
+    return () => window.clearTimeout(timeout)
+  }, [selectedTaskId, selectedTaskVisible])
 
   const resetForm = useCallback(() => {
     setContextSelection(isSuperAdmin ? 'standalone' : creatableEvents[0] ? contextKey('event', creatableEvents[0].id) : creatableAwareness[0] ? contextKey('awareness', creatableAwareness[0].id) : '')
@@ -589,7 +597,7 @@ export default function Tasks({ session }: { session: Session }) {
               ].join(' ')
 
               return (
-                <article key={task.id} className={articleClass}>
+                <article id={`task-${task.id}`} key={task.id} className={`${articleClass} ${task.id === selectedTaskId ? 'ring-2 ring-brand ring-offset-2' : ''}`}>
                   <div className="flex items-start gap-3 sm:gap-4">
                     <TaskKindIcon kind={taskKind} />
                     <div className="min-w-0 flex-1">
