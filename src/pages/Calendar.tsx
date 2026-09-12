@@ -109,11 +109,11 @@ interface CalendarCell {
 }
 
 function parseDateOnly(value: string | null): Date | null {
-  if (!value) return null
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
   const [year, month, day] = value.split('-').map(Number)
   if (![year, month, day].every(Number.isFinite)) return null
   const date = new Date(Date.UTC(year, month - 1, day))
-  return Number.isNaN(date.getTime()) ? null : date
+  return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value ? null : date
 }
 
 function dateKey(date: Date): string {
@@ -569,6 +569,7 @@ export default function Calendar({ session, calendarKind = 'events' }: { session
 
   function openCreate() {
     resetForm()
+    setStartDate(selectedDate ?? dateKeyInIstanbul())
     setFormMode('create')
     setActionMessage(null)
   }
@@ -770,7 +771,7 @@ export default function Calendar({ session, calendarKind = 'events' }: { session
         </div>
 
         <div className="mt-5 hidden flex-wrap gap-1 rounded-xl border border-canvas-border bg-canvas-surface p-2 text-xs text-ink-soft shadow-card lg:flex" role="radiogroup" aria-label="Takvim kayıtlarını filtrele">
-          {filterOptions.map((option) => (
+          <span className="inline-flex items-center px-2">Tüm dönem:</span>{filterOptions.map((option) => (
             <button
               key={option.value}
               type="button"
@@ -845,7 +846,7 @@ export default function Calendar({ session, calendarKind = 'events' }: { session
                     <p className="font-semibold text-ink">Bu gün planlanan kayıt yok.</p>
                     <p className="mt-1 text-xs text-ink-soft">Güne harika bir başlangıç yapabilirsin.</p>
                     <div className="mt-4 grid grid-cols-2 gap-2 lg:mt-5">
-                      <Link to="/app/etkinlikler?create=1" className="flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-brand-dark px-2 text-xs font-medium text-white hover:brightness-95 sm:px-3 sm:text-sm"><PlusIcon />Etkinlik ekle</Link>
+                      <Link to={calendarKind === 'awareness' ? '/app/farkindalik' : '/app/etkinlikler?create=1'} className="flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-brand-dark px-2 text-xs font-medium text-white hover:brightness-95 sm:px-3 sm:text-sm"><PlusIcon />{calendarKind === 'awareness' ? 'Farkındalık sayfası' : 'Etkinlik ekle'}</Link>
                       <Link to="/app/gorevler?create=1" className="flex min-h-[44px] items-center justify-center gap-2 rounded-md border border-sky-200 px-2 text-xs font-medium text-sky-700 hover:bg-sky-50 sm:px-3 sm:text-sm"><PlusIcon />Görev ekle</Link>
                     </div>
                   </div>

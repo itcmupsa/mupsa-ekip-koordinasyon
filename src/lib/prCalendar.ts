@@ -25,8 +25,10 @@ export function dateKeyInIstanbul(date = new Date()): string {
 }
 
 export function parseDateOnly(value: string): Date {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date(NaN)
   const [year, month, day] = value.split('-').map(Number)
-  return new Date(Date.UTC(year, month - 1, day))
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return date.toISOString().slice(0, 10) === value ? date : new Date(NaN)
 }
 
 export function dateKey(date: Date): string {

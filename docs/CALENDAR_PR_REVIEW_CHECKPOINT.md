@@ -14,7 +14,7 @@ Takvimler girişinde Etkinlik, Farkındalık ve PR kartları bulunur. Etkinlik v
 
 - TypeScript ve üretim build başarılı. Yerelde gerçek servis anahtarları bulunmadığından tam bundle ayrıca yalnız build için sahte public ortam değerleriyle doğrulandı. Vercel mevcut ortam ayarlarını kullanır.
 - Lint: hata ve uyarı yok.
-- Tarih/bağlantı/renk testleri: 3/3. Push regresyon testleri: 5/5.
+- Tarih/bağlantı/renk testleri: 4/4. Push regresyon testleri: 5/5.
 - Migration + SQL davranış testleri bağlı Supabase üzerinde BEGIN/ROLLBACK içinde başarılı; test kayıtları kalıcı değildir.
 - SQL: aktif hedef dönem yetkisi, normal üye yazma engeli, eski dönem yöneticisinin yetkisizliği, destek görevlerinin görünmesi, eski pasif kaynağa bağlı PR düzenlemesi, pasifleştirme, kimlik değişmezliği, hatalı kapsam/renk, kilitli dönem, anonim erişim ve kalıcı silme engeli doğrulandı.
 - Migration dry-run: yalnız `20260911110000_add_calendar_hub_pr_entries.sql` bekliyor.
@@ -28,3 +28,7 @@ Geri dönüş gerekirse main üzerindeki takvim birleştirme commit'i `git rever
 ## Sınırlar
 
 Onay iş akışı daha sonra netleştirilecek. Mevcut uygulamanın büyük bundle uyarısı devam ediyor. Önceki incelemede bildirilen eski audit bütçe görünürlüğü bu çalışmada düzeltilmiş sayılmamalıdır.
+
+## Canlı kontrol — 12 Eylül 2026
+
+Migration uygulandı; `7e8954c` geliştirme commit'i `0004e26` birleştirmesiyle main'e yayımlandı. Yedek ve geliştirme dalları GitHub'da mevcut. Canlıda giriş merkezi, ayrılmış farkındalık kayıtları ve PR hafta/ay geçişi doğrulandı. Açık Bilişim Koordinatörü hesabının PR düzenleme izni olmadığı doğrulandı; yazma yetkileri SQL davranış testleriyle doğrulandı, yetkili tarayıcı hesabıyla form kaydı testi yapılmadı. Son takip düzeltmeleri: manuel ana sayfa bağlantısında takvim kapsamı, PR tarih bağlantısı, geçersiz tarih denetimi ve mobil sekmeler.

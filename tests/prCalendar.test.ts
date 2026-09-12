@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert'
 import test from 'node:test'
-import { addDays, formatOptionalTime, isHexColor, isSafeExternalUrl, mondayOfWeek, shiftMonth, weekDates } from '../src/lib/prCalendar.ts'
+import { addDays, formatOptionalTime, isHexColor, isSafeExternalUrl, mondayOfWeek, parseDateOnly, shiftMonth, weekDates } from '../src/lib/prCalendar.ts'
 
 test('weekly board starts on Monday across a year boundary', () => {
   assert.equal(mondayOfWeek('2027-01-01'), '2026-12-28')
@@ -20,4 +20,10 @@ test('external links and colours are safely validated', () => {
   assert.equal(isSafeExternalUrl('javascript:alert(1)'), false)
   assert.equal(isHexColor('#16a34a'), true)
   assert.equal(isHexColor('#bad'), false)
+})
+
+test('invalid calendar dates cannot silently roll into another month', () => {
+  assert.ok(Number.isNaN(parseDateOnly('2026-02-30').getTime()))
+  assert.ok(Number.isNaN(parseDateOnly('invalid').getTime()))
+  assert.equal(parseDateOnly('2028-02-29').toISOString().slice(0, 10), '2028-02-29')
 })

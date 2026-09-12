@@ -2,7 +2,11 @@
 
 Bu dosya, proje bağlamının güncel durum kaydıdır. Bir görev tamamlandığında yalnızca bu dosyadaki ilgili bölümleri güncelle; `AI_BAGLAM.md` dosyasını yalnızca kalıcı karar değiştiğinde değiştir.
 
-**Son güncelleme:** 25 Ağustos 2026
+**Son güncelleme:** 12 Eylül 2026
+
+## Takvimler ve PR
+
+Üç takvimli giriş merkezi ve PR haftalık/aylık planlama canlıya alındı. Manuel kayıtlarda takvim kapsamı ve renk, PR kaydında isteğe bağlı saat ve kaynak bağlantıları bulunur. Onay mekanizması ertelendi. Ayrıntılar ve geri dönüş: [Takvim sürüm kontrolü](CALENDAR_PR_REVIEW_CHECKPOINT.md), [veri sözleşmesi](CALENDAR_PR_DATA_CONTRACT.md). Geliştirme dalı `feature/calendar-hub-pr-weekly-20260911`; önceki sürüm `backup/before-calendar-hub-20260911`.
 
 ## Faz 4 AI hazırlığı
 

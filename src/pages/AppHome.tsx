@@ -404,7 +404,7 @@ export default function AppHome({ session }: { session: Session }) {
 
       const { data: manualRows, error: manualError } = await supabase
         .from('calendar_entries')
-        .select('id, title, start_date, end_date')
+        .select('id, title, start_date, end_date, calendar_scopes')
         .eq('period_id', periodId)
         .is('deleted_at', null)
         .order('start_date', { ascending: true })
@@ -522,7 +522,7 @@ export default function AppHome({ session }: { session: Session }) {
           kind: 'manual' as const,
           kindLabel: 'Manuel takvim kaydı',
           date: (entry.start_date as string | null) ?? null,
-          href: `/app/takvimler/etkinlik?date=${encodeURIComponent(entry.start_date as string)}`,
+          href: `/app/takvimler/${entry.calendar_scopes?.includes('events') ? 'etkinlik' : entry.calendar_scopes?.includes('awareness') ? 'farkindalik' : 'pr'}?date=${encodeURIComponent(entry.start_date as string)}`,
         })),
       ]
 
