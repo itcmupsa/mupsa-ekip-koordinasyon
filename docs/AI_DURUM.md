@@ -6,6 +6,8 @@ Bu dosya, proje bağlamının güncel durum kaydıdır. Bir görev tamamlandığ
 
 ## Takvimler ve PR
 
+12 Eylül takip güncellemesi: PR harici bağlantısına isteğe bağlı ad eklendi; detayda bu ad gösterilir. Paylaşım kanalı çoklu seçim kutularına çevrildi, özel kanal adı desteklenir. Eski kayıtlar korunur. Dal: `feature/pr-link-names-multiple-channels-20260912`.
+
 Üç takvimli giriş merkezi ve PR haftalık/aylık planlama canlıya alındı. Manuel kayıtlarda takvim kapsamı ve renk, PR kaydında isteğe bağlı saat ve kaynak bağlantıları bulunur. Onay mekanizması ertelendi. Ayrıntılar ve geri dönüş: [Takvim sürüm kontrolü](CALENDAR_PR_REVIEW_CHECKPOINT.md), [veri sözleşmesi](CALENDAR_PR_DATA_CONTRACT.md). Geliştirme dalı `feature/calendar-hub-pr-weekly-20260911`; önceki sürüm `backup/before-calendar-hub-20260911`.
 
 ## Faz 4 AI hazırlığı
