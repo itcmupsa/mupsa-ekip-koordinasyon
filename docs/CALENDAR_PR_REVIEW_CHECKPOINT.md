@@ -23,7 +23,7 @@ Takvimler girişinde Etkinlik, Farkındalık ve PR kartları bulunur. Etkinlik v
 
 Önce additive veritabanı migration'ı, ardından geliştirme dalının Git kaydı ve main'e entegrasyon yapılır. Vercel main yayınını izler. Eski tablo ve RPC kaldırılmadığından önceki frontend yeni şemayla çalışır.
 
-Geri dönüş gerekirse main üzerindeki takvim birleştirme commit'i `git revert -m 1 <merge-commit>` ile geri alınır ve main yeniden yayımlanır. Yedek dal başlangıç sürümünü işaretler. PR verisi kaybolmaması için migration geri alınmaz ve tablo silinmez.
+Bu sürümün tamamını geri almak gerekirse önce `git revert -m 1 57431dd`, ardından `git revert -m 1 0004e26` uygulanır; oluşan fark incelenip build kontrolünden sonra main yeniden yayımlanır. İlki takip düzeltmelerini, ikincisi takvim özelliğini geri alır. Yedek dal başlangıç sürümünü işaretler. PR verisi kaybolmaması için migration geri alınmaz ve tablo silinmez.
 
 ## Sınırlar
 
@@ -32,3 +32,5 @@ Onay iş akışı daha sonra netleştirilecek. Mevcut uygulamanın büyük bundl
 ## Canlı kontrol — 12 Eylül 2026
 
 Migration uygulandı; `7e8954c` geliştirme commit'i `0004e26` birleştirmesiyle main'e yayımlandı. Yedek ve geliştirme dalları GitHub'da mevcut. Canlıda giriş merkezi, ayrılmış farkındalık kayıtları ve PR hafta/ay geçişi doğrulandı. Açık Bilişim Koordinatörü hesabının PR düzenleme izni olmadığı doğrulandı; yazma yetkileri SQL davranış testleriyle doğrulandı, yetkili tarayıcı hesabıyla form kaydı testi yapılmadı. Son takip düzeltmeleri: manuel ana sayfa bağlantısında takvim kapsamı, PR tarih bağlantısı, geçersiz tarih denetimi ve mobil sekmeler.
+
+Son frontend yayını: `57431dd` (geliştirme düzeltmesi `03c3bfa`). Canlı PR tarih bağlantısı 14 Ekim 2026 için 12–18 Ekim haftasını açtı. 1440 px masaüstü ve 390 px mobil görünümler incelendi; üç mobil sekme görünür, gün seçimi yatay panoyu ilgili güne taşıyor. Etkinlik bağlantısı 3 Eylül gününü açtı ve farkındalık kayıtlarını göstermedi; farkındalık bağlantısı ilgili kaynak kaydı açtı.
