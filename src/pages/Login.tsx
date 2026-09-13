@@ -1,11 +1,14 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { safeAppReturnTo } from '../lib/authRedirect'
 
 type Status = 'idle' | 'loading' | 'error'
 
 export default function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const returnTo = safeAppReturnTo(new URLSearchParams(location.search).get('returnTo'))
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -28,7 +31,7 @@ export default function Login() {
       return
     }
 
-    navigate('/app')
+    navigate(returnTo, { replace: true })
   }
 
   function renderFormFields(idPrefix: string): ReactNode {
@@ -78,7 +81,7 @@ export default function Login() {
         <button
           type="submit"
           disabled={status === 'loading'}
-          className="mt-1 rounded-md bg-brand px-4 py-2.5 text-sm font-medium text-canvas transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-1 rounded-md bg-brand px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60"
         >
           {status === 'loading' ? 'Giriş yapılıyor…' : 'Giriş yap'}
         </button>

@@ -2,7 +2,13 @@
 
 Bu dosya, proje bağlamının güncel durum kaydıdır. Bir görev tamamlandığında yalnızca bu dosyadaki ilgili bölümleri güncelle; `AI_BAGLAM.md` dosyasını yalnızca kalıcı karar değiştiğinde değiştir.
 
-**Son güncelleme:** 12 Eylül 2026
+**Son güncelleme:** 13 Eylül 2026
+
+## Aktif çalışma: kullanıcı teması ve PWA duyurusu
+
+[13 Eylül AI devir notu](AI_DEVIR_2026-09-13.md) dosyaları, test sonuçlarını ve yayın sırasını içerir. Aktif dal `feature/user-theme-pwa-announcement-20260912`. Tema, güvenli giriş sonrası derin bağlantı ve MUPİ duyuru altyapısı tamamlandı. `20260912120000`, `20260912121000`, yetki sıkılaştırma `20260912122000` ve eşzamanlı farklı dönem koruması `20260912123000` bağlı veritabanına uygulandı; rollback testleri geçti ve migration geçmişi güncel. Frontend yayını ve canlı kontrol bekliyor; gerçek sürüm duyurusu henüz gönderilmedi.
+
+Antigravity MCP model seçimi yerel eklentiye eklendi ve kuruldu; 61/61 test ile gerçek `gemini-3.1-pro-high` bağlantı testi geçti. Yeni araç şeması için yeni görev açılmalı. Özel proje kaynaklarının dış servise aktarımıyla ilgili önceki onay engeli devir notunda açıklanmıştır.
 
 ## Takvimler ve PR
 

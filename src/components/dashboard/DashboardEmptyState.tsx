@@ -7,7 +7,7 @@ interface DashboardEmptyStateProps { message: string; description?: string; icon
 
 const toneClasses: Record<EmptyStateTone, { bg: string; text: string; message: string }> = {
   neutral: { bg: 'bg-canvas-border/60', text: 'text-ink-soft', message: 'text-ink' },
-  success: { bg: 'bg-brand-soft', text: 'text-brand-dark', message: 'text-brand-dark' },
+  success: { bg: 'bg-success-soft', text: 'text-success', message: 'text-success' },
   danger: { bg: 'bg-danger-soft', text: 'text-danger', message: 'text-danger' },
 }
 

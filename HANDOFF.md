@@ -1,4 +1,11 @@
-# Faz 1 Web Temeli — Teslim Notu
+# Güncel devir
+
+Güncel çalışma ve kalan işler: [13 Eylül 2026 AI devir notu](docs/AI_DEVIR_2026-09-13.md).
+Genel durum: [AI_DURUM.md](docs/AI_DURUM.md).
+
+Aşağıdaki Faz 1 notu tarihsel kayıttır; mevcut uygulama kapsamını göstermez.
+
+## Faz 1 Web Temeli — Teslim Notu
 
 Bu web temeli Vite, React, TypeScript, Tailwind CSS ve Supabase Auth kullanır. Uygulama yalnızca giriş, oturum ve korumalı `/app` kabuğunu içerir.
 

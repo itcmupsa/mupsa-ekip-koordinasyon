@@ -22,7 +22,7 @@ export default function MobileHeader({ displayName }: MobileHeaderProps) {
         <Link
           to="/app/ayarlar"
           aria-label={`${displayName} hesabına git`}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark"
         >
           <NavigationIcon name="account" />
         </Link>

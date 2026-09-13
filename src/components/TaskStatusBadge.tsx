@@ -8,7 +8,7 @@ interface TaskStatusBadgeProps {
 
 const toneClasses: Record<TaskStatusTone, string> = {
   neutral: 'bg-canvas-border/60 text-ink-soft',
-  success: 'bg-brand-soft text-brand-dark',
+  success: 'bg-success-soft text-success',
   warning: 'bg-accent-soft text-amber-800',
   danger: 'bg-danger-soft text-danger',
   info: 'bg-sky-100 text-sky-700',

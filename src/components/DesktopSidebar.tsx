@@ -37,7 +37,7 @@ function initialsFor(displayName: string): string {
 const navLinkClass = ({ isActive }: { isActive: boolean }) => [
   'flex min-h-[52px] items-center gap-4 rounded-xl px-4 py-3 text-[15px] font-medium transition-colors',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark',
-  isActive ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white',
+  isActive ? 'bg-white/15 text-white' : 'text-white hover:bg-white/10',
 ].join(' ')
 
 export default function DesktopSidebar({ isSuperAdmin, displayName, roleLabel, onSignOut }: DesktopSidebarProps) {
@@ -53,7 +53,7 @@ export default function DesktopSidebar({ isSuperAdmin, displayName, roleLabel, o
         </span>
         <div className="min-w-0">
           <p className="text-lg font-semibold leading-tight tracking-tight">MUPSA</p>
-          <p className="mt-0.5 text-[13px] leading-tight text-white/70">Ekip Koordinasyon</p>
+          <p className="mt-0.5 text-[13px] leading-tight text-white">Ekip Koordinasyon</p>
         </div>
       </div>
 
@@ -77,14 +77,14 @@ export default function DesktopSidebar({ isSuperAdmin, displayName, roleLabel, o
           </span>
           <div className="min-w-0">
             <p className="truncate text-sm font-medium leading-tight text-white">{displayName}</p>
-            <p className="truncate text-xs leading-tight text-white/65">{roleLabel}</p>
+            <p className="truncate text-xs leading-tight text-white">{roleLabel}</p>
           </div>
         </div>
 
         <div className="mt-2 flex flex-col gap-1">
           <Link
             to="/app/ayarlar"
-            className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/75 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark"
+            className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark"
           >
             <span className="shrink-0"><NavigationIcon name="account" /></span>
             <span className="truncate">Hesabım</span>
@@ -92,7 +92,7 @@ export default function DesktopSidebar({ isSuperAdmin, displayName, roleLabel, o
           <button
             type="button"
             onClick={onSignOut}
-            className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-white/75 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark"
+            className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark"
           >
             <span className="shrink-0"><NavigationIcon name="signout" /></span>
             <span className="truncate">Çıkış yap</span>

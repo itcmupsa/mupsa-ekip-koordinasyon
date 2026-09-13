@@ -617,7 +617,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
 
   function getStatusTone(slug: string): string {
     if (['shared', 'completed', 'approved', 'checked', 'done'].some((value) => slug.includes(value))) {
-      return 'border-brand-dark/15 bg-brand-soft text-brand-dark'
+      return 'border-success/20 bg-success-soft text-success'
     }
     if (['progress', 'preparing', 'waiting', 'pending', 'scheduled', 'drafting'].some((value) => slug.includes(value))) {
       return 'border-accent/20 bg-accent-soft text-amber-800'

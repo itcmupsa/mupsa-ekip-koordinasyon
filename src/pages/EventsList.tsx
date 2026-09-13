@@ -82,7 +82,7 @@ function eventCoordinatorRoles(event: EventRow) {
 
 function statusClass(slug: string) {
   if (slug === 'confirmed' || slug === 'completed' || slug === 'reported') {
-    return 'bg-brand-soft text-brand-dark'
+    return 'bg-success-soft text-success'
   }
   if (slug === 'postponed' || slug === 'cancelled') {
     return 'bg-red-50 text-red-700'

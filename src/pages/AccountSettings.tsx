@@ -1,8 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import AppShell from '../components/AppShell'
+import { useTheme } from '../components/themeContext'
 import { supabase } from '../lib/supabaseClient'
+import { createBrandTheme, DEFAULT_BRAND_COLOR, normalizeHexColor } from '../lib/theme'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
 import {
   disablePushNotifications,
@@ -66,6 +68,10 @@ function ClockIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5v5l3 2" /></svg>
 }
 
+function PaletteIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1.2a2 2 0 0 0 1.5-3.32 1.16 1.16 0 0 1 .87-1.93H17A4 4 0 0 0 21 11.8C20.9 6.95 17 3 12 3Z" /><circle cx="7.5" cy="11" r=".75" fill="currentColor" /><circle cx="10" cy="7.5" r=".75" fill="currentColor" /><circle cx="14.5" cy="7.5" r=".75" fill="currentColor" /></svg>
+}
+
 const announcementHours = Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, '0'))
 const announcementMinutes = ['00', '15', '30', '45']
 
@@ -82,6 +88,10 @@ function pickOne<T>(value: T | T[] | null | undefined): T | null {
 }
 
 export default function AccountSettings({ session }: { session: Session }) {
+  const location = useLocation()
+  const { color: savedThemeColor, loading: themeLoading, saving: themeSaving, error: themeError, saveColor } = useTheme()
+  const [themeColor, setThemeColor] = useState(savedThemeColor)
+  const [themeMessage, setThemeMessage] = useState<string | null>(null)
   const {
     displayName,
     hasActiveMembership,
@@ -117,6 +127,27 @@ export default function AccountSettings({ session }: { session: Session }) {
   const [announcementSubmitting, setAnnouncementSubmitting] = useState(false)
   const [announcementMessage, setAnnouncementMessage] = useState<string | null>(null)
   const [announcementError, setAnnouncementError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setThemeColor(savedThemeColor)
+  }, [savedThemeColor])
+
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('section') !== 'appearance' && location.hash !== '#appearance') return
+    const timer = window.setTimeout(() => document.getElementById('appearance')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 0)
+    return () => window.clearTimeout(timer)
+  }, [location.hash, location.search])
+
+  async function handleThemeSave() {
+    setThemeMessage(null)
+    if (!normalizeHexColor(themeColor)) return
+    if (await saveColor(themeColor)) setThemeMessage('Tema tercihin hesabına kaydedildi.')
+  }
+
+  function chooseThemeColor(color: string) {
+    setThemeColor(color)
+    setThemeMessage(null)
+  }
 
   useEffect(() => {
     if (membershipLoading || !hasActiveMembership || !profileId) return
@@ -339,7 +370,7 @@ export default function AccountSettings({ session }: { session: Session }) {
               <div className="bg-brand-dark px-5 py-6 text-white">
                 <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-lg font-semibold">{displayName.split(' ').map((part) => part[0]).join('').slice(0, 2).toLocaleUpperCase('tr-TR') || 'M'}</span>
                 <h2 className="mt-4 break-words text-xl font-semibold">{displayName || 'Hesabım'}</h2>
-                <p className="mt-1 text-sm text-white/75">{coordinatorRoleName ?? currentRoleLabel}</p>
+                <p className="mt-1 text-sm text-white">{coordinatorRoleName ?? currentRoleLabel}</p>
               </div>
               <dl className="divide-y divide-canvas-border px-5 text-sm">
                 {[
@@ -354,6 +385,41 @@ export default function AccountSettings({ session }: { session: Session }) {
             </section>
 
             <div className="grid gap-5">
+              <section id="appearance" aria-labelledby="appearance-heading" className="scroll-mt-6 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
+                <div className="flex gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-dark"><PaletteIcon /></span><div><h2 id="appearance-heading" className="font-semibold text-ink">Görünüm</h2><p className="mt-1 text-sm text-ink-soft">Uygulamanın ana rengini hesabın için seç. Kaydettiğinde bu hesapla sonraki açılışlarında kullanılır.</p></div></div>
+                <div className="mt-4 grid gap-4 rounded-lg border border-canvas-border bg-canvas p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="h-12 w-12 shrink-0 rounded-xl border border-black/10 shadow-sm" style={{ backgroundColor: createBrandTheme(themeColor).brand }} aria-hidden="true" />
+                    <div><p className="text-sm font-medium text-ink">Seçili ana renk</p><p className="mt-0.5 text-xs text-ink-soft">Açık renkler düğme metinlerinin okunabilir kalması için otomatik koyulaştırılır.</p></div>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-lg border border-canvas-border bg-canvas-surface px-2 py-1.5">
+                    <label className="sr-only" htmlFor="theme-color-picker">Özel renk seç</label>
+                    <input id="theme-color-picker" type="color" value={normalizeHexColor(themeColor) ?? DEFAULT_BRAND_COLOR} onChange={(event) => chooseThemeColor(event.target.value)} className="h-9 w-9 cursor-pointer rounded border-0 bg-transparent p-0" />
+                    <label className="sr-only" htmlFor="theme-color-value">Özel renk kodu</label>
+                    <input id="theme-color-value" value={themeColor} onChange={(event) => chooseThemeColor(event.target.value)} onBlur={() => setThemeColor(normalizeHexColor(themeColor) ?? savedThemeColor)} maxLength={7} pattern="#[0-9A-Fa-f]{6}" className="w-20 bg-transparent text-sm font-semibold uppercase text-ink outline-none" aria-describedby="theme-color-help" />
+                  </div>
+                </div>
+                <div className="mt-4" role="group" aria-label="Hazır tema renkleri">
+                  <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">Hazır renkler</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {[
+                      { color: DEFAULT_BRAND_COLOR, label: 'Varsayılan yeşil' },
+                      { color: '#1D4ED8', label: 'Mavi' },
+                      { color: '#7C3AED', label: 'Mor' },
+                      { color: '#BE123C', label: 'Gül kurusu' },
+                      { color: '#9A6400', label: 'Kehribar' },
+                    ].map((preset) => <button key={preset.color} type="button" aria-pressed={themeColor.toUpperCase() === preset.color} onClick={() => chooseThemeColor(preset.color)} className={`flex min-h-[44px] items-center gap-2 rounded-lg border px-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${themeColor.toUpperCase() === preset.color ? 'border-brand bg-brand-soft text-brand-dark' : 'border-canvas-border bg-canvas-surface text-ink hover:border-brand/40'}`}><span className="h-4 w-4 rounded-full border border-black/10" style={{ backgroundColor: preset.color }} aria-hidden="true" />{preset.label}</button>)}
+                  </div>
+                </div>
+                <p id="theme-color-help" className="mt-3 text-xs text-ink-soft">Özel renk için #RRGGBB biçimini kullan.</p>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <button type="button" onClick={() => void handleThemeSave()} disabled={themeLoading || themeSaving || !normalizeHexColor(themeColor)} className="min-h-[44px] rounded-lg bg-brand px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{themeSaving ? 'Kaydediliyor…' : 'Temayı kaydet'}</button>
+                  <button type="button" onClick={() => chooseThemeColor(DEFAULT_BRAND_COLOR)} disabled={themeSaving || themeColor.toUpperCase() === DEFAULT_BRAND_COLOR} className="min-h-[44px] rounded-lg border border-canvas-border px-4 text-sm font-medium text-ink-soft hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-60">Varsayılanı seç</button>
+                </div>
+                {themeError ? <p role="alert" className="mt-3 rounded-lg border border-danger/20 bg-danger-soft px-3 py-2 text-sm text-danger">{themeError}</p> : null}
+                {themeMessage ? <p role="status" className="mt-3 rounded-lg border border-success/20 bg-success-soft px-3 py-2 text-sm text-success">{themeMessage}</p> : null}
+              </section>
+
               <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-dark"><BellIcon /></span><div><h2 className="font-semibold text-ink">Mobil bildirimler</h2><p className="mt-1 text-sm text-ink-soft">Görev, son tarih ve önemli güncellemeleri cihazında al.</p></div></div>

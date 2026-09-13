@@ -5,8 +5,8 @@ type DashboardSectionTone = 'default' | 'danger' | 'success'
 
 interface DashboardSectionProps { title: string; children: ReactNode; actionLabel?: string; actionTo?: string; headerAction?: ReactNode; countLabel?: string; tone?: DashboardSectionTone; className?: string }
 
-const titleToneClasses: Record<DashboardSectionTone, string> = { default: 'text-ink', danger: 'text-danger', success: 'text-brand-dark' }
-const countToneClasses: Record<DashboardSectionTone, string> = { default: 'bg-canvas-border/60 text-ink-soft', danger: 'bg-danger-soft text-danger', success: 'bg-brand-soft text-brand-dark' }
+const titleToneClasses: Record<DashboardSectionTone, string> = { default: 'text-ink', danger: 'text-danger', success: 'text-success' }
+const countToneClasses: Record<DashboardSectionTone, string> = { default: 'bg-canvas-border/60 text-ink-soft', danger: 'bg-danger-soft text-danger', success: 'bg-success-soft text-success' }
 
 function ChevronIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg> }
 

@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-brand: 15 107 92;
+  --color-brand-dark: 11 83 71;
+  --color-brand-soft: 228 239 236;
+}
+
 @layer base {
   html { font-family: theme('fontFamily.sans'); }
   body { @apply bg-canvas text-ink antialiased; }
