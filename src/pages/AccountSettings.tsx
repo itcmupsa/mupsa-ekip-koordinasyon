@@ -136,7 +136,7 @@ export default function AccountSettings({ session }: { session: Session }) {
     if (new URLSearchParams(location.search).get('section') !== 'appearance' && location.hash !== '#appearance') return
     const timer = window.setTimeout(() => document.getElementById('appearance')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 0)
     return () => window.clearTimeout(timer)
-  }, [location.hash, location.search])
+  }, [location.hash, location.search, membershipLoading])
 
   async function handleThemeSave() {
     setThemeMessage(null)
