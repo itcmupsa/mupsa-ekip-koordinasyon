@@ -37,7 +37,6 @@ test('multiple PR links are normalized and validated as complete pairs', () => {
   const links = [
     { id: 'instagram', label: ' Instagram gönderisi ', url: ' https://instagram.com/p/example ' },
     { id: 'drive', label: 'Drive dosyası', url: 'https://drive.google.com/example' },
-    { id: 'empty', label: ' ', url: '' },
   ]
   assert.deepEqual(normalizePrReferenceLinks(links), [
     { id: 'instagram', label: 'Instagram gönderisi', url: 'https://instagram.com/p/example' },

@@ -43,8 +43,8 @@ export default function PrReferenceLinksField({ value, onChange }: { value: PrRe
     <div className="mt-3 space-y-3">
       {value.map((link, index) => {
         const wasTouched = touched.has(link.id)
-        const missingLabel = wasTouched && !link.label.trim() && Boolean(link.url.trim())
-        const missingUrl = wasTouched && Boolean(link.label.trim()) && !link.url.trim()
+        const missingLabel = wasTouched && !link.label.trim()
+        const missingUrl = wasTouched && !link.url.trim()
         const invalidUrl = wasTouched && Boolean(link.url.trim()) && !isSafeExternalUrl(link.url.trim())
         const urlError = missingUrl ? 'Bağlantı adresini girin.' : invalidUrl ? 'Adres http:// veya https:// ile başlamalı.' : null
         return <fieldset key={link.id} className="rounded-xl border border-canvas-border bg-white p-3">

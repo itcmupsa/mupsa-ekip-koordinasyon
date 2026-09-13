@@ -117,7 +117,7 @@ export function normalizePrReferenceLinks(links: PrReferenceLink[]): PrReference
 }
 
 export function validatePrReferenceLinks(links: PrReferenceLink[]): string | null {
-  const normalized = normalizePrReferenceLinks(links)
+  const normalized = links.map((link) => ({ id: link.id.trim(), label: link.label.trim(), url: link.url.trim() }))
   if (normalized.length > MAX_PR_REFERENCE_LINKS) return `En fazla ${MAX_PR_REFERENCE_LINKS} bağlantı ekleyebilirsiniz.`
 
   for (const [index, link] of normalized.entries()) {
