@@ -14,6 +14,8 @@ Antigravity MCP model seçimi yerel eklentiye eklendi ve kuruldu; 61/61 test ile
 
 ## Takvimler ve PR
 
+13 Eylül arayüz güncellemesi: PR haftalık görünümü verilen referansa yaklaştırıldı. Hafta aralığı navigasyonu, açılır filtre alanı, Ay/Hafta seçimi, durum özeti, yedi sütunlu kompakt planlama panosu ve seçili kayıt için sayfa içi ayrıntı paneli eklendi; mevcut aylık görünüm, CRUD, yetkiler ve veri modeli korunuyor. `c814ccc` ana uygulama değişikliği, `9e511a2` masaüstü genişlik düzeltmesidir. Lint, build ve PR takvim testleri (4/4) geçti. Canlı masaüstü ile 375×812 mobil boş durum, kontroller ve taşma davranışı doğrulandı. Canlı veritabanında PR kaydı olmadığı için dolu kartlar ve seçili kayıt paneli üretim verisi oluşturmadan görsel olarak sınanmadı. Şema, RLS ve bildirim değişikliği yoktur.
+
 12 Eylül takip güncellemesi: PR harici bağlantısına isteğe bağlı ad eklendi; detayda bu ad gösterilir. Paylaşım kanalı çoklu seçim kutularına çevrildi, özel kanal adı desteklenir. Eski kayıtlar korunur. Dal: `feature/pr-link-names-multiple-channels-20260912`.
 
 Üç takvimli giriş merkezi ve PR haftalık/aylık planlama canlıya alındı. Manuel kayıtlarda takvim kapsamı ve renk, PR kaydında isteğe bağlı saat ve kaynak bağlantıları bulunur. Onay mekanizması ertelendi. Ayrıntılar ve geri dönüş: [Takvim sürüm kontrolü](CALENDAR_PR_REVIEW_CHECKPOINT.md), [veri sözleşmesi](CALENDAR_PR_DATA_CONTRACT.md). Geliştirme dalı `feature/calendar-hub-pr-weekly-20260911`; önceki sürüm `backup/before-calendar-hub-20260911`.
