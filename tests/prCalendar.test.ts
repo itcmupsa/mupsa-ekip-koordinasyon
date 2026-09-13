@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert'
 import test from 'node:test'
-import { addDays, formatOptionalTime, formatWeekRange, isHexColor, isSafeExternalUrl, mondayOfWeek, parseDateOnly, shiftMonth, weekDates } from '../src/lib/prCalendar.ts'
+import { addDays, formatOptionalTime, formatWeekRange, isHexColor, isSafeExternalUrl, normalizePrReferenceLinks, parsePrReferenceLinks, validatePrReferenceLinks, mondayOfWeek, parseDateOnly, shiftMonth, weekDates } from '../src/lib/prCalendar.ts'
 
 test('weekly board starts on Monday across a year boundary', () => {
   assert.equal(mondayOfWeek('2027-01-01'), '2026-12-28')
@@ -22,6 +22,33 @@ test('external links and colours are safely validated', () => {
   assert.equal(isSafeExternalUrl('javascript:alert(1)'), false)
   assert.equal(isHexColor('#16a34a'), true)
   assert.equal(isHexColor('#bad'), false)
+})
+
+test('legacy PR links are presented through the multiple-link model', () => {
+  assert.deepEqual(parsePrReferenceLinks(null, 'Tasarım dosyası', 'https://drive.google.com/example'), [
+    { id: 'legacy-reference-link', label: 'Tasarım dosyası', url: 'https://drive.google.com/example' },
+  ])
+  assert.deepEqual(parsePrReferenceLinks([], null, 'https://instagram.com/p/example'), [
+    { id: 'legacy-reference-link', label: 'Harici bağlantı', url: 'https://instagram.com/p/example' },
+  ])
+})
+
+test('multiple PR links are normalized and validated as complete pairs', () => {
+  const links = [
+    { id: 'instagram', label: ' Instagram gönderisi ', url: ' https://instagram.com/p/example ' },
+    { id: 'drive', label: 'Drive dosyası', url: 'https://drive.google.com/example' },
+    { id: 'empty', label: ' ', url: '' },
+  ]
+  assert.deepEqual(normalizePrReferenceLinks(links), [
+    { id: 'instagram', label: 'Instagram gönderisi', url: 'https://instagram.com/p/example' },
+    { id: 'drive', label: 'Drive dosyası', url: 'https://drive.google.com/example' },
+  ])
+  assert.equal(validatePrReferenceLinks(links), null)
+  assert.equal(validatePrReferenceLinks([{ id: 'broken', label: 'Drive', url: '' }]), '1. bağlantı için bir adres girin.')
+  assert.equal(validatePrReferenceLinks([
+    { id: 'one', label: 'Bir', url: 'https://example.com' },
+    { id: 'two', label: 'İki', url: 'https://example.com' },
+  ]), 'Aynı bağlantı adresini birden fazla kez ekleyemezsiniz.')
 })
 
 test('invalid calendar dates cannot silently roll into another month', () => {

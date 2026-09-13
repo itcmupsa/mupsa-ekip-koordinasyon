@@ -1,5 +1,8 @@
 export type PrEntryKind = 'publication' | 'shooting' | 'other'
 export type PrEntryStatus = 'draft' | 'planned' | 'in_progress' | 'ready' | 'completed' | 'cancelled'
+export interface PrReferenceLink { id: string; label: string; url: string }
+
+export const MAX_PR_REFERENCE_LINKS = 20
 
 export const PR_ENTRY_KINDS: Array<{ value: PrEntryKind; label: string }> = [
   { value: 'publication', label: 'Yayın' },
@@ -86,6 +89,52 @@ export function isSafeExternalUrl(value: string | null | undefined): boolean {
   } catch {
     return false
   }
+}
+
+export function parsePrReferenceLinks(value: unknown, legacyLabel?: string | null, legacyUrl?: string | null): PrReferenceLink[] {
+  if (Array.isArray(value)) {
+    const parsed = value.flatMap((item, index) => {
+      if (!item || typeof item !== 'object') return []
+      const candidate = item as Record<string, unknown>
+      if (typeof candidate.label !== 'string' || typeof candidate.url !== 'string') return []
+      const label = candidate.label.trim()
+      const url = candidate.url.trim()
+      if (!label || !url || !isSafeExternalUrl(url)) return []
+      return [{ id: typeof candidate.id === 'string' && candidate.id.trim() ? candidate.id : `stored-link-${index}`, label, url }]
+    })
+    if (parsed.length > 0) return parsed.slice(0, MAX_PR_REFERENCE_LINKS)
+  }
+
+  const url = legacyUrl?.trim()
+  if (!url || !isSafeExternalUrl(url)) return []
+  return [{ id: 'legacy-reference-link', label: legacyLabel?.trim() || 'Harici bağlantı', url }]
+}
+
+export function normalizePrReferenceLinks(links: PrReferenceLink[]): PrReferenceLink[] {
+  return links
+    .map((link) => ({ id: link.id.trim(), label: link.label.trim(), url: link.url.trim() }))
+    .filter((link) => link.label || link.url)
+}
+
+export function validatePrReferenceLinks(links: PrReferenceLink[]): string | null {
+  const normalized = normalizePrReferenceLinks(links)
+  if (normalized.length > MAX_PR_REFERENCE_LINKS) return `En fazla ${MAX_PR_REFERENCE_LINKS} bağlantı ekleyebilirsiniz.`
+
+  for (const [index, link] of normalized.entries()) {
+    const position = index + 1
+    if (!link.id) return `${position}. bağlantının kimliği eksik.`
+    if (!link.label) return `${position}. bağlantı için bir ad girin.`
+    if (link.label.length > 160) return `${position}. bağlantı adı en fazla 160 karakter olabilir.`
+    if (!link.url) return `${position}. bağlantı için bir adres girin.`
+    if (link.url.length > 2048) return `${position}. bağlantı adresi en fazla 2048 karakter olabilir.`
+    if (!isSafeExternalUrl(link.url)) return `${position}. bağlantı http:// veya https:// ile başlamalı.`
+  }
+
+  const ids = normalized.map((link) => link.id.toLocaleLowerCase('tr'))
+  if (new Set(ids).size !== ids.length) return 'Bağlantı kimlikleri benzersiz olmalı.'
+  const urls = normalized.map((link) => link.url.toLocaleLowerCase('tr'))
+  if (new Set(urls).size !== urls.length) return 'Aynı bağlantı adresini birden fazla kez ekleyemezsiniz.'
+  return null
 }
 
 export function isHexColor(value: string): boolean {
