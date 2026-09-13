@@ -1,6 +1,6 @@
 # Tema seçimi PWA duyurusu
 
-> Migration'lar bağlı veritabanına uygulandı; gerçek duyuru henüz gönderilmedi. Güncel sıra ve doğrulamalar için [AI devir notunu](AI_DEVIR_2026-09-13.md) okuyun.
+> Migration'lar bağlı veritabanına uygulandı ve gerçek duyuru 13 Eylül 2026 13:23 TSİ'de `2026-2027 Dönemi` için gönderildi. Bu sürüm anahtarını yeniden göndermeyin. Sonuçlar için [AI devir notunu](AI_DEVIR_2026-09-13.md) okuyun.
 
 `20260912121000_theme_release_announcement.sql` migration'ı yalnızca güvenli
 sunucu fonksiyonunu ve audit kaydını ekler; migration uygulanırken duyuru ya da
@@ -51,5 +51,8 @@ from public.release_announcements
 where release_key = 'user-theme-pwa-announcement-20260912';
 ```
 
-Kuyruklandıktan sonra geri alınamaz bir kullanıcı iletişimi başlar; bu yüzden
-çağrıyı yalnız canlı arayüz ve hedef bağlantı doğrulamasından sonra yapın.
+Gerçek çağrı `release_announcement_id = 83fb9d80-2e03-4fd9-8cdd-9ae36aff61ae`
+ve `recipient_count = 15` döndürdü. 15 uygulama içi ve 15 push kaydı oluştu;
+0 e-posta oluşturuldu. Çoklu cihazlarda 17 teslim başarılı, bir eski abonelik
+`web_push_410` ile kalıcı başarısız oldu. Kuyruklandıktan sonra kullanıcı
+iletişimi geri alınamaz.

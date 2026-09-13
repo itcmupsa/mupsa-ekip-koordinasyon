@@ -4,9 +4,11 @@ Bu dosya, proje bağlamının güncel durum kaydıdır. Bir görev tamamlandığ
 
 **Son güncelleme:** 13 Eylül 2026
 
-## Aktif çalışma: kullanıcı teması ve PWA duyurusu
+## Tamamlanan çalışma: kullanıcı teması ve PWA duyurusu
 
-[13 Eylül AI devir notu](AI_DEVIR_2026-09-13.md) dosyaları, test sonuçlarını ve yayın sırasını içerir. Aktif dal `feature/user-theme-pwa-announcement-20260912`. Tema, güvenli giriş sonrası derin bağlantı ve MUPİ duyuru altyapısı tamamlandı. `20260912120000`, `20260912121000`, yetki sıkılaştırma `20260912122000` ve eşzamanlı farklı dönem koruması `20260912123000` bağlı veritabanına uygulandı; rollback testleri geçti ve migration geçmişi güncel. Frontend yayını ve canlı kontrol bekliyor; gerçek sürüm duyurusu henüz gönderilmedi.
+[13 Eylül AI devir notu](AI_DEVIR_2026-09-13.md) dosyaları, test ve yayın sonuçlarını içerir. Tema, güvenli giriş sonrası derin bağlantı ve MUPİ duyuru altyapısı tamamlandı. Dört migration bağlı veritabanına uygulandı; rollback testleri ve migration dry-run geçti. Frontend `main` üzerinde `5ae5281` ile canlıya alındı. Canlı masaüstü/mobil Görünüm bağlantısı ile tema kaydet–yenile–varsayılana dön testi geçti.
+
+Sürüm duyurusu `2026-2027 Dönemi` için 13 Eylül 2026 13:23 TSİ'de bir kez kuyruğa alındı: 15 uygulama içi kayıt, 15 push kaydı, 0 e-posta. Son cihaz sonucu 17 başarılı teslim ve bir kapanmış abonelik (`web_push_410`); kullanıcı bazında 14 push başarılı, 1 push başarısız. Gönderilmiş duyuru geri alınamaz.
 
 Antigravity MCP model seçimi yerel eklentiye eklendi ve kuruldu; 61/61 test ile gerçek `gemini-3.1-pro-high` bağlantı testi geçti. Yeni araç şeması için yeni görev açılmalı. Özel proje kaynaklarının dış servise aktarımıyla ilgili önceki onay engeli devir notunda açıklanmıştır.
 
