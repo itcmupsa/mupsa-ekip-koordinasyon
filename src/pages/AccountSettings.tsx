@@ -385,7 +385,7 @@ export default function AccountSettings({ session }: { session: Session }) {
             </section>
 
             <div className="grid gap-5">
-              <section id="appearance" aria-labelledby="appearance-heading" className="scroll-mt-6 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
+              <section id="appearance" aria-labelledby="appearance-heading" className="scroll-mt-24 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5 md:scroll-mt-6">
                 <div className="flex gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-dark"><PaletteIcon /></span><div><h2 id="appearance-heading" className="font-semibold text-ink">Görünüm</h2><p className="mt-1 text-sm text-ink-soft">Uygulamanın ana rengini hesabın için seç. Kaydettiğinde bu hesapla sonraki açılışlarında kullanılır.</p></div></div>
                 <div className="mt-4 grid gap-4 rounded-lg border border-canvas-border bg-canvas p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-4">
                   <div className="flex min-w-0 items-center gap-3">
