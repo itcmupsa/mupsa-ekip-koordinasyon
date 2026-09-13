@@ -1,11 +1,13 @@
 import { strict as assert } from 'node:assert'
 import test from 'node:test'
-import { addDays, formatOptionalTime, isHexColor, isSafeExternalUrl, mondayOfWeek, parseDateOnly, shiftMonth, weekDates } from '../src/lib/prCalendar.ts'
+import { addDays, formatOptionalTime, formatWeekRange, isHexColor, isSafeExternalUrl, mondayOfWeek, parseDateOnly, shiftMonth, weekDates } from '../src/lib/prCalendar.ts'
 
 test('weekly board starts on Monday across a year boundary', () => {
   assert.equal(mondayOfWeek('2027-01-01'), '2026-12-28')
   assert.deepEqual(weekDates('2026-12-28'), ['2026-12-28', '2026-12-29', '2026-12-30', '2026-12-31', '2027-01-01', '2027-01-02', '2027-01-03'])
   assert.equal(addDays('2026-12-31', 1), '2027-01-01')
+  assert.equal(formatWeekRange('2026-10-12'), '12 – 18 Ekim 2026')
+  assert.equal(formatWeekRange('2026-12-28'), '28 Aralık 2026 – 3 Ocak 2027')
 })
 
 test('month navigation and optional times are stable', () => {

@@ -7,7 +7,7 @@ import ManualCalendarEntryDialog, { type ManualCalendarRecord } from '../compone
 import AppShell from '../components/AppShell'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
 import { supabase } from '../lib/supabaseClient'
-import { PR_COLOR_PRESETS, PR_ENTRY_KINDS, PR_ENTRY_STATUSES, addDays, dateKeyInIstanbul, formatOptionalTime, isHexColor, isSafeExternalUrl, mondayOfWeek, parseDateOnly, shiftMonth, weekDates, type PrEntryKind, type PrEntryStatus } from '../lib/prCalendar'
+import { PR_COLOR_PRESETS, PR_ENTRY_KINDS, PR_ENTRY_STATUSES, addDays, dateKeyInIstanbul, formatOptionalTime, formatWeekRange, isHexColor, isSafeExternalUrl, mondayOfWeek, parseDateOnly, shiftMonth, weekDates, type PrEntryKind, type PrEntryStatus } from '../lib/prCalendar'
 
 type LoadState = 'loading' | 'ready' | 'error'
 type ViewMode = 'week' | 'month'
@@ -42,10 +42,25 @@ const DAY_SHORT = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
 const emptyDraft = () => ({ title: '', entryKind: 'publication' as PrEntryKind, scheduledDate: dateKeyInIstanbul(), scheduledTime: '', color: '#166534', status: 'planned' as PrEntryStatus, channels: [] as string[], format: '', notes: '', responsibleId: '', eventId: '', awarenessPostId: '', taskId: '', relatedPrEntryId: '', referenceLabel: '', referenceUrl: '' })
 
 function labelFor<T extends string>(options: Array<{ value: T; label: string }>, value: T) { return options.find((item) => item.value === value)?.label ?? value }
-function dayLabel(value: string) { return new Intl.DateTimeFormat('tr-TR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(parseDateOnly(value)) }
+function dayLabel(value: string) { return new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(parseDateOnly(value)) }
 function fullDate(value: string) { return new Intl.DateTimeFormat('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(parseDateOnly(value)) }
 function monthLabel(value: string) { return new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(parseDateOnly(value)) }
-function statusClass(status: PrEntryStatus) { return status === 'completed' ? 'bg-emerald-50 text-emerald-700' : status === 'cancelled' ? 'bg-stone-100 text-stone-600' : status === 'ready' ? 'bg-sky-50 text-sky-700' : 'bg-amber-50 text-amber-800' }
+function statusClass(status: PrEntryStatus) {
+  if (status === 'completed') return 'bg-success-soft text-success'
+  if (status === 'cancelled') return 'bg-stone-100 text-stone-700'
+  if (status === 'ready') return 'bg-sky-100 text-sky-800'
+  if (status === 'in_progress') return 'bg-violet-100 text-violet-800'
+  if (status === 'draft') return 'bg-slate-100 text-slate-700'
+  return 'bg-teal-100 text-teal-800'
+}
+function statusDotClass(status: PrEntryStatus) {
+  if (status === 'completed') return 'bg-success'
+  if (status === 'cancelled') return 'bg-stone-500'
+  if (status === 'ready') return 'bg-sky-600'
+  if (status === 'in_progress') return 'bg-violet-600'
+  if (status === 'draft') return 'bg-slate-500'
+  return 'bg-teal-600'
+}
 function sortEntries(items: PrEntry[]) { return [...items].sort((a, b) => (a.scheduledTime ?? '').localeCompare(b.scheduledTime ?? '') || a.title.localeCompare(b.title, 'tr')) }
 
 function CenteredMessage({ text }: { text: string }) { return <div className="flex min-h-screen items-center justify-center bg-canvas px-4"><p className="max-w-md text-center text-sm text-ink-soft">{text}</p></div> }
@@ -80,6 +95,7 @@ export default function PrCalendar({ session }: { session: Session }) {
   const [kindFilter, setKindFilter] = useState<'all' | PrEntryKind>('all')
   const [responsibleFilter, setResponsibleFilter] = useState('all')
   const [query, setQuery] = useState('')
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [showDeleted, setShowDeleted] = useState(false)
   const returnFocus = useRef<HTMLElement | null>(null)
   const dialogRef = useRef<HTMLDivElement | null>(null)
@@ -149,11 +165,14 @@ export default function PrCalendar({ session }: { session: Session }) {
   [entries, kindFilter, query, responsibleFilter, showDeleted, statusFilter])
   const grouped = useMemo(() => new Map<string, PrEntry[]>(weekDates(weekStart).map((day) => [day, sortEntries(filtered.filter((item) => item.scheduledDate === day))])), [filtered, weekStart])
   const counts = useMemo(() => weekDates(weekStart).map((day) => ({ day, entries: grouped.get(day) ?? [] })), [grouped, weekStart])
+  const weekEntries = useMemo(() => counts.flatMap(({ entries: dayEntries }) => dayEntries), [counts])
+  const activeWeekEntry = weekEntries.find((entry) => entry.id === selected?.id) ?? weekEntries[0] ?? null
+  const activeFilterCount = [statusFilter !== 'all', kindFilter !== 'all', responsibleFilter !== 'all', Boolean(query.trim())].filter(Boolean).length
 
-  const openDrawer = useCallback((entry?: PrEntry, date?: string, trigger?: HTMLElement | null) => {
+  const openDrawer = useCallback((entry?: PrEntry, date?: string, trigger?: HTMLElement | null, editExisting = false) => {
     if (entry?.manualRecord) { setManualSelection(entry.manualRecord); setManualOpen(true); return }
     if (!canManage && !entry) return
-    setEditing(!entry)
+    setEditing(!entry || editExisting)
     returnFocus.current = trigger ?? document.activeElement as HTMLElement
     setSelected(entry ?? null)
     setDraft(entry ? { title: entry.title, entryKind: entry.entryKind, scheduledDate: entry.scheduledDate, scheduledTime: entry.scheduledTime?.slice(0, 5) ?? '', color: entry.color, status: entry.status, channels: [...entry.channels], format: entry.format ?? '', notes: entry.notes ?? '', responsibleId: entry.responsibleId ?? '', eventId: entry.eventId ?? '', awarenessPostId: entry.awarenessPostId ?? '', taskId: entry.taskId ?? '', relatedPrEntryId: entry.relatedPrEntryId ?? '', referenceLabel: entry.referenceLabel ?? '', referenceUrl: entry.referenceUrl ?? '' } : { ...emptyDraft(), scheduledDate: date ?? dateKeyInIstanbul() })
@@ -197,9 +216,15 @@ export default function PrCalendar({ session }: { session: Session }) {
     setSelectedDay(day); setWeekStart(mondayOfWeek(day)); setMonth(day.slice(0, 8) + '01')
   }, [searchParams])
 
-  const goToday = () => { const today = dateKeyInIstanbul(); setWeekStart(mondayOfWeek(today)); setMonth(today.slice(0, 8) + '01') }
-  const goPrev = () => view === 'week' ? setWeekStart((date) => addDays(date, -7)) : setMonth((date) => shiftMonth(date, -1))
-  const goNext = () => view === 'week' ? setWeekStart((date) => addDays(date, 7)) : setMonth((date) => shiftMonth(date, 1))
+  const goToday = () => { const today = dateKeyInIstanbul(); setSelectedDay(today); setWeekStart(mondayOfWeek(today)); setMonth(today.slice(0, 8) + '01') }
+  const goPrev = () => {
+    if (view === 'week') { setWeekStart((date) => addDays(date, -7)); setSelectedDay((date) => addDays(date, -7)); return }
+    setMonth((date) => shiftMonth(date, -1))
+  }
+  const goNext = () => {
+    if (view === 'week') { setWeekStart((date) => addDays(date, 7)); setSelectedDay((date) => addDays(date, 7)); return }
+    setMonth((date) => shiftMonth(date, 1))
+  }
   const memberName = (id: string | null) => members.find((member) => member.id === id)?.name ?? 'Atanmamış'
 
   if (statusLoading) return <CenteredMessage text="Basın-yayın takvimi yükleniyor…" />
@@ -207,23 +232,62 @@ export default function PrCalendar({ session }: { session: Session }) {
   if (loadState === 'loading') return <CenteredMessage text="PR takvimi yükleniyor…" />
   if (loadState === 'error') return <CenteredMessage text={loadError ?? 'Basın-yayın takvimi yüklenemedi.'} />
   const roleLabel = coordinatorRoleName ?? (appRole === 'super_admin' ? 'Süper Yönetici' : 'Koordinatör')
+  const viewEntries = view === 'week'
+    ? weekEntries
+    : filtered.filter((entry) => entry.scheduledDate.startsWith(month.slice(0, 7)))
+  const weeklyStatusCounts = PR_ENTRY_STATUSES
+    .map((status) => ({ ...status, count: weekEntries.filter((entry) => entry.status === status.value).length }))
+    .filter((status) => status.count > 0)
 
   return <AppShell isSuperAdmin={appRole === 'super_admin'} displayName={displayName} roleLabel={roleLabel} onSignOut={() => void signOut()}>
     <main className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
       <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div><p className="inline-flex rounded-full bg-brand-soft px-3 py-1 text-xs font-medium text-brand-dark">Aktif dönem: {periodLabel ?? 'Belirtilmedi'}</p><h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">PR Takvimi</h1><p className="mt-1 text-sm text-ink-soft">Yayın, çekim ve iletişim planını haftalık akışta yönet.</p></div>
-        <div className="flex flex-wrap gap-2">{appRole === 'super_admin' ? <button type="button" onClick={() => setShowDeleted((value) => !value)} className="min-h-[42px] rounded-lg border border-canvas-border px-3 text-sm font-medium text-ink-soft">{showDeleted ? 'Aktif kayıtlar' : 'Pasifleri göster'}</button> : null}{appRole === 'super_admin' ? <button type="button" onClick={() => { setManualSelection(null); setManualOpen(true) }} className="min-h-11 rounded-lg border border-canvas-border px-3 text-sm font-medium">Manuel kayıt ekle</button> : null}{canManage ? <button type="button" onClick={(event) => openDrawer(undefined, dateKeyInIstanbul(), event.currentTarget)} className="min-h-[42px] rounded-lg bg-accent px-4 text-sm font-semibold text-white shadow-card">+ Yeni PR kaydı</button> : <span className="inline-flex min-h-[42px] items-center rounded-lg bg-stone-100 px-3 text-sm text-ink-soft">Görüntüleme izni</span>}</div>
+        <div className="flex flex-wrap gap-2">{appRole === 'super_admin' ? <button type="button" onClick={() => setShowDeleted((value) => !value)} className="min-h-11 rounded-xl border border-canvas-border bg-white px-3 text-sm font-medium text-ink-soft shadow-sm transition-colors hover:border-brand/40 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{showDeleted ? 'Aktif kayıtlar' : 'Pasifleri göster'}</button> : null}{appRole === 'super_admin' ? <button type="button" onClick={() => { setManualSelection(null); setManualOpen(true) }} className="min-h-11 rounded-xl border border-canvas-border bg-white px-3 text-sm font-medium text-ink shadow-sm transition-colors hover:border-brand/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">Manuel kayıt ekle</button> : null}{canManage ? <button type="button" onClick={(event) => openDrawer(undefined, dateKeyInIstanbul(), event.currentTarget)} className="min-h-11 rounded-xl bg-accent px-4 text-sm font-semibold text-white shadow-card transition-colors hover:bg-warning focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2">+ PR içeriği oluştur</button> : <span className="inline-flex min-h-11 items-center rounded-xl bg-stone-100 px-3 text-sm text-ink-soft">Görüntüleme izni</span>}</div>
       </div>
       <CalendarTabs />
       <section className="mt-5 rounded-2xl border border-canvas-border bg-white p-3 shadow-card sm:p-4">
         <div className="flex flex-col gap-3 border-b border-canvas-border pb-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-2"><button type="button" onClick={goPrev} aria-label="Önceki dönem" className="grid h-10 w-10 place-items-center rounded-lg border border-canvas-border text-ink-soft"><Icon><path d="m14 6-6 6 6 6" /></Icon></button><button type="button" onClick={goNext} aria-label="Sonraki dönem" className="grid h-10 w-10 place-items-center rounded-lg border border-canvas-border text-ink-soft"><Icon><path d="m10 6 6 6-6 6" /></Icon></button><button type="button" onClick={goToday} className="min-h-[40px] rounded-lg border border-canvas-border px-3 text-sm font-medium text-ink">Bugün</button><h2 className="ml-1 text-base font-semibold capitalize text-ink">{view === 'week' ? `${dayLabel(weekStart)} – ${dayLabel(addDays(weekStart, 6))} ${weekStart.slice(0,4)}` : monthLabel(month)}</h2></div>
-          <div className="flex rounded-lg bg-canvas p-1"><button type="button" onClick={() => { if (view !== 'week') { setView('week'); setWeekStart(mondayOfWeek(month)) } }} className={`min-h-[34px] rounded-md px-3 text-sm font-medium ${view === 'week' ? 'bg-white text-brand-dark shadow-sm' : 'text-ink-soft'}`}>Hafta</button><button type="button" onClick={() => { if (view !== 'month') { setView('month'); setMonth(weekStart.slice(0, 8) + '01') } }} className={`min-h-[34px] rounded-md px-3 text-sm font-medium ${view === 'month' ? 'bg-white text-brand-dark shadow-sm' : 'text-ink-soft'}`}>Ay</button></div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={goPrev} aria-label={view === 'week' ? 'Önceki hafta' : 'Önceki ay'} className="grid h-11 w-11 place-items-center rounded-xl border border-canvas-border bg-white text-ink-soft shadow-sm transition-colors hover:border-brand/40 hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"><Icon><path d="m14 6-6 6 6 6" /></Icon></button>
+            <h2 className="min-w-[13rem] text-center text-base font-semibold capitalize text-ink sm:text-lg">{view === 'week' ? formatWeekRange(weekStart) : monthLabel(month)}</h2>
+            <button type="button" onClick={goNext} aria-label={view === 'week' ? 'Sonraki hafta' : 'Sonraki ay'} className="grid h-11 w-11 place-items-center rounded-xl border border-canvas-border bg-white text-ink-soft shadow-sm transition-colors hover:border-brand/40 hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"><Icon><path d="m10 6 6 6-6 6" /></Icon></button>
+            <button type="button" onClick={goToday} className="min-h-11 rounded-xl border border-canvas-border bg-white px-4 text-sm font-medium text-ink shadow-sm transition-colors hover:border-brand/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">Bugün</button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => setFiltersOpen((open) => !open)} aria-expanded={filtersOpen} aria-controls="pr-calendar-filters" className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm font-medium shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${filtersOpen || activeFilterCount > 0 ? 'border-brand/40 bg-brand-soft text-brand-dark' : 'border-canvas-border bg-white text-ink'}`}><Icon><path d="M4 6h16M7 12h10M10 18h4" /></Icon>Filtreler{activeFilterCount > 0 ? <span className="grid h-5 min-w-5 place-items-center rounded-full bg-brand-dark px-1 text-[11px] text-white">{activeFilterCount}</span> : null}</button>
+            <div className="flex rounded-xl bg-canvas p-1" aria-label="Takvim görünümü">
+              <button type="button" aria-pressed={view === 'month'} onClick={() => { if (view !== 'month') { setView('month'); setMonth(weekStart.slice(0, 8) + '01') } }} className={`min-h-9 rounded-lg px-4 text-sm font-medium transition-colors ${view === 'month' ? 'bg-brand-dark text-white shadow-sm' : 'text-ink-soft hover:text-ink'}`}>Ay</button>
+              <button type="button" aria-pressed={view === 'week'} onClick={() => { if (view !== 'week') { const firstWeek = mondayOfWeek(month); setView('week'); setWeekStart(firstWeek); setSelectedDay(firstWeek) } }} className={`min-h-9 rounded-lg px-4 text-sm font-medium transition-colors ${view === 'week' ? 'bg-brand-dark text-white shadow-sm' : 'text-ink-soft hover:text-ink'}`}>Hafta</button>
+            </div>
+          </div>
         </div>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4"><input value={query} onChange={(event) => setQuery(event.target.value)} aria-label="PR kayıtlarında ara" placeholder="Başlık, kanal veya format ara" className="min-h-[42px] rounded-lg border border-canvas-border px-3 text-sm" /><select aria-label="Durum filtresi" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)} className="min-h-[42px] rounded-lg border border-canvas-border px-3 text-sm"><option value="all">Tüm durumlar</option>{PR_ENTRY_STATUSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><select aria-label="Tür filtresi" value={kindFilter} onChange={(event) => setKindFilter(event.target.value as typeof kindFilter)} className="min-h-[42px] rounded-lg border border-canvas-border px-3 text-sm"><option value="all">Tüm türler</option>{PR_ENTRY_KINDS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><select aria-label="Sorumlu filtresi" value={responsibleFilter} onChange={(event) => setResponsibleFilter(event.target.value)} className="min-h-[42px] rounded-lg border border-canvas-border px-3 text-sm"><option value="all">Tüm sorumlular</option>{members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></div>
-        <div className="mt-4 grid grid-cols-7 gap-1 pb-2 lg:hidden">{counts.map(({ day, entries }) => <button type="button" key={day} onClick={() => { setSelectedDay(day); setView('week'); requestAnimationFrame(() => { const target = document.getElementById(`pr-day-${day}`); if (target && boardRef.current) boardRef.current.scrollTo({ left: target.offsetLeft - boardRef.current.offsetLeft, behavior: 'smooth' }) }) }} className="min-w-0 rounded-xl border border-canvas-border bg-canvas px-2 py-2 text-left"><span className="block text-xs text-ink-soft">{DAY_SHORT[(parseDateOnly(day).getUTCDay() + 6) % 7]}</span><span className="text-sm font-semibold">{parseDateOnly(day).getUTCDate()}</span><span className="mt-1 block text-xs text-brand-dark">{entries.length}</span><span className="flex gap-0.5 mt-1">{entries.slice(0,3).map(item => <span key={item.id} className="h-1.5 w-1.5 rounded-full" style={{backgroundColor:item.color}} />)}</span></button>)}</div>
-        <p className="mt-3 text-sm text-ink-soft">{view === 'week' ? 'Bu hafta' : 'Bu ay'}: <strong>{filtered.filter(item => view === 'week' ? item.scheduledDate >= weekStart && item.scheduledDate <= addDays(weekStart, 6) : item.scheduledDate.startsWith(month.slice(0, 7))).length} kayıt</strong></p>
-        {view === 'week' ? <div ref={boardRef} className="relative mt-4 max-h-[70dvh] overflow-auto"><div className="grid min-w-[1400px] xl:min-w-[1050px] grid-cols-7 border-l border-t border-canvas-border">{weekDates(weekStart).map((day, index) => <section id={`pr-day-${day}`} key={day} className={`min-h-[440px] ${day === selectedDay ? 'bg-brand-soft/30' : ''} border-b border-r border-canvas-border`}><header className={`sticky top-0 z-10 border-b border-canvas-border bg-white px-3 py-3 ${day === dateKeyInIstanbul() ? 'text-brand-dark' : ''}`}><p className="text-xs font-medium text-ink-soft">{DAY_SHORT[index]}</p><p className="text-lg font-semibold">{parseDateOnly(day).getUTCDate()}</p></header><div className="space-y-2 p-2">{(grouped.get(day) ?? []).map((entry) => <button type="button" key={entry.id} onClick={(event) => openDrawer(entry, undefined, event.currentTarget)} className={`w-full rounded-lg border p-2.5 text-left shadow-sm transition hover:-translate-y-px hover:shadow-card ${entry.deletedAt ? 'opacity-50' : ''}`} style={{ borderLeftWidth: 4, borderLeftColor: entry.color, backgroundColor: `${entry.color}0d` }}><span className="block text-xs font-semibold text-ink-soft">{formatOptionalTime(entry.scheduledTime)}</span><span className="mt-0.5 block line-clamp-2 text-sm font-semibold text-ink">{entry.title}</span><span className="mt-1 block text-xs text-ink-soft">{[...entry.channels, entry.format].filter(Boolean).join(' · ')}</span>{entry.responsibleId ? <span className="mt-1 block text-xs text-ink-soft">{memberName(entry.responsibleId)}</span> : null}<span className="mt-1 flex flex-wrap gap-1"><span className="rounded px-1.5 py-0.5 text-xs font-medium text-ink-soft">{entry.manualRecord ? 'Manuel kayıt' : labelFor(PR_ENTRY_KINDS, entry.entryKind)}</span><span className={`rounded px-1.5 py-0.5 text-xs font-medium ${statusClass(entry.status)}`}>{labelFor(PR_ENTRY_STATUSES, entry.status)}</span></span></button>)}{canManage ? <button type="button" onClick={(event) => openDrawer(undefined, day, event.currentTarget)} className="w-full rounded-lg border border-dashed border-canvas-border px-2 py-2 text-xs font-medium text-ink-soft hover:border-brand hover:text-brand-dark">+ Kayıt ekle</button> : null}</div></section>)}</div></div> : <MonthBoard month={month} entries={filtered} canManage={canManage} onDay={(day) => { setWeekStart(mondayOfWeek(day)); setSelectedDay(day); setView('week') }} onSelect={(entry, trigger) => openDrawer(entry, undefined, trigger)} onCreate={(day, trigger) => openDrawer(undefined, day, trigger)} />}
+
+        {filtersOpen ? <div id="pr-calendar-filters" className="mt-3 grid gap-2 rounded-xl border border-canvas-border bg-canvas p-3 sm:grid-cols-2 lg:grid-cols-[minmax(14rem,1.4fr)_repeat(3,minmax(10rem,1fr))_auto]">
+          <input value={query} onChange={(event) => setQuery(event.target.value)} aria-label="PR kayıtlarında ara" placeholder="Başlık, kanal veya format ara" className="min-h-11 rounded-lg border border-canvas-border bg-white px-3 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20" />
+          <select aria-label="Durum filtresi" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)} className="min-h-11 rounded-lg border border-canvas-border bg-white px-3 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"><option value="all">Tüm durumlar</option>{PR_ENTRY_STATUSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
+          <select aria-label="Tür filtresi" value={kindFilter} onChange={(event) => setKindFilter(event.target.value as typeof kindFilter)} className="min-h-11 rounded-lg border border-canvas-border bg-white px-3 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"><option value="all">Tüm türler</option>{PR_ENTRY_KINDS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
+          <select aria-label="Sorumlu filtresi" value={responsibleFilter} onChange={(event) => setResponsibleFilter(event.target.value)} className="min-h-11 rounded-lg border border-canvas-border bg-white px-3 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"><option value="all">Tüm sorumlular</option>{members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select>
+          {activeFilterCount > 0 ? <button type="button" onClick={() => { setQuery(''); setStatusFilter('all'); setKindFilter('all'); setResponsibleFilter('all') }} className="min-h-11 rounded-lg px-3 text-sm font-medium text-brand-dark hover:bg-brand-soft">Temizle</button> : null}
+        </div> : null}
+
+        {view === 'week' ? <>
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-canvas-border pb-3 text-xs text-ink-soft sm:text-sm">
+            <span className="font-semibold text-ink">Bu hafta: <strong>{weekEntries.length} kayıt</strong></span>
+            {weeklyStatusCounts.map((status) => <span key={status.value} className="inline-flex items-center gap-1.5"><span className={`h-2.5 w-2.5 rounded-full ${statusDotClass(status.value)}`} aria-hidden="true" />{status.count} {status.label.toLocaleLowerCase('tr-TR')}</span>)}
+          </div>
+          <div className="mt-3 grid grid-cols-7 gap-1 pb-2 lg:hidden">{counts.map(({ day, entries: dayEntries }, index) => <button type="button" key={day} aria-pressed={day === selectedDay} onClick={() => { setSelectedDay(day); setView('week'); requestAnimationFrame(() => { const target = document.getElementById(`pr-day-${day}`); if (target && boardRef.current) boardRef.current.scrollTo({ left: target.offsetLeft - boardRef.current.offsetLeft, behavior: 'smooth' }) }) }} className={`min-h-16 min-w-0 rounded-lg border px-1 py-2 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${day === selectedDay ? 'border-brand/40 bg-brand-soft text-brand-dark' : 'border-canvas-border bg-canvas text-ink'}`}><span className="block text-[11px] font-medium">{DAY_SHORT[index]}</span><span className="block text-sm font-semibold">{parseDateOnly(day).getUTCDate()}</span><span className="mt-0.5 block text-[10px] text-ink-soft">{dayEntries.length} kayıt</span></button>)}</div>
+          <div ref={boardRef} className="relative mt-3 max-h-[70dvh] snap-x snap-mandatory overflow-auto rounded-xl border border-canvas-border lg:snap-none">
+            <div className="grid min-w-[1260px] grid-cols-7 2xl:min-w-0">{counts.map(({ day, entries: dayEntries }, index) => <section id={`pr-day-${day}`} key={day} className={`min-h-[430px] snap-start border-r border-canvas-border last:border-r-0 ${day === selectedDay ? 'bg-brand-soft/30' : 'bg-white'}`}>
+              <header className={`sticky top-0 z-10 border-b border-canvas-border px-2 py-2 text-center backdrop-blur ${day === selectedDay ? 'bg-brand-soft/95' : 'bg-white/95'}`}><button type="button" onClick={() => setSelectedDay(day)} aria-current={day === dateKeyInIstanbul() ? 'date' : undefined} className="min-h-11 w-full rounded-lg px-2 text-ink transition-colors hover:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"><span className="block text-xs font-semibold">{DAY_SHORT[index]}</span><span className={`mt-0.5 block text-sm ${day === dateKeyInIstanbul() ? 'font-semibold text-brand-dark' : 'text-ink-soft'}`}>{dayLabel(day)}</span><span className="mt-0.5 block text-[11px] text-ink-soft">{dayEntries.length} kayıt</span></button></header>
+              <div className="space-y-2 p-1.5">{dayEntries.map((entry) => <button type="button" key={entry.id} aria-pressed={activeWeekEntry?.id === entry.id} onClick={() => { setSelected(entry); setSelectedDay(day) }} className={`w-full rounded-lg border bg-white p-2 text-left shadow-sm transition-[border-color,box-shadow,background-color] hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${activeWeekEntry?.id === entry.id ? 'ring-1 ring-brand' : ''} ${entry.deletedAt ? 'opacity-50' : ''}`} style={{ borderLeftWidth: 4, borderLeftColor: entry.color }}><span className="block text-[11px] font-semibold text-ink-soft">{formatOptionalTime(entry.scheduledTime)}</span><span className="mt-0.5 block line-clamp-2 text-xs font-semibold leading-snug text-ink">{entry.title}</span>{entry.channels.length > 0 || entry.format ? <span className="mt-1 block truncate text-[11px] text-ink-soft">{[...entry.channels, entry.format].filter(Boolean).join(' · ')}</span> : null}{entry.responsibleId ? <span className="mt-1 flex items-center gap-1 truncate text-[11px] text-ink-soft"><Icon><path d="M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" /></Icon>{memberName(entry.responsibleId)}</span> : null}<span className="mt-1.5 flex flex-wrap gap-1"><span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${statusClass(entry.status)}`}><span className={`h-1.5 w-1.5 rounded-full ${statusDotClass(entry.status)}`} aria-hidden="true" />{labelFor(PR_ENTRY_STATUSES, entry.status)}</span></span></button>)}{canManage ? <button type="button" onClick={(event) => openDrawer(undefined, day, event.currentTarget)} className="min-h-11 w-full rounded-lg border border-dashed border-canvas-border px-2 text-xs font-medium text-ink-soft transition-colors hover:border-brand hover:bg-brand-soft hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">+ Kayıt ekle</button> : null}</div>
+            </section>)}</div>
+          </div>
+          {activeWeekEntry ? <SelectedEntryPanel entry={activeWeekEntry} memberName={memberName} events={events} awareness={awareness} tasks={tasks} entries={entries} canManage={canManage} onOpen={(trigger) => openDrawer(activeWeekEntry, undefined, trigger, canManage)} /> : <div className="mt-3 rounded-xl border border-dashed border-canvas-border bg-canvas px-4 py-8 text-center text-sm text-ink-soft">Bu haftada seçilebilecek PR kaydı yok.</div>}
+        </> : <>
+          <p className="mt-3 text-sm text-ink-soft">Bu ay: <strong className="text-ink">{viewEntries.length} kayıt</strong></p>
+          <MonthBoard month={month} entries={filtered} canManage={canManage} onDay={(day) => { setWeekStart(mondayOfWeek(day)); setSelectedDay(day); setView('week') }} onSelect={(entry, trigger) => openDrawer(entry, undefined, trigger)} onCreate={(day, trigger) => openDrawer(undefined, day, trigger)} />
+        </>}
       </section>
     </main>
     {manualOpen ? <ManualCalendarEntryDialog session={session} scope="pr" entry={manualSelection} onClose={() => setManualOpen(false)} onSaved={() => { setManualOpen(false); setReloadKey(value => value + 1) }} /> : null}
@@ -234,6 +298,45 @@ export default function PrCalendar({ session }: { session: Session }) {
 function MonthBoard({ month, entries, canManage, onSelect, onCreate, onDay }: { month: string; entries: PrEntry[]; canManage: boolean; onDay: (day: string) => void; onSelect: (entry: PrEntry, trigger: HTMLElement) => void; onCreate: (day: string, trigger: HTMLElement) => void }) {
   const first = parseDateOnly(month); const start = mondayOfWeek(month); const days = Array.from({ length: 42 }, (_, index) => addDays(start, index))
   return <div className="mt-4 overflow-x-auto"><div className="grid min-w-[840px] grid-cols-7 border-l border-t border-canvas-border">{DAY_SHORT.map((day) => <div key={day} className="border-b border-r border-canvas-border bg-canvas px-2 py-2 text-xs font-semibold text-ink-soft">{day}</div>)}{days.map((day) => { const dayEntries = sortEntries(entries.filter((entry) => entry.scheduledDate === day)); const inMonth = parseDateOnly(day).getUTCMonth() === first.getUTCMonth(); return <div key={day} className={`min-h-[126px] border-b border-r border-canvas-border p-2 ${inMonth ? 'bg-white' : 'bg-canvas/60'}`}><div className="mb-1 flex items-center justify-between"><span className={`text-xs font-semibold ${inMonth ? 'text-ink' : 'text-ink-soft'}`}>{parseDateOnly(day).getUTCDate()}</span>{canManage ? <button type="button" onClick={(event) => onCreate(day, event.currentTarget)} className="text-xs text-brand-dark" aria-label={`${day} için kayıt ekle`}>+</button> : null}</div>{dayEntries.slice(0, 3).map((entry) => <button type="button" key={entry.id} onClick={(event) => onSelect(entry, event.currentTarget)} className="mb-1 block w-full truncate rounded px-1.5 py-1 text-left text-xs font-medium text-ink" style={{ borderLeft: `3px solid ${entry.color}`, backgroundColor: `${entry.color}12` }}>{entry.scheduledTime ? `${formatOptionalTime(entry.scheduledTime)} ` : ''}{entry.title}</button>)}{dayEntries.length > 3 ? <button type="button" onClick={() => onDay(day)} className="min-h-9 text-xs text-brand-dark">+{dayEntries.length - 3} kayıt · Haftada aç</button> : null}</div> })}</div></div>
+}
+
+function SelectedEntryPanel({ entry, memberName, events, awareness, tasks, entries, canManage, onOpen }: { entry: PrEntry; memberName: (id: string | null) => string; events: Source[]; awareness: Source[]; tasks: Source[]; entries: PrEntry[]; canManage: boolean; onOpen: (trigger: HTMLElement) => void }) {
+  const linkedRecord = entry.eventId
+    ? events.find((item) => item.id === entry.eventId)?.title
+    : entry.awarenessPostId
+      ? awareness.find((item) => item.id === entry.awarenessPostId)?.title
+      : entry.taskId
+        ? tasks.find((item) => item.id === entry.taskId)?.title
+        : entry.relatedPrEntryId
+          ? entries.find((item) => item.id === entry.relatedPrEntryId)?.title
+          : null
+  const channelAndFormat = [...entry.channels, entry.format].filter(Boolean).join(' · ') || 'Belirtilmedi'
+  const reference = entry.referenceUrl ? entry.referenceLabel?.trim() || 'Harici bağlantı' : 'Yok'
+
+  return <section aria-labelledby="selected-pr-entry-title" className="mt-3 rounded-xl border border-canvas-border bg-white p-4 shadow-card sm:p-5">
+    <div className="flex flex-col gap-3 border-b border-canvas-border pb-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0">
+        <p className="flex items-center gap-2 text-sm font-semibold text-ink"><span className="h-3 w-3 rounded-full" style={{ backgroundColor: entry.color }} aria-hidden="true" />Seçili içerik</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2"><h3 id="selected-pr-entry-title" className="break-words text-xl font-semibold text-ink">{entry.title}</h3><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${statusClass(entry.status)}`}><span className={`h-2 w-2 rounded-full ${statusDotClass(entry.status)}`} aria-hidden="true" />{labelFor(PR_ENTRY_STATUSES, entry.status)}</span></div>
+        <p className="mt-1 text-sm text-ink-soft">{fullDate(entry.scheduledDate)} · {formatOptionalTime(entry.scheduledTime)}</p>
+      </div>
+      <button type="button" onClick={(event) => onOpen(event.currentTarget)} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-canvas-border bg-white px-4 text-sm font-medium text-ink shadow-sm transition-colors hover:border-brand/40 hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"><Icon><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></Icon>{canManage ? 'Düzenle' : 'Ayrıntıları aç'}</button>
+    </div>
+    <dl className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <DetailItem label="Tür" value={entry.manualRecord ? 'Manuel kayıt' : labelFor(PR_ENTRY_KINDS, entry.entryKind)}><Icon><rect x="4" y="4" width="16" height="16" rx="3" /><circle cx="12" cy="12" r="3" /></Icon></DetailItem>
+      <DetailItem label="Sorumlu" value={memberName(entry.responsibleId)}><Icon><path d="M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" /></Icon></DetailItem>
+      <DetailItem label="Durum" value={labelFor(PR_ENTRY_STATUSES, entry.status)}><Icon><path d="m8 12 2.5 2.5L16 9M12 3l7 3v5c0 4.5-2.9 8-7 10-4.1-2-7-5.5-7-10V6Z" /></Icon></DetailItem>
+      <DetailItem label="Tarih" value={fullDate(entry.scheduledDate)}><Icon><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></Icon></DetailItem>
+      <DetailItem label="Saat" value={formatOptionalTime(entry.scheduledTime)}><Icon><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></Icon></DetailItem>
+      <DetailItem label="Kanal ve format" value={channelAndFormat}><Icon><path d="M4 7h16M4 12h12M4 17h8" /></Icon></DetailItem>
+      <DetailItem label="Bağlı kayıt" value={linkedRecord ?? 'Yok'}><Icon><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1" /></Icon></DetailItem>
+      <DetailItem label="Referans" value={reference}><Icon><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20" /></Icon></DetailItem>
+    </dl>
+  </section>
+}
+
+function DetailItem({ label, value, children }: { label: string; value: string; children: ReactNode }) {
+  return <div className="flex min-w-0 gap-3 xl:border-r xl:border-canvas-border xl:pr-4 xl:last:border-r-0"><span className="mt-0.5 shrink-0 text-brand-dark" aria-hidden="true">{children}</span><div className="min-w-0"><dt className="text-xs text-ink-soft">{label}</dt><dd className="mt-0.5 break-words text-sm font-medium text-ink">{value}</dd></div></div>
 }
 
 const EntryDrawer = ({ ref, entry, draft, setDraft, members, events, awareness, tasks, entries, memberName, error, saving, canManage, editing, onEdit, onClose, onSave, onDelete }: { ref: React.RefObject<HTMLDivElement | null>; entry: PrEntry | null; draft: ReturnType<typeof emptyDraft>; setDraft: React.Dispatch<React.SetStateAction<ReturnType<typeof emptyDraft>>>; members: Member[]; events: Source[]; awareness: Source[]; tasks: Source[]; entries: PrEntry[]; memberName: (id: string | null) => string; error: string | null; saving: boolean; canManage: boolean; editing: boolean; onEdit: () => void; onClose: () => void; onSave: () => void; onDelete: () => void }) => <div className="fixed inset-0 z-50 flex justify-end bg-ink/35 p-0 sm:p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><div ref={ref} role="dialog" aria-modal="true" aria-labelledby="pr-entry-title" className="flex h-full w-full max-w-xl flex-col overflow-y-auto bg-white shadow-2xl sm:rounded-2xl">

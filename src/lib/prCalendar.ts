@@ -52,6 +52,21 @@ export function weekDates(weekStart: string): string[] {
   return Array.from({ length: 7 }, (_, index) => addDays(weekStart, index))
 }
 
+export function formatWeekRange(weekStart: string): string {
+  const start = parseDateOnly(weekStart)
+  const end = parseDateOnly(addDays(weekStart, 6))
+  const startDay = start.getUTCDate()
+  const endDay = end.getUTCDate()
+  const startMonth = new Intl.DateTimeFormat('tr-TR', { month: 'long', timeZone: 'UTC' }).format(start)
+  const endMonth = new Intl.DateTimeFormat('tr-TR', { month: 'long', timeZone: 'UTC' }).format(end)
+  const startYear = start.getUTCFullYear()
+  const endYear = end.getUTCFullYear()
+
+  if (startYear !== endYear) return `${startDay} ${startMonth} ${startYear} – ${endDay} ${endMonth} ${endYear}`
+  if (start.getUTCMonth() !== end.getUTCMonth()) return `${startDay} ${startMonth} – ${endDay} ${endMonth} ${endYear}`
+  return `${startDay} – ${endDay} ${endMonth} ${endYear}`
+}
+
 export function monthStart(value: string): string {
   const date = parseDateOnly(value)
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-01`
