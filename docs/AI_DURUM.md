@@ -14,6 +14,8 @@ Antigravity MCP model seçimi yerel eklentiye eklendi ve kuruldu; 61/61 test ile
 
 ## Takvimler ve PR
 
+17 Eylül çoklu PR atama güncellemesi: `pr_calendar_entry_assignees` tablosu manuel, etkinlik sahibi ve farkındalık Basın-Yayın sorumlusu kaynaklarını ayrı tutar; aynı kişi birden fazla kaynaktan atanabilir. Tüm aktif üyeler aktif PR takvimini görür. Açık PR yöneticileri ve aktif Süper Yöneticiler tam yönetir; herhangi bir kaynaktan atanmış aktif üye yalnız kendi PR kaydının operasyonel alanlarını düzenleyebilir. Atanmamış üyeler salt-okunurdur. Yeni atomic RPC, RLS, alan-kısıtlayıcı trigger, audit ve legacy `responsible_id` uyumluluğu `20260917143000_add_pr_entry_assignees.sql` ile canlı Supabase'e uygulandı. Mevcut bir legacy sorumlu satırının manuel atamaya taşındığı ve eksik backfill bulunmadığı doğrulandı. Migration-in-transaction ile post-deploy rollback senaryoları; lint, build, diff kontrolü ve PR testleri (9/9) geçti. Özellik commit'i `0a8ce5a`; bildirim gönderilmedi.
+
 17 Eylül yetki güncellemesi: PR takvimi kayıt oluşturma/düzenleme yetkisi koordinatörlük unvanından ayrılarak dönem ve kişi bazlı `pr_calendar_permissions` tablosuna taşındı. Beyza ÇALIŞIR'ın Basın Yayın Koordinatörü rolü korunarak PR yönetim yetkisi kapatıldı; Ezgi ÖZDÜZENCİLER'in Halkla İlişkiler Koordinatörü rolü korunarak yetki açıldı. Aktif Süper Yöneticiler Numan ÖNDEŞ ve Zehra Nur Çoşkun erişimi koruyor. `20260917100000_add_explicit_pr_calendar_permissions.sql` canlı Supabase'e uygulandı; rol değişmezliği, etkili yetkiler, tablo gizliliği ve RPC erişimi transaction + rollback içinde doğrulandı. Lint, build ve PR takvimi testleri (6/6) geçti.
 
 13 Eylül çoklu bağlantı güncellemesi: PR kaydındaki ayrı “Bağlantı adı” ve “Harici bağlantı” alanları, tekrarlanabilir ad/adres çiftlerinden oluşan tek bir “Bağlantılar” bölümüne dönüştürüldü. Kullanıcı Instagram gönderisi, Drive dosyası veya brief gibi en fazla 20 bağlantıyı ayrı adlarla ekleyebilir ve tek tek kaldırabilir. `20260913113000_add_pr_reference_links.sql` bağlı veritabanına uygulandı; mevcut tek bağlantılı kayıt yeni listeye kayıpsız taşındı ve ilk öğe eski sütunlara geriye dönük uyumluluk için yansıtılıyor. RLS rollback testi, audit URL gizliliği, migration dry-run, lint, build ve PR takvim testleri (6/6) geçti. Vercel üretim paketi yeni alan metinlerini içeriyor ve canlı PR sayfasında tarayıcı hatası yok. Kontrol oturumundaki uygulama hesabı yalnız görüntüleme yetkili olduğundan düzenleme formu canlıda açılmadı; yetki değiştirilmedi ve test kaydı oluşturulmadı. Dal: `feature/pr-multiple-reference-links-20260913`; özellik commit'i `58a849a`, yayın/devir commit'i `c1440b3`.
@@ -132,6 +134,7 @@ Henüz yapılmayan ana özellikler:
 - İlk şifre belirleme ekranının canlı testi
 - Kullanıcı oluşturma akışının daha pratik bir yönetim ekranına dönüştürülmesi
 - Dışa aktarım ve dönem arşivi ekranları
+- Etkinlik, farkındalık, PR ve diğer kayıtları bütçe olmadan dönem/yıl bazında birleştirecek “Geçmiş” sayfası
 - PWA kurulumunun ve offline davranışının başkan revizyonu sonrasında yeniden gözden geçirilmesi
 
 ## Şu anki sıradaki küçük görev

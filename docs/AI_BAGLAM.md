@@ -115,6 +115,8 @@ RLS önemlidir:
 - Dönem görünen adını yalnızca Süper Yönetici değiştirir. Kilitli dönem üyelikleri değiştirilemez. Auth e-posta adresi bu işlem sırasında değiştirilmez.
 - Takvimde etkinlik ve farkındalık tarihleri mevcut kayıtlardan üretilir; manuel takvim kayıtlarını yalnızca Süper Yönetici yönetir. Görev son tarihleri `auth.uid()` kullanan veritabanı RPC'si ile yalnızca primary ve supporting atanan kişilere gösterilir.
 - PR takvimi yönetim yetkisi koordinatörlük unvanından bağımsızdır. Aktif Süper Yöneticiler yetkilidir; diğer aktif üyeler için dönem ve kişi bazlı `pr_calendar_permissions.can_manage = true` gerekir. Basın Yayın Koordinatörü unvanı tek başına yazma yetkisi vermez.
+- PR kayıtları birden fazla manuel sorumlu taşıyabilir. Bağlı etkinliğin sahibi ve bağlı farkındalığın Basın-Yayın sorumlusu otomatik PR ataması kazanır; görev bağlantısı otomatik atama üretmez. Tüm aktif dönem üyeleri aktif PR takvimini görür. Herhangi bir atama kaynağı bulunan aktif üye yalnız o kaydın operasyonel alanlarını düzenleyebilir; ilişki, atama listesi, oluşturan/dönem ve pasifleştirme yalnız PR yöneticileri ile aktif Süper Yöneticilere açıktır.
+- Planlanan dönem/yıl “Geçmiş” görünümü etkinlik, farkındalık, PR ve diğer kayıtları ortak yerde gösterecek; bütçe bu kapsamın dışındadır.
 - Bildirimlerde uygulama içi kuyruk veritabanında üretilir. Web Push için cihaz abonelikleri `push_subscriptions` tablosunda tutulur; teslimat service worker ve VAPID secret'ları olan güvenli Edge Function üzerinden yapılır. VAPID private key frontend'e veya repoya yazılamaz.
 
 ## 7. Çalışma ve teslim kuralları
