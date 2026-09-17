@@ -2,6 +2,27 @@ export type PrEntryKind = 'publication' | 'shooting' | 'other'
 export type PrEntryStatus = 'draft' | 'planned' | 'in_progress' | 'ready' | 'completed' | 'cancelled'
 export interface PrReferenceLink { id: string; label: string; url: string }
 
+export interface PrEntryAssignee {
+  profileId: string
+  assignmentSource: 'manual' | 'event_owner' | 'awareness_responsible'
+}
+
+export function extractManualAssignees(assignees: unknown): string[] {
+  if (!Array.isArray(assignees)) return []
+  return assignees
+    .filter((a): a is Record<string, unknown> => !!a && typeof a === 'object')
+    .filter((a) => a.assignment_source === 'manual' && typeof a.profile_id === 'string')
+    .map((a) => a.profile_id as string)
+}
+
+export function extractAutoAssignees(assignees: unknown): Array<{ profileId: string; source: 'event_owner' | 'awareness_responsible' }> {
+  if (!Array.isArray(assignees)) return []
+  return assignees
+    .filter((a): a is Record<string, unknown> => !!a && typeof a === 'object')
+    .filter((a) => (a.assignment_source === 'event_owner' || a.assignment_source === 'awareness_responsible') && typeof a.profile_id === 'string')
+    .map((a) => ({ profileId: a.profile_id as string, source: a.assignment_source as 'event_owner' | 'awareness_responsible' }))
+}
+
 export const MAX_PR_REFERENCE_LINKS = 20
 
 export const PR_ENTRY_KINDS: Array<{ value: PrEntryKind; label: string }> = [
@@ -143,4 +164,30 @@ export function isHexColor(value: string): boolean {
 
 export function formatOptionalTime(value: string | null): string {
   return value ? value.slice(0, 5) : 'Saat belirtilmedi'
+}
+
+export function computeLegacyResponsibleId(currentResponsibleId: string | null | undefined, newManualAssigneeIds: string[]): string | null {
+  if (currentResponsibleId && newManualAssigneeIds.includes(currentResponsibleId)) {
+    return currentResponsibleId
+  }
+  return newManualAssigneeIds.length > 0 ? newManualAssigneeIds[0] : null
+}
+
+export function buildNonManagerPayload(draft: any, referenceLinks: PrReferenceLink[]) {
+  const firstReferenceLink = referenceLinks[0]
+  return {
+    title: draft.title.trim(),
+    entry_kind: draft.entryKind,
+    scheduled_date: draft.scheduledDate,
+    scheduled_time: draft.scheduledTime || null,
+    color: draft.color,
+    status: draft.status,
+    channels: draft.channels,
+    channel: draft.channels[0] ?? null,
+    format: draft.format.trim() || null,
+    notes: draft.notes.trim() || null,
+    reference_links: referenceLinks,
+    reference_label: firstReferenceLink?.label ?? null,
+    reference_url: firstReferenceLink?.url ?? null,
+  }
 }

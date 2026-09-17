@@ -113,6 +113,9 @@ begin
   set event_id = null
   where title = 'PR calendar historical link';
 
+  insert into public.pr_calendar_permissions (period_id, profile_id, can_manage)
+  values (active_period, press_user_id, true);
+
   insert into pr_calendar_test_ids values (
     press_user_id, member_user_id, stale_admin_user_id, active_period, inactive_period, central_task
   );
@@ -125,7 +128,7 @@ set local role authenticated;
 
 select pg_temp.assert_true(
   public.can_manage_pr_calendar(active_period_id),
-  'press-and-publication coordinator manages the active target period'
+  'explicit permission manages the active target period'
 ) from pr_calendar_test_ids;
 
 select pg_temp.assert_true(
@@ -140,10 +143,10 @@ select pg_temp.assert_true(
 ) from pr_calendar_test_ids;
 
 insert into public.pr_calendar_entries (
-  period_id, title, entry_kind, scheduled_date, color, task_id, created_by, notes, reference_url
+  period_id, title, entry_kind, scheduled_date, color, task_id, responsible_id, created_by, notes, reference_url
 )
 select active_period_id, 'PR calendar behavioral entry', 'publication', current_date,
-  '#123abc', central_task_id, press_id, 'do not audit this note', 'https://example.invalid/private'
+  '#123abc', central_task_id, member_id, press_id, 'do not audit this note', 'https://example.invalid/private'
 from pr_calendar_test_ids;
 
 select pg_temp.assert_true(

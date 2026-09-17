@@ -1,6 +1,22 @@
 import { strict as assert } from 'node:assert'
 import test from 'node:test'
-import { addDays, formatOptionalTime, formatWeekRange, isHexColor, isSafeExternalUrl, normalizePrReferenceLinks, parsePrReferenceLinks, validatePrReferenceLinks, mondayOfWeek, parseDateOnly, shiftMonth, weekDates } from '../src/lib/prCalendar.ts'
+import { addDays, formatOptionalTime, formatWeekRange, isHexColor, isSafeExternalUrl, normalizePrReferenceLinks, parsePrReferenceLinks, validatePrReferenceLinks, mondayOfWeek, parseDateOnly, shiftMonth, weekDates, extractManualAssignees, extractAutoAssignees, computeLegacyResponsibleId, buildNonManagerPayload } from '../src/lib/prCalendar.ts'
+
+test('extractManualAssignees and extractAutoAssignees', () => {
+  const data = [
+    { profile_id: '1', assignment_source: 'manual' },
+    { profile_id: '2', assignment_source: 'event_owner' },
+    { profile_id: '3', assignment_source: 'awareness_responsible' },
+    { profile_id: '4', assignment_source: 'invalid' },
+    null,
+  ]
+  assert.deepEqual(extractManualAssignees(data), ['1'])
+  assert.deepEqual(extractAutoAssignees(data), [
+    { profileId: '2', source: 'event_owner' },
+    { profileId: '3', source: 'awareness_responsible' }
+  ])
+  assert.deepEqual(extractManualAssignees(null), [])
+})
 
 test('weekly board starts on Monday across a year boundary', () => {
   assert.equal(mondayOfWeek('2027-01-01'), '2026-12-28')
@@ -54,4 +70,60 @@ test('invalid calendar dates cannot silently roll into another month', () => {
   assert.ok(Number.isNaN(parseDateOnly('2026-02-30').getTime()))
   assert.ok(Number.isNaN(parseDateOnly('invalid').getTime()))
   assert.equal(parseDateOnly('2028-02-29').toISOString().slice(0, 10), '2028-02-29')
+})
+
+test('computeLegacyResponsibleId keeps existing if still assigned manually, otherwise uses first manual', () => {
+  assert.equal(computeLegacyResponsibleId('id1', ['id1', 'id2']), 'id1')
+  assert.equal(computeLegacyResponsibleId('id2', ['id1', 'id2']), 'id2')
+  assert.equal(computeLegacyResponsibleId('id3', ['id1', 'id2']), 'id1')
+  assert.equal(computeLegacyResponsibleId(null, ['id1', 'id2']), 'id1')
+  assert.equal(computeLegacyResponsibleId('id1', []), null)
+  assert.equal(computeLegacyResponsibleId(null, []), null)
+})
+
+test('buildNonManagerPayload correctly formats operational fields without forbidden keys', () => {
+  const draft = {
+    title: '  My PR Title  ',
+    entryKind: 'publication',
+    scheduledDate: '2026-10-10',
+    scheduledTime: '10:00',
+    color: '#123456',
+    status: 'planned',
+    channels: ['instagram'],
+    format: ' Reel  ',
+    notes: '   Some notes   ',
+    responsibleId: 'should_be_ignored',
+    eventId: 'ignored_event',
+    awarenessPostId: 'ignored_awareness',
+    taskId: 'ignored_task',
+    relatedPrEntryId: 'ignored_related',
+    manualAssigneeIds: ['ignored'],
+  }
+  const links = [{ id: '1', label: 'L', url: 'https://e.com' }]
+  const payload = buildNonManagerPayload(draft, links)
+
+  assert.deepEqual(payload, {
+    title: 'My PR Title',
+    entry_kind: 'publication',
+    scheduled_date: '2026-10-10',
+    scheduled_time: '10:00',
+    color: '#123456',
+    status: 'planned',
+    channels: ['instagram'],
+    channel: 'instagram',
+    format: 'Reel',
+    notes: 'Some notes',
+    reference_links: links,
+    reference_label: 'L',
+    reference_url: 'https://e.com',
+  })
+
+  // Ensure forbidden fields are not present
+  assert.ok(!('responsible_id' in payload))
+  assert.ok(!('event_id' in payload))
+  assert.ok(!('awareness_post_id' in payload))
+  assert.ok(!('task_id' in payload))
+  assert.ok(!('related_pr_entry_id' in payload))
+  assert.ok(!('period_id' in payload))
+  assert.ok(!('created_by' in payload))
 })
