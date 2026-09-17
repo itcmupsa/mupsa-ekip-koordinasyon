@@ -2,7 +2,7 @@
 
 Bu dosya, proje bağlamının güncel durum kaydıdır. Bir görev tamamlandığında yalnızca bu dosyadaki ilgili bölümleri güncelle; `AI_BAGLAM.md` dosyasını yalnızca kalıcı karar değiştiğinde değiştir.
 
-**Son güncelleme:** 13 Eylül 2026
+**Son güncelleme:** 17 Eylül 2026
 
 ## Tamamlanan çalışma: kullanıcı teması ve PWA duyurusu
 
@@ -13,6 +13,8 @@ Sürüm duyurusu `2026-2027 Dönemi` için 13 Eylül 2026 13:23 TSİ'de bir kez 
 Antigravity MCP model seçimi yerel eklentiye eklendi ve kuruldu; 61/61 test ile gerçek `gemini-3.1-pro-high` bağlantı testi geçti. Yeni araç şeması için yeni görev açılmalı. Özel proje kaynaklarının dış servise aktarımıyla ilgili önceki onay engeli devir notunda açıklanmıştır.
 
 ## Takvimler ve PR
+
+17 Eylül yetki güncellemesi: PR takvimi kayıt oluşturma/düzenleme yetkisi koordinatörlük unvanından ayrılarak dönem ve kişi bazlı `pr_calendar_permissions` tablosuna taşındı. Beyza ÇALIŞIR'ın Basın Yayın Koordinatörü rolü korunarak PR yönetim yetkisi kapatıldı; Ezgi ÖZDÜZENCİLER'in Halkla İlişkiler Koordinatörü rolü korunarak yetki açıldı. Aktif Süper Yöneticiler Numan ÖNDEŞ ve Zehra Nur Çoşkun erişimi koruyor. `20260917100000_add_explicit_pr_calendar_permissions.sql` canlı Supabase'e uygulandı; rol değişmezliği, etkili yetkiler, tablo gizliliği ve RPC erişimi transaction + rollback içinde doğrulandı. Lint, build ve PR takvimi testleri (6/6) geçti.
 
 13 Eylül çoklu bağlantı güncellemesi: PR kaydındaki ayrı “Bağlantı adı” ve “Harici bağlantı” alanları, tekrarlanabilir ad/adres çiftlerinden oluşan tek bir “Bağlantılar” bölümüne dönüştürüldü. Kullanıcı Instagram gönderisi, Drive dosyası veya brief gibi en fazla 20 bağlantıyı ayrı adlarla ekleyebilir ve tek tek kaldırabilir. `20260913113000_add_pr_reference_links.sql` bağlı veritabanına uygulandı; mevcut tek bağlantılı kayıt yeni listeye kayıpsız taşındı ve ilk öğe eski sütunlara geriye dönük uyumluluk için yansıtılıyor. RLS rollback testi, audit URL gizliliği, migration dry-run, lint, build ve PR takvim testleri (6/6) geçti. Vercel üretim paketi yeni alan metinlerini içeriyor ve canlı PR sayfasında tarayıcı hatası yok. Kontrol oturumundaki uygulama hesabı yalnız görüntüleme yetkili olduğundan düzenleme formu canlıda açılmadı; yetki değiştirilmedi ve test kaydı oluşturulmadı. Dal: `feature/pr-multiple-reference-links-20260913`; özellik commit'i `58a849a`, yayın/devir commit'i `c1440b3`.
 
