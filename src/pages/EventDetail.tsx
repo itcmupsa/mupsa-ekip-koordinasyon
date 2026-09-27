@@ -3365,10 +3365,10 @@ export default function EventDetail() {
   const canEdit = isOwner || isSuperAdmin || isCoCoordinator
 
   const sksMembers = processMembers.filter(m => m.processType === 'sks')
-  const sksOwner = sksMembers.find((member) => member.responsibilityType === 'owner')
-  const isSksOwner = sksOwner?.profileId === profileId
-  const canChangeSksStatus = isSuperAdmin || isSksOwner
-  const canManageSksTeam = isSuperAdmin || isOwner || isSksOwner
+  const isGeneralSecretary = coordinatorRoleSlug === 'general-secretary'
+  const canManageSks = isSuperAdmin || isOwner || isCoCoordinator || isGeneralSecretary
+  const canChangeSksStatus = canManageSks
+  const canManageSksTeam = canManageSks
   const designProcessMembers = processMembers.filter((member) => member.processType === 'design')
   const pressProcessMembers = processMembers.filter((member) => member.processType === 'press')
   const isDesignOwner = designProcessMembers.some(
