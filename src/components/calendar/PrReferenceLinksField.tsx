@@ -24,8 +24,8 @@ export default function PrReferenceLinksField({ value, onChange }: { value: PrRe
   return <section aria-labelledby="pr-reference-links-title" className="rounded-xl border border-canvas-border bg-canvas/50 p-3 sm:p-4">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h3 id="pr-reference-links-title" className="text-sm font-semibold text-ink">Bağlantılar</h3>
-        <p className="mt-1 text-xs leading-5 text-ink-soft">Instagram gönderisi, Drive dosyası veya brief gibi bağlantıları ayrı ayrı ekleyin.</p>
+        <h3 id="pr-reference-links-title" className="text-sm font-semibold text-ink">Yayına ait bağlantılar</h3>
+        <p className="mt-1 text-xs leading-5 text-ink-soft">Yalnız bu yayının dosyası, metni veya gönderi adresini ekleyin. Ortak etkinlik/farkındalık bağlantıları aşağıda kaynağından gösterilir.</p>
       </div>
       <button
         type="button"

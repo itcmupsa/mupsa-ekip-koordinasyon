@@ -31,8 +31,8 @@ export default function PrAssigneeSelect({ label, manualAssigneeIds, autoAssigne
   const availableMembers = members.filter(m => !manualAssigneeIds.includes(m.id))
 
   const sourceLabel = (source: 'event_owner' | 'awareness_responsible') => {
-    if (source === 'event_owner') return 'Etkinlik sahibi'
-    if (source === 'awareness_responsible') return 'Farkındalık sorumlusu'
+    if (source === 'event_owner') return 'Etkinlik yetkilisi'
+    if (source === 'awareness_responsible') return 'Farkındalık yetkilisi'
     return source
   }
 
@@ -55,31 +55,15 @@ export default function PrAssigneeSelect({ label, manualAssigneeIds, autoAssigne
       </label>
       {(manualAssigneeIds.length > 0 || autoAssignees.length > 0) && (
         <ul className="mt-2 flex flex-wrap gap-2">
-          {autoAssignees.map(a => {
-            const member = members.find(m => m.id === a.profileId)
-            return (
-              <li key={`${a.profileId}-${a.source}`} className="inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1.5 text-xs font-medium text-ink-soft">
-                {member?.name ?? 'Bilinmeyen'} <span className="opacity-60">({sourceLabel(a.source)})</span>
-              </li>
-            )
-          })}
-          {manualAssigneeIds.map(id => {
+          {[...new Set([...autoAssignees.map(a => a.profileId), ...manualAssigneeIds])].map(id => {
             const member = members.find(m => m.id === id)
-            return (
-              <li key={id} className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1.5 text-xs font-medium text-brand-dark">
-                {member?.name ?? 'Bilinmeyen'}
-                {!disabled && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(id)}
-                    className="relative ml-1 -mr-1 grid h-5 w-5 place-items-center rounded-full hover:bg-brand/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand before:absolute before:left-1/2 before:top-1/2 before:h-11 before:w-11 before:-translate-x-1/2 before:-translate-y-1/2"
-                    aria-label={`${member?.name ?? 'Kişiyi'} kaldır`}
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3"><path d="M18 6 6 18M6 6l12 12"/></svg>
-                  </button>
-                )}
-              </li>
-            )
+            const isManual = manualAssigneeIds.includes(id)
+            const roles: string[] = [...new Set(autoAssignees.filter(a => a.profileId === id).map(a => sourceLabel(a.source)))]
+            if (isManual) roles.push('İçeriğe atanan')
+            return <li key={id} className="inline-flex items-center gap-2 rounded-xl bg-brand-soft px-3 py-1 text-xs font-medium text-brand-dark">
+              <span>{member?.name ?? 'Bilinmeyen'} <span className="font-normal">({roles.join(' · ')})</span></span>
+              {isManual && !disabled ? <button type="button" onClick={() => handleRemove(id)} aria-label={`${member?.name ?? 'Kişinin'} manuel atamasını kaldır`} className="grid h-11 w-11 shrink-0 place-items-center rounded-lg hover:bg-brand/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">×</button> : null}
+            </li>
           })}
         </ul>
       )}

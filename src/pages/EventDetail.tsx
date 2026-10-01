@@ -2,6 +2,8 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import EventCoordinatorsPanel from '../components/events/EventCoordinatorsPanel'
+import LinkedPublications from '../components/calendar/LinkedPublications'
+import { usePublicationPlan } from '../hooks/usePublicationPlan'
 import { useSession } from '../hooks/useSession'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
 import { supabase } from '../lib/supabaseClient'
@@ -1140,6 +1142,7 @@ export default function EventDetail() {
   const [ownerName, setOwnerName] = useState<string | null>(null)
   const [ownerCoordinatorRoleName, setOwnerCoordinatorRoleName] = useState<string | null>(null)
   const [activeDetailTab, setActiveDetailTab] = useState<EventDetailTab>('overview')
+  const publicationPlan = usePublicationPlan(hasActiveMembership ? periodId : null)
   const [isEventDescriptionExpanded, setIsEventDescriptionExpanded] = useState(false)
   const [isSksSectionOpen, setIsSksSectionOpen] = useState(false)
   const [isBudgetSectionOpen, setIsBudgetSectionOpen] = useState(false)
@@ -3779,9 +3782,9 @@ export default function EventDetail() {
         <nav className="sticky top-16 z-20 -mx-4 mt-4 overflow-x-auto border-y border-canvas-border bg-canvas-surface/95 backdrop-blur lg:top-0 lg:mx-0 lg:rounded-xl lg:border" aria-label="Etkinlik detay bölümleri">
           <div className="grid min-w-[330px] grid-cols-3" role="tablist">
             {([
-              ['overview', 'Genel Bakış', 'overview'],
-              ['content', 'İçerikler', 'content'],
-              ['operations', 'Operasyon', 'operations'],
+              ['overview', 'Özet', 'overview'],
+              ['content', 'Belgeler ve kararlar', 'content'],
+              ['operations', 'Süreçler ve görevler', 'operations'],
             ] as const).map(([tab, label, icon]) => {
               const isActive = activeDetailTab === tab
               return (
@@ -3877,7 +3880,7 @@ export default function EventDetail() {
             <button type="button" onClick={() => openOperations()} className="rounded-lg border border-canvas-border bg-canvas-surface px-3 py-3 text-left shadow-card transition hover:border-brand/40 hover:bg-brand-soft/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">SKS</p>
               <p className="mt-1.5 line-clamp-2 text-sm font-semibold text-ink">{sksStatusLabel}</p>
-              <p className="mt-0.5 text-xs text-ink-soft">Operasyonda yönetilir</p>
+              <p className="mt-0.5 text-xs text-ink-soft">Süreçlerde yönetilir</p>
             </button>
             <button type="button" onClick={openDecisions} className="rounded-lg border border-canvas-border bg-canvas-surface px-3 py-3 text-left shadow-card transition hover:border-brand/40 hover:bg-brand-soft/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Son karar</p>
@@ -3891,7 +3894,7 @@ export default function EventDetail() {
           <section className="mt-4 flex flex-col gap-3 rounded-xl border border-brand/25 bg-brand-soft/35 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
             <div>
               <p className="text-sm font-semibold text-ink">Etkinlik raporu henüz hazırlanmadı.</p>
-              <p className="mt-1 text-xs leading-5 text-ink-soft">Etkinlik tamamlandıktan sonra raporu İçerikler bölümünde hazırlayabilirsiniz.</p>
+              <p className="mt-1 text-xs leading-5 text-ink-soft">Etkinlik tamamlandıktan sonra raporu Belgeler ve kararlar bölümünde hazırlayabilirsiniz.</p>
             </div>
             <button type="button" onClick={openReports} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg bg-brand-dark px-4 text-sm font-semibold text-white transition hover:bg-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
               Raporu hazırla
@@ -3901,10 +3904,11 @@ export default function EventDetail() {
 
         <div id="event-notes" className={activeDetailTab === 'overview' ? 'mt-4 grid scroll-mt-28 gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.85fr)]' : 'hidden'}>
           <div className="space-y-4">
+            {eventId ? <LinkedPublications plan={publicationPlan} sourceKind="event" sourceId={eventId} /> : null}
             <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3"><EventIconBadge name="note" /><h2 className="text-base font-semibold text-ink">Etkinlik özeti</h2></div>
-                <button type="button" onClick={() => setActiveDetailTab('content')} className="min-h-10 shrink-0 rounded-md px-2 text-xs font-semibold text-ink-soft hover:bg-canvas hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">İçeriklerde aç</button>
+                <button type="button" onClick={() => setActiveDetailTab('content')} className="min-h-10 shrink-0 rounded-md px-2 text-xs font-semibold text-ink-soft hover:bg-canvas hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">Belgelerde aç</button>
               </div>
               <div className="mt-4">
                 {activeDetailTab === 'content' && canEdit && isEditingGeneralNote ? (
@@ -3946,7 +3950,7 @@ export default function EventDetail() {
                 <EventIconBadge name="operations" />
                 <div>
                   <h2 className="text-base font-semibold text-ink">Süreçler</h2>
-                  <p className="mt-1 text-xs text-ink-soft">Tasarım ve Duyuru / Yayın akışlarını ayrı ayrı takip edin.</p>
+                  <p className="mt-1 text-xs text-ink-soft">Tasarım hazırlığını takip edin. Güncel paylaşım planı bağlı PR kayıtlarında gösterilir.</p>
                 </div>
               </div>
               <div className="mt-4 divide-y divide-canvas-border rounded-lg border border-canvas-border bg-canvas">
@@ -3960,30 +3964,33 @@ export default function EventDetail() {
                       {availableEventDesignAnnouncementStatuses.find((status) => status.slug === event.designAnnouncementStatus)?.label ?? event.designAnnouncementStatus}
                     </span>
                     <button type="button" onClick={() => openOperations('event-process-teams')} className="inline-flex min-h-10 items-center rounded-md px-2 text-xs font-semibold text-ink-soft hover:bg-canvas-surface hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-                      Operasyonda aç
+                      Süreçlerde aç
                     </button>
                   </div>
                 </div>
+                <details className="px-4 py-3">
+                  <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-ink-soft">Önceki duyuru süreç bilgileri (korunuyor)</summary>
                 <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-ink">Duyuru / Yayın</p>
-                    <p className="mt-0.5 text-xs text-ink-soft">İçerik hazırlığı, yayın planı ve paylaşım</p>
+                    <p className="text-sm font-semibold text-ink">Önceki duyuru kaydı</p>
+                    <p className="mt-0.5 text-xs text-ink-soft">Korunan önceki süreç bilgisi; güncel yayın planı PR takvimindedir</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                     <span className="inline-flex w-fit rounded-full bg-canvas-surface px-3 py-1 text-xs font-semibold text-ink">
                       {availableEventAnnouncementStatuses.find((status) => status.slug === event.announcementStatus)?.label ?? event.announcementStatus}
                     </span>
                     <button type="button" onClick={() => openOperations('event-process-teams')} className="inline-flex min-h-10 items-center rounded-md px-2 text-xs font-semibold text-ink-soft hover:bg-canvas-surface hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-                      Operasyonda aç
+                      Süreçlerde aç
                     </button>
                   </div>
                 </div>
+                </details>
               </div>
               {designAnnouncementStatusError ? <p className="mt-3 text-xs text-red-600">{designAnnouncementStatusError}</p> : null}
               {designAnnouncementStatusSuccess ? <p className="mt-3 text-xs text-green-600">{designAnnouncementStatusSuccess}</p> : null}
               {announcementStatusError ? <p className="mt-3 text-xs text-red-600">{announcementStatusError}</p> : null}
               {announcementStatusSuccess ? <p className="mt-3 text-xs text-green-600">{announcementStatusSuccess}</p> : null}
-              <p className="mt-3 text-xs text-ink-soft">SKS ayrıntıları Operasyon sekmesinde; burada yalnız Tasarım ve Duyuru / Yayın takip edilir.</p>
+              <p className="mt-3 text-xs text-ink-soft">Güncel yayın planı Yayınlar bölümünde; bu alanlarda çalışma ve önceki süreç bilgileri korunur.</p>
             </section>
           </div>
 
@@ -3991,7 +3998,7 @@ export default function EventDetail() {
             <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3"><EventIconBadge name="calendar" /><h2 className="text-base font-semibold text-ink">Tarihler</h2></div>
-                <button type="button" onClick={() => openOperations('event-flow')} className="min-h-[40px] shrink-0 rounded-md px-2 text-xs font-semibold text-ink-soft hover:bg-canvas hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">Operasyonda aç</button>
+                <button type="button" onClick={() => openOperations('event-flow')} className="min-h-[40px] shrink-0 rounded-md px-2 text-xs font-semibold text-ink-soft hover:bg-canvas hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">Süreçlerde aç</button>
               </div>
               <div className="relative mt-5 space-y-5 pl-5 before:absolute before:bottom-3 before:left-[5px] before:top-3 before:border-l before:border-dashed before:border-brand/30">
                 {([
@@ -4006,7 +4013,7 @@ export default function EventDetail() {
             <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3"><EventIconBadge name="pin" /><div><h2 className="text-base font-semibold text-ink">Mekân</h2><p className="mt-1 text-xs text-ink-soft">Etkinliğin yapılacağı yer.</p></div></div>
-                <button type="button" onClick={() => openOperations('event-flow')} className="min-h-[40px] shrink-0 rounded-md px-2 text-xs font-semibold text-ink-soft hover:bg-canvas hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">Operasyonda aç</button>
+                <button type="button" onClick={() => openOperations('event-flow')} className="min-h-[40px] shrink-0 rounded-md px-2 text-xs font-semibold text-ink-soft hover:bg-canvas hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">Süreçlerde aç</button>
               </div>
               <p className={`mt-4 text-sm ${event.venue ? 'text-ink' : 'italic text-ink-soft'}`}>{displayedVenue}</p>
             </section>
@@ -4016,7 +4023,7 @@ export default function EventDetail() {
         {activeDetailTab === 'content' ? (
           <section id="event-summary-content" className="mt-6 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3"><EventIconBadge name="note" /><div><h2 className="text-base font-semibold text-ink">Etkinlik özeti</h2><p className="mt-1 text-xs text-ink-soft">Genel Bakışta görünen kısa özeti burada yönetin.</p></div></div>
+              <div className="flex items-center gap-3"><EventIconBadge name="note" /><div><h2 className="text-base font-semibold text-ink">Etkinlik özeti</h2><p className="mt-1 text-xs text-ink-soft">Özette görünen kısa özeti burada yönetin.</p></div></div>
               {canEdit && !isEditingGeneralNote ? <button type="button" onClick={() => setIsEditingGeneralNote(true)} className="min-h-10 rounded-md border border-brand/40 px-3 text-xs font-semibold text-brand-dark hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">{event.generalNote ? 'Özeti düzenle' : 'Özet ekle'}</button> : null}
             </div>
             <div className="mt-4">
@@ -4677,6 +4684,7 @@ export default function EventDetail() {
         </div>
 
         <div id="event-operations" className={activeDetailTab === 'operations' ? 'mt-6 flex scroll-mt-28 flex-col gap-4' : 'hidden'}>
+        {eventId ? <LinkedPublications plan={publicationPlan} sourceKind="event" sourceId={eventId} /> : null}
         <section id="event-flow" className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
           <div className="flex items-center gap-3"><EventIconBadge name="overview" /><div><h2 className="text-base font-semibold text-ink">Etkinlik akışı</h2><p className="mt-1 text-xs text-ink-soft">Sonraki işlem, tarihler ve mekân burada yönetilir.</p></div></div>
           <div className="mt-4 grid gap-3 lg:grid-cols-3">
@@ -4694,11 +4702,11 @@ export default function EventDetail() {
         </section>
 
         <section id="event-process-teams" className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
-          <div className="flex items-center gap-3"><EventIconBadge name="operations" /><div><h2 className="text-base font-semibold text-ink">Süreç yönetimi</h2><p className="mt-1 text-xs text-ink-soft">Tasarım ve Duyuru / Yayın durumları ile ekip sorumluluklarını aynı yerde yönetin.</p></div></div>
+          <div className="flex items-center gap-3"><EventIconBadge name="operations" /><div><h2 className="text-base font-semibold text-ink">Süreç yönetimi</h2><p className="mt-1 text-xs text-ink-soft">Tasarım ve önceki süreç sorumlulukları. Yayın tarihi, saati ve paylaşımı Yayınlar bölümündeki PR kayıtlarında yönetin.</p></div></div>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {([
               ['design', 'Tasarım', designProcessMembers],
-              ['press', 'Duyuru / Yayın', pressProcessMembers],
+              ['press', 'Önceki duyuru süreci', pressProcessMembers],
             ] as const).map(([processType, label, members]) => {
               const owner = members.find((member) => member.responsibilityType === 'owner')
               const supporting = members.filter((member) => member.responsibilityType === 'supporting')

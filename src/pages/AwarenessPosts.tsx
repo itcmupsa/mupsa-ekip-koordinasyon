@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { useSearchParams } from 'react-router-dom'
 import AppShell from '../components/AppShell'
+import LinkedPublications from '../components/calendar/LinkedPublications'
+import { usePublicationPlan } from '../hooks/usePublicationPlan'
+import { publicationProgress } from '../lib/publicationPlan'
 import PermanentDeleteDialog from '../components/PermanentDeleteDialog'
 import { supabase } from '../lib/supabaseClient'
 import { deleteAwarenessPostPermanently } from '../lib/permanentDeletion'
@@ -168,15 +171,6 @@ function formatMonthYear(value: string | null): string {
   }).format(date)
 }
 
-function isDelayed(shareDate: string | null, sharingStatus: string): boolean {
-  if (!shareDate || sharingStatus === 'shared') return false
-  const target = parseDateOnly(shareDate)
-  if (!target) return false
-  const today = new Date()
-  const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())
-  return target.getTime() < todayUtc
-}
-
 function isValidUrl(value: string): boolean {
   if (!value.trim()) return true
   return /^https?:\/\//i.test(value.trim())
@@ -203,6 +197,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
   const [recordCheckStatuses, setRecordCheckStatuses] = useState<StatusOption[]>([])
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [reloadKey, setReloadKey] = useState(0)
+  const publicationPlan = usePublicationPlan(hasActiveMembership ? periodId : null, reloadKey)
   const [showInactive, setShowInactive] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [listFilter, setListFilter] = useState<ListFilter>('all')
@@ -628,16 +623,16 @@ export default function AwarenessPosts({ session }: { session: Session }) {
   const filteredPosts = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLocaleLowerCase('tr-TR')
     return posts.filter((post) => {
-      const delayed = isDelayed(post.shareDate, post.sharingStatus)
+      const { delayed, shared } = publicationProgress(publicationPlan.rows.filter(r => r.awareness_post_id === post.id))
       const matchesQuery = !normalizedQuery || [post.awarenessName, post.scope, post.nextAction]
         .some((value) => value?.toLocaleLowerCase('tr-TR').includes(normalizedQuery))
       const matchesFilter = listFilter === 'all'
         || (listFilter === 'delayed' && delayed)
-        || (listFilter === 'shared' && post.sharingStatus === 'shared')
-        || (listFilter === 'waiting' && post.sharingStatus !== 'shared' && !delayed)
+        || (listFilter === 'shared' && shared)
+        || (listFilter === 'waiting' && !shared && !delayed)
       return matchesQuery && matchesFilter
     })
-  }, [listFilter, posts, searchQuery])
+  }, [listFilter, posts, searchQuery, publicationPlan.rows])
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -725,7 +720,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
               </span>
             </label>
             <label className="grid gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Paylaşım durumu</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Önceki paylaşım kaydı</span>
               <span className="relative block">
                 <select value={listFilter} onChange={(event) => setListFilter(event.target.value as ListFilter)} className="min-h-[58px] w-full appearance-none rounded-xl border border-canvas-border bg-canvas px-4 py-3 pr-12 text-sm font-medium text-ink transition hover:border-brand/40 focus:bg-canvas-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
                   <option value="all">Tüm paylaşımlar</option>
@@ -752,7 +747,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
             </section>
           ) : filteredPosts.map((post) => {
             const canEdit = isSuperAdmin || (profileId !== null && (post.createdBy === profileId || post.designResponsibleId === profileId || post.pressResponsibleId === profileId))
-            const delayed = isDelayed(post.shareDate, post.sharingStatus)
+            const { delayed } = publicationProgress(publicationPlan.rows.filter(r => r.awareness_post_id === post.id))
             const links = [
               { label: 'Drive klasörü', url: post.driveFolderUrl },
               { label: 'Tasarım', url: post.designUrl },
@@ -775,15 +770,19 @@ export default function AwarenessPosts({ session }: { session: Session }) {
                         {post.scope ? <p className="mt-1 break-words text-sm text-ink-soft">{post.scope}</p> : null}
                       </div>
                     </div>
-                    <span className={`inline-flex min-h-9 w-full shrink-0 items-center justify-center rounded-lg border px-3 py-1 text-xs font-semibold sm:w-fit ${getStatusTone(post.sharingStatus)}`}>{getStatusLabel(post.sharingStatus, sharingStatuses)}</span>
+                    <span className="inline-flex min-h-9 w-full shrink-0 items-center justify-center rounded-lg border border-brand/20 bg-brand-soft px-3 py-1 text-xs font-semibold text-brand-dark sm:w-fit">Tasarım: {getStatusLabel(post.designStatus, designStatuses)}</span>
                   </div>
-
+                  <p className="mt-3 text-sm text-ink-soft">Farkındalık dönemi: {formatDate(post.startDate)}{post.endDate ? ` – ${formatDate(post.endDate)}` : ''} · Hazırlık: {formatDate(post.preparationStartDate)}</p>
+                  <div className="mt-4"><LinkedPublications plan={publicationPlan} sourceKind="awareness" sourceId={post.id} compact /></div>
+                  <details className="mt-4 rounded-xl border border-canvas-border p-3" open={post.id === selectedRecordId || undefined}>
+                    <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-ink">Çalışma, tasarım ve önceki kayıt ayrıntıları</summary>
+                    <p className="text-xs text-ink-soft">Mevcut bilgiler korunur. Güncel yayın tarihi ve durumu yukarıdaki bağlı PR kayıtlarında yönetilir.</p>
                   <dl className="mt-5 grid gap-3 border-y border-canvas-border py-4 sm:grid-cols-2 xl:grid-cols-4">
                     {[
                       ['Hazırlık başlangıcı', post.preparationStartDate],
                       ['Tarih aralığı', post.startDate && post.endDate ? `${formatDate(post.startDate)} – ${formatDate(post.endDate)}` : post.startDate ?? post.endDate],
-                      ['Tahmini paylaşım', post.estimatedDate],
-                      ['Paylaşım tarihi', post.shareDate],
+                      ['Önceki tahmini paylaşım', post.estimatedDate],
+                      ['Önceki paylaşım tarihi', post.shareDate],
                     ].map(([label, value]) => (
                       <div key={label} className="flex items-start gap-2">
                         <span className="mt-0.5 shrink-0 text-brand-dark"><CalendarIcon /></span>
@@ -798,8 +797,8 @@ export default function AwarenessPosts({ session }: { session: Session }) {
                       <div className="mt-2 flex flex-wrap gap-2">
                         {[
                           ['Tasarım', post.designStatus, designStatuses],
-                          ['Duyuru', post.announcementStatus, announcementStatuses],
-                          ['Paylaşım', post.sharingStatus, sharingStatuses],
+                          ['Metin hazırlığı', post.announcementStatus, announcementStatuses],
+                          ['Önceki paylaşım kaydı', post.sharingStatus, sharingStatuses],
                           ['Kayıt kontrolü', post.recordCheckStatus, recordCheckStatuses],
                         ].map(([label, slug, options]) => (
                           <span key={label as string} className={`inline-flex rounded-full border px-2.5 py-1 text-xs ${getStatusTone(slug as string)}`}><span className="mr-1 font-medium">{label as string}:</span>{getStatusLabel(slug as string, options as StatusOption[])}</span>
@@ -810,7 +809,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
                       <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">Sorumlular</p>
                       <div className="mt-2 grid gap-2 text-sm text-ink-soft">
                         <span className="flex items-center gap-2"><PersonIcon /><span><span className="font-medium text-ink">Tasarım:</span> {getProfileName(post.designResponsibleId)}</span></span>
-                        <span className="flex items-center gap-2"><PersonIcon /><span><span className="font-medium text-ink">Basın Yayın:</span> {getProfileName(post.pressResponsibleId)}</span></span>
+                        <span className="flex items-center gap-2"><PersonIcon /><span><span className="font-medium text-ink">Farkındalık yetkilisi (mevcut atama):</span> {getProfileName(post.pressResponsibleId)}</span></span>
                         <span className="flex items-center gap-2"><PersonIcon /><span><span className="font-medium text-ink">Kaydı giren:</span> {getProfileName(post.createdBy)}</span></span>
                       </div>
                     </div>
@@ -822,6 +821,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
                       {post.note ? <p className="whitespace-pre-wrap text-ink-soft"><span className="font-medium text-ink">Not:</span> {post.note}</p> : null}
                     </div>
                   ) : null}
+                  </details>
                 </div>
 
                 {links.length > 0 || canEdit ? (
@@ -867,22 +867,22 @@ export default function AwarenessPosts({ session }: { session: Session }) {
                   <fieldset className="rounded-xl border border-canvas-border bg-canvas-surface p-4 sm:p-5"><legend className="px-1"><span className="flex items-center gap-2 text-sm font-semibold text-brand-dark"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft"><CalendarIcon /></span>Tarihler</span></legend><div className="mt-3 grid gap-4 sm:grid-cols-2">
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Başlangıç günü<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} disabled={isSaving} className={fieldClass} /></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Bitiş günü<input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} disabled={isSaving} className={fieldClass} /></label>
-                    <label className="grid gap-1.5 text-sm font-medium text-ink">Tahmini paylaşım<input type="date" value={estimatedDate} onChange={(event) => setEstimatedDate(event.target.value)} disabled={isSaving} className={fieldClass} /></label>
-                    <label className="grid gap-1.5 text-sm font-medium text-ink">Paylaşım tarihi<input type="date" value={shareDate} onChange={(event) => setShareDate(event.target.value)} disabled={isSaving} className={fieldClass} /></label>
+                    <label className="grid gap-1.5 text-sm font-medium text-ink">Önceki tahmini paylaşım<input type="date" value={estimatedDate} onChange={(event) => setEstimatedDate(event.target.value)} disabled={isSaving} className={fieldClass} /></label>
+                    <label className="grid gap-1.5 text-sm font-medium text-ink">Önceki paylaşım tarihi<input type="date" value={shareDate} onChange={(event) => setShareDate(event.target.value)} disabled={isSaving} className={fieldClass} /></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Hazırlık başlangıcı <span className="font-normal text-ink-soft">(isteğe bağlı)</span><input type="date" value={preparationStartDate} onChange={(event) => setPreparationStartDate(event.target.value)} disabled={isSaving} className={fieldClass} /></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Kapanış tarihi<input type="date" value={closingDate} onChange={(event) => setClosingDate(event.target.value)} disabled={isSaving} className={fieldClass} /></label>
                   </div></fieldset>
 
                   <fieldset className="rounded-xl border border-canvas-border bg-canvas-surface p-4 sm:p-5"><legend className="px-1"><span className="flex items-center gap-2 text-sm font-semibold text-brand-dark"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-amber-800"><AwarenessIcon /></span>Süreç durumları</span></legend><div className="mt-3 grid gap-4 sm:grid-cols-2">
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Tasarım durumu<select value={designStatus} onChange={(event) => setDesignStatus(event.target.value)} disabled={isSaving} className={fieldClass}>{designStatuses.map((option) => <option key={option.slug} value={option.slug}>{option.label}</option>)}</select></label>
-                    <label className="grid gap-1.5 text-sm font-medium text-ink">Duyuru metni durumu<select value={announcementStatus} onChange={(event) => setAnnouncementStatus(event.target.value)} disabled={isSaving} className={fieldClass}>{announcementStatuses.map((option) => <option key={option.slug} value={option.slug}>{option.label}</option>)}</select></label>
-                    <label className="grid gap-1.5 text-sm font-medium text-ink">Paylaşım durumu<select value={sharingStatus} onChange={(event) => setSharingStatus(event.target.value)} disabled={isSaving} className={fieldClass}>{sharingStatuses.map((option) => <option key={option.slug} value={option.slug}>{option.label}</option>)}</select></label>
+                    <label className="grid gap-1.5 text-sm font-medium text-ink">Metin hazırlığı<select value={announcementStatus} onChange={(event) => setAnnouncementStatus(event.target.value)} disabled={isSaving} className={fieldClass}>{announcementStatuses.map((option) => <option key={option.slug} value={option.slug}>{option.label}</option>)}</select></label>
+                    <label className="grid gap-1.5 text-sm font-medium text-ink">Önceki paylaşım kaydı<select value={sharingStatus} onChange={(event) => setSharingStatus(event.target.value)} disabled={isSaving} className={fieldClass}>{sharingStatuses.map((option) => <option key={option.slug} value={option.slug}>{option.label}</option>)}</select></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Kayıt kontrolü<select value={recordCheckStatus} onChange={(event) => setRecordCheckStatus(event.target.value)} disabled={isSaving} className={fieldClass}>{recordCheckStatuses.map((option) => <option key={option.slug} value={option.slug}>{option.label}</option>)}</select></label>
                   </div></fieldset>
 
                   <fieldset className="rounded-xl border border-canvas-border bg-canvas-surface p-4 sm:p-5"><legend className="px-1"><span className="flex items-center gap-2 text-sm font-semibold text-brand-dark"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft"><PersonIcon /></span>Sorumlular ve takip</span></legend><div className="mt-3 grid gap-4 sm:grid-cols-2">
                     <label className="grid gap-1.5 text-sm font-medium text-ink">Tasarım sorumlusu<select value={designResponsibleId} onChange={(event) => setDesignResponsibleId(event.target.value)} disabled={isSaving} className={fieldClass}><option value="">Seçiniz</option>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>
-                    <label className="grid gap-1.5 text-sm font-medium text-ink">Basın Yayın sorumlusu<select value={pressResponsibleId} onChange={(event) => setPressResponsibleId(event.target.value)} disabled={isSaving} className={fieldClass}><option value="">Seçiniz</option>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>
+                    <label className="grid gap-1.5 text-sm font-medium text-ink">Farkındalık yetkilisi (mevcut atama)<select value={pressResponsibleId} onChange={(event) => setPressResponsibleId(event.target.value)} disabled={isSaving} className={fieldClass}><option value="">Seçiniz</option>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink sm:col-span-2">Sonraki aksiyon<input value={nextAction} onChange={(event) => setNextAction(event.target.value)} disabled={isSaving} placeholder="Sıradaki yapılacak işi yazın" className={fieldClass} /></label>
                     <label className="grid gap-1.5 text-sm font-medium text-ink sm:col-span-2">Not<textarea value={note} onChange={(event) => setNote(event.target.value)} disabled={isSaving} rows={3} className={`${fieldClass} resize-y`} /></label>
                   </div></fieldset>
