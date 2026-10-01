@@ -3904,7 +3904,7 @@ export default function EventDetail() {
 
         <div id="event-notes" className={activeDetailTab === 'overview' ? 'mt-4 grid scroll-mt-28 gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.85fr)]' : 'hidden'}>
           <div className="space-y-4">
-            {eventId ? <LinkedPublications plan={publicationPlan} sourceKind="event" sourceId={eventId} /> : null}
+
             <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3"><EventIconBadge name="note" /><h2 className="text-base font-semibold text-ink">Etkinlik özeti</h2></div>
@@ -3969,11 +3969,11 @@ export default function EventDetail() {
                   </div>
                 </div>
                 <details className="px-4 py-3">
-                  <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-ink-soft">Önceki duyuru süreç bilgileri (korunuyor)</summary>
+                  <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-ink-soft">Duyuru çalışma ayrıntıları</summary>
                 <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-ink">Önceki duyuru kaydı</p>
-                    <p className="mt-0.5 text-xs text-ink-soft">Korunan önceki süreç bilgisi; güncel yayın planı PR takvimindedir</p>
+                    <p className="text-sm font-semibold text-ink">Kayıtlı duyuru durumu</p>
+                    <p className="mt-0.5 text-xs text-ink-soft">Metin hazırlığı ve çalışma kaydı</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                     <span className="inline-flex w-fit rounded-full bg-canvas-surface px-3 py-1 text-xs font-semibold text-ink">
@@ -3995,6 +3995,7 @@ export default function EventDetail() {
           </div>
 
           <aside className="space-y-4">
+            {eventId ? <LinkedPublications plan={publicationPlan} sourceKind="event" sourceId={eventId} mode="summary" onOpenFull={() => openOperations()} /> : null}
             <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3"><EventIconBadge name="calendar" /><h2 className="text-base font-semibold text-ink">Tarihler</h2></div>
@@ -4685,6 +4686,7 @@ export default function EventDetail() {
 
         <div id="event-operations" className={activeDetailTab === 'operations' ? 'mt-6 flex scroll-mt-28 flex-col gap-4' : 'hidden'}>
         {eventId ? <LinkedPublications plan={publicationPlan} sourceKind="event" sourceId={eventId} /> : null}
+
         <section id="event-flow" className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
           <div className="flex items-center gap-3"><EventIconBadge name="overview" /><div><h2 className="text-base font-semibold text-ink">Etkinlik akışı</h2><p className="mt-1 text-xs text-ink-soft">Sonraki işlem, tarihler ve mekân burada yönetilir.</p></div></div>
           <div className="mt-4 grid gap-3 lg:grid-cols-3">
@@ -4706,7 +4708,7 @@ export default function EventDetail() {
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {([
               ['design', 'Tasarım', designProcessMembers],
-              ['press', 'Önceki duyuru süreci', pressProcessMembers],
+              ['press', 'Duyuru hazırlığı', pressProcessMembers],
             ] as const).map(([processType, label, members]) => {
               const owner = members.find((member) => member.responsibilityType === 'owner')
               const supporting = members.filter((member) => member.responsibilityType === 'supporting')

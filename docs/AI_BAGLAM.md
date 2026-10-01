@@ -41,6 +41,7 @@ Uygulama zamanla şunları kapsayacaktır:
 - Geciken görevlerde ilk anda ve 24 saat sonra bir kez daha bildirim üretilir.
 - SKS durum değişiminde aktif dönemdeki tüm ekibe bildirim üretilir.
 - Yayın tarih/saat/durum ve yayına özel bağlantıların güncel kaynağı PR kayıtlarıdır. Etkinlik/farkındalık detayları bağlı PR kayıtlarını doğrudan gösterir; tek bir yayın tamamlanınca diğerleri tamamlanmış sayılmaz. Kaynak kaydın ortak bağlantıları PR'de kaynağı belirtilerek gösterilir, kopyalanmaz. Önceki süreç, sorumlu ve bağlantı kayıtları ayrıntılarda saklanır; otomatik birleştirme veya silme yapılmaz.
+- Yayın listeleri kaynak kimliğine göre aynı PR kayıtlarını kullanır. Etkinlik özetinde kompakt yayın özeti ve tam listeye geçiş bulunur; farkındalık kartları PR gruplarını açılır "Yayınlar (N)" alanında gösterir. Kaydedilmiş paylaşım tarih/durum/sorumlu verileri "Çalışma ayrıntıları" içinde erişilebilir kalır.
 - SKS durumunu yalnız etkinliğin aktif dönemindeki Genel Sekreter ve Süper Yöneticiler değiştirebilir. Etkinlik sahibi, ortak koordinatör ve eski SKS ataması bu yetkiyi vermez. SKS ekranında ekip seçimi yoktur; yalnız durum gösterilir/seçilir. Geçmiş atama verileri saklanır.
 - PR takvimi kayıtlarında planlanan saat gelince uygulama içi bildirim ve 24 saat sonrası için yönetici/yetkili takip hatırlatması üretilir.
 - Etkinliklerin ve farkındalık paylaşımlarının tahmini/kesin tarihleri geçtiğinde ertesi gün MUPİ hatırlatmaları gönderilir.
