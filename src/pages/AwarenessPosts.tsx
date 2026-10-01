@@ -720,7 +720,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
               </span>
             </label>
             <label className="grid gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Önceki paylaşım kaydı</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Bağlı PR yayınlarının durumu</span>
               <span className="relative block">
                 <select value={listFilter} onChange={(event) => setListFilter(event.target.value as ListFilter)} className="min-h-[58px] w-full appearance-none rounded-xl border border-canvas-border bg-canvas px-4 py-3 pr-12 text-sm font-medium text-ink transition hover:border-brand/40 focus:bg-canvas-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
                   <option value="all">Tüm paylaşımlar</option>
