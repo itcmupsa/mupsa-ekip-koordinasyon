@@ -1205,17 +1205,8 @@ export default function EventDetail() {
 
   // Process Teams State (Combined fetch)
   const [processMembers, setProcessMembers] = useState<EventProcessMemberInfo[]>([])
-  const [processMembersLoadState, setProcessMembersLoadState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
-  const [processMembersRefreshKey, setProcessMembersRefreshKey] = useState(0)
 
   // SKS State
-  const [isSksPanelOpen, setIsSksPanelOpen] = useState(false)
-  const [sksSelectedProfileId, setSksSelectedProfileId] = useState('')
-  const [sksSelectedResponsibility, setSksSelectedResponsibility] = useState('supporting')
-  const [isAssigningSks, setIsAssigningSks] = useState(false)
-  const [assignSksError, setAssignSksError] = useState<string | null>(null)
-  const [removingSksMemberId, setRemovingSksMemberId] = useState<string | null>(null)
-  const [removeSksError, setRemoveSksError] = useState<string | null>(null)
   const [isUpdatingSksStatus, setIsUpdatingSksStatus] = useState(false)
   const [updateSksStatusError, setUpdateSksStatusError] = useState<string | null>(null)
   const [updateSksStatusSuccess, setUpdateSksStatusSuccess] = useState<string | null>(null)
@@ -1467,7 +1458,6 @@ export default function EventDetail() {
     let isMounted = true
 
     async function loadProcessMembers() {
-      setProcessMembersLoadState('loading')
       const { data: memberRows, error } = await supabase
         .from('event_process_members')
         .select('id, profile_id, responsibility_type, process_type')
@@ -1475,7 +1465,6 @@ export default function EventDetail() {
 
       if (!isMounted) return
       if (error) {
-        setProcessMembersLoadState('error')
         return
       }
 
@@ -1501,14 +1490,13 @@ export default function EventDetail() {
         responsibilityType: row.responsibility_type as string,
         processType: row.process_type as string
       })))
-      setProcessMembersLoadState('ready')
     }
 
     void loadProcessMembers()
     return () => {
       isMounted = false
     }
-  }, [hasBudgetAccess, hasActiveMembership, eventId, periodId, statusLoading, processMembersRefreshKey])
+  }, [hasBudgetAccess, hasActiveMembership, eventId, periodId, statusLoading])
 
   useEffect(() => {
     if (!isEditingGeneralNote && event) {
@@ -2962,81 +2950,6 @@ export default function EventDetail() {
     window.setTimeout(() => setGeneralNoteSuccess(null), 3000)
   }
 
-  async function handleAssignSksMember() {
-    if (!profileId || !eventId || !sksSelectedProfileId) {
-      setAssignSksError('Lütfen bir üye seçin.')
-      return
-    }
-
-    const sksMembersOnly = processMembers.filter(m => m.processType === 'sks')
-    if (sksMembersOnly.some((member) => member.profileId === sksSelectedProfileId)) {
-      setAssignSksError('Bu kişi SKS ekibinde zaten bir sorumluluğa atanmış.')
-      return
-    }
-
-    setIsAssigningSks(true)
-    setAssignSksError(null)
-
-    if (sksSelectedResponsibility === 'owner') {
-      const existingOwner = sksMembersOnly.find((member) => member.responsibilityType === 'owner')
-      if (existingOwner) {
-        const { error: updateError } = await supabase
-          .from('event_process_members')
-          .update({ profile_id: sksSelectedProfileId, assigned_by: profileId })
-          .eq('id', existingOwner.id)
-        if (updateError) {
-          setIsAssigningSks(false)
-          setAssignSksError(updateError.message.includes('kilitli')
-            ? 'Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.'
-            : 'Mevcut SKS sorumlusu kaldırılamadı.')
-          return
-        }
-        setIsAssigningSks(false)
-        setSksSelectedProfileId('')
-        setProcessMembersRefreshKey((current) => current + 1)
-        return
-      }
-    }
-
-    const { error } = await supabase.from('event_process_members').insert({
-      event_id: eventId,
-      process_type: 'sks',
-      profile_id: sksSelectedProfileId,
-      responsibility_type: sksSelectedResponsibility,
-      assigned_by: profileId,
-    })
-
-    setIsAssigningSks(false)
-    if (error) {
-      setAssignSksError(error.message.includes('kilitli')
-        ? 'Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.'
-        : error.code === '42501'
-          ? 'SKS ekibini yönetme yetkiniz bulunmuyor.'
-          : 'SKS üyesi atanırken bir hata oluştu.')
-      return
-    }
-
-    setSksSelectedProfileId('')
-    setProcessMembersRefreshKey((current) => current + 1)
-  }
-
-  async function handleRemoveSksMember(memberId: string) {
-    if (!profileId) return
-    setRemovingSksMemberId(memberId)
-    setRemoveSksError(null)
-    const { error } = await supabase.from('event_process_members').delete().eq('id', memberId)
-    setRemovingSksMemberId(null)
-
-    if (error) {
-      setRemoveSksError(error.message.includes('kilitli')
-        ? 'Dönem kilitli olduğu için bu işlemi gerçekleştiremezsiniz.'
-        : error.code === '42501'
-          ? 'Bu kişiyi kaldırma yetkiniz bulunmuyor.'
-          : 'Atama kaldırılırken bir hata oluştu.')
-      return
-    }
-    setProcessMembersRefreshKey((current) => current + 1)
-  }
 
   async function handleUpdateSksStatus(newSlug: string) {
     if (!profileId || !eventId) return
@@ -3044,7 +2957,7 @@ export default function EventDetail() {
     setUpdateSksStatusError(null)
     setUpdateSksStatusSuccess(null)
 
-    const { error } = await supabase.from('events').update({ sks_status: newSlug }).eq('id', eventId)
+    const { error } = await supabase.from('events').update({ sks_status: newSlug }).eq('id', eventId).select('id').single()
     setIsUpdatingSksStatus(false)
     if (error) {
       setUpdateSksStatusError(error.message.includes('kilitli')
@@ -3364,11 +3277,8 @@ export default function EventDetail() {
 
   const canEdit = isOwner || isSuperAdmin || isCoCoordinator
 
-  const sksMembers = processMembers.filter(m => m.processType === 'sks')
   const isGeneralSecretary = coordinatorRoleSlug === 'general-secretary'
-  const canManageSks = isSuperAdmin || isOwner || isCoCoordinator || isGeneralSecretary
-  const canChangeSksStatus = canManageSks
-  const canManageSksTeam = canManageSks
+  const canChangeSksStatus = isSuperAdmin || isGeneralSecretary
   const designProcessMembers = processMembers.filter((member) => member.processType === 'design')
   const pressProcessMembers = processMembers.filter((member) => member.processType === 'press')
   const isDesignOwner = designProcessMembers.some(
@@ -3439,14 +3349,6 @@ export default function EventDetail() {
     }
   }, [canEdit, hasBudgetAccess, periodId])
 
-  useEffect(() => {
-    if (sksMembers.some((member) => member.responsibilityType === 'owner')) return
-    const generalSecretary = periodMembers.find((member) => member.coordinatorRoleSlug === 'general-secretary')
-    if (generalSecretary) {
-      setSksSelectedProfileId(generalSecretary.profileId)
-      setSksSelectedResponsibility('owner')
-    }
-  }, [periodMembers, sksMembers])
 
   function toggleAssignmentPanel(taskId: string) {
     if (openAssignmentTaskId === taskId) {
@@ -4825,14 +4727,14 @@ export default function EventDetail() {
         {/* SKS Süreci */}
         <section className="order-2 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card">
           <button type="button" onClick={() => setIsSksSectionOpen((open) => !open)} aria-expanded={isSksSectionOpen} className="flex min-h-[44px] w-full items-center justify-between gap-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-            <div className="flex items-center gap-3"><EventIconBadge name="sks" /><div><h2 className="text-base font-semibold text-ink">SKS</h2><p className="mt-1 text-xs text-ink-soft">SKS durumu ve SKS ekibini yönetin.</p></div></div>
+            <div className="flex items-center gap-3"><EventIconBadge name="sks" /><div><h2 className="text-base font-semibold text-ink">SKS</h2><p className="mt-1 text-xs text-ink-soft">SKS sürecinin güncel durumunu takip edin.</p></div></div>
             <div className="flex items-center gap-2">
               <span className="hidden rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand-dark sm:inline-flex">{event.sksStatus ? (availableSksStatuses.find((status) => status.slug === event.sksStatus)?.label ?? event.sksStatus) : 'Belirtilmemiş'}</span>
               <span aria-hidden="true" className={`text-xl text-ink-soft transition-transform ${isSksSectionOpen ? 'rotate-180' : ''}`}>⌄</span>
             </div>
           </button>
           <div className={isSksSectionOpen ? 'mt-4 flex flex-col gap-4 border-t border-canvas-border pt-4' : 'hidden'}>
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]">
+            <div className="grid gap-4">
               <section className="rounded-xl border border-canvas-border bg-canvas p-4 sm:p-5">
                 <div className="flex items-center gap-3">
                   <EventIconBadge name="sks" />
@@ -4870,119 +4772,7 @@ export default function EventDetail() {
                 </div>
               </section>
 
-              <section className="rounded-xl border border-canvas-border bg-canvas p-4 sm:p-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold text-ink">SKS ekibi</h3>
-                    <p className="mt-1 text-xs text-ink-soft">Süreçte görev alan ve bilgilendirilen üyeler.</p>
-                  </div>
-                  {canManageSksTeam && (
-                    <button
-                      type="button"
-                      onClick={() => setIsSksPanelOpen((open) => !open)}
-                      className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-brand/40 px-3 text-xs font-semibold text-brand-dark transition hover:bg-brand-soft sm:w-auto"
-                    >
-                      {isSksPanelOpen ? 'Yönetimi kapat' : 'Ekibi yönet'}
-                    </button>
-                  )}
-                </div>
-
-                {processMembersLoadState === 'loading' && <p className="mt-4 text-sm text-ink-soft">SKS ekibi yükleniyor…</p>}
-                {processMembersLoadState === 'error' && <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">SKS ekibi yüklenirken bir hata oluştu.</p>}
-                {processMembersLoadState === 'ready' && (
-                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                    {(['owner', 'supporting', 'informed'] as const).map((responsibilityType) => {
-                      const members = sksMembers.filter((member) => member.responsibilityType === responsibilityType)
-                      const label = responsibilityType === 'owner' ? 'Ana sorumlu' : responsibilityType === 'supporting' ? 'Destekleyen' : 'Bilgilendirilen'
-                      return (
-                        <div key={responsibilityType} className="min-w-0 rounded-xl border border-canvas-border bg-canvas-surface p-3.5">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs font-semibold text-ink-soft">{label}</p>
-                            <span className="rounded-full bg-canvas px-2 py-0.5 text-[11px] font-semibold text-ink-soft">{members.length}</span>
-                          </div>
-                          {members.length > 0 ? (
-                            <div className="mt-3 flex flex-col gap-2">
-                              {members.map((member) => (
-                                <div key={member.id} className="flex min-w-0 items-center gap-2">
-                                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand-dark">
-                                    {member.displayName.trim().charAt(0).toLocaleUpperCase('tr-TR') || '?'}
-                                  </span>
-                                  <span className="truncate text-sm font-medium text-ink">{member.displayName}</span>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="mt-3 text-xs italic text-ink-soft">Atanmamış</p>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </section>
             </div>
-
-            {isSksPanelOpen && canManageSksTeam && (
-              <section className="overflow-hidden rounded-xl border border-canvas-border bg-canvas shadow-card">
-                <div className="flex items-center justify-between gap-3 border-b border-canvas-border px-4 py-3 sm:px-5">
-                  <div className="flex items-center gap-3">
-                    <EventIconBadge name="person" />
-                    <div>
-                      <h4 className="text-sm font-semibold text-ink">SKS ekip yönetimi</h4>
-                      <p className="mt-0.5 text-xs text-ink-soft">Üye ekleyin veya mevcut üyeleri kaldırın.</p>
-                    </div>
-                  </div>
-                  <button type="button" onClick={() => setIsSksPanelOpen(false)} aria-label="SKS ekip yönetimini kapat" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-canvas-border text-lg text-ink-soft hover:bg-canvas-surface">×</button>
-                </div>
-
-                <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-                  <div className="rounded-xl border border-canvas-border bg-canvas-surface p-4">
-                    <h5 className="text-sm font-semibold text-ink">Yeni ekip üyesi</h5>
-                    <p className="mt-1 text-xs text-ink-soft">Üyeyi ve süreçteki rolünü seçin.</p>
-                    <div className="mt-4 flex flex-col gap-3">
-                      <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
-                        Üye
-                        <select value={sksSelectedProfileId} onChange={(e) => setSksSelectedProfileId(e.target.value)} disabled={isAssigningSks || periodMembersLoadState === 'loading'} className="min-h-11 w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2.5 text-sm font-medium normal-case tracking-normal text-ink outline-none focus:border-brand disabled:opacity-60">
-                          <option value="">Üye seçin</option>
-                          {periodMembers.filter((member) => !sksMembers.some((assignedMember) => assignedMember.profileId === member.profileId)).map((member) => <option key={member.profileId} value={member.profileId}>{member.displayName}</option>)}
-                        </select>
-                      </label>
-                      <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
-                        Sorumluluk türü
-                        <select value={sksSelectedResponsibility} onChange={(e) => setSksSelectedResponsibility(e.target.value)} disabled={isAssigningSks} className="min-h-11 w-full rounded-lg border border-canvas-border bg-canvas px-3 py-2.5 text-sm font-medium normal-case tracking-normal text-ink outline-none focus:border-brand disabled:opacity-60">
-                          <option value="owner">Ana sorumlu</option><option value="supporting">Destekleyen</option><option value="informed">Bilgilendirilen</option>
-                        </select>
-                      </label>
-                      <button type="button" onClick={() => void handleAssignSksMember()} disabled={isAssigningSks} className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand-dark px-4 text-sm font-semibold text-white transition hover:bg-brand disabled:opacity-60">{isAssigningSks ? 'Ekleniyor…' : '+ Ekip üyesi ekle'}</button>
-                    </div>
-                    {assignSksError && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{assignSksError}</p>}
-                  </div>
-
-                  <div className="rounded-xl border border-canvas-border bg-canvas-surface p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div><h5 className="text-sm font-semibold text-ink">Eklenen üyeler</h5><p className="mt-1 text-xs text-ink-soft">SKS sürecindeki güncel ekip.</p></div>
-                      <span className="rounded-full bg-canvas px-2.5 py-1 text-xs font-semibold text-ink-soft">{sksMembers.length}</span>
-                    </div>
-                    {sksMembers.length === 0 ? (
-                      <div className="mt-4 rounded-xl border border-dashed border-canvas-border bg-canvas px-4 py-8 text-center"><p className="text-sm font-medium text-ink">Henüz ekip üyesi yok</p><p className="mt-1 text-xs text-ink-soft">Soldaki alandan ilk üyeyi ekleyebilirsiniz.</p></div>
-                    ) : (
-                      <div className="mt-4 flex flex-col gap-2">
-                        {sksMembers.map((member) => {
-                          const responsibilityLabel = member.responsibilityType === 'owner' ? 'Ana sorumlu' : member.responsibilityType === 'supporting' ? 'Destekleyen' : 'Bilgilendirilen'
-                          return (
-                            <div key={member.id} className="flex flex-col gap-3 rounded-xl border border-canvas-border bg-canvas p-3 sm:flex-row sm:items-center sm:justify-between">
-                              <div className="flex min-w-0 items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-semibold text-brand-dark">{member.displayName.trim().charAt(0).toLocaleUpperCase('tr-TR') || '?'}</span><div className="min-w-0"><p className="truncate text-sm font-semibold text-ink">{member.displayName}</p><p className="mt-0.5 text-xs text-ink-soft">{responsibilityLabel}</p></div></div>
-                              <button type="button" onClick={() => void handleRemoveSksMember(member.id)} disabled={removingSksMemberId === member.id} className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-red-200 px-3 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 sm:w-auto">{removingSksMemberId === member.id ? 'Kaldırılıyor…' : 'Kaldır'}</button>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                    {removeSksError && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{removeSksError}</p>}
-                  </div>
-                </div>
-              </section>
-            )}
           </div>
         </section>
 

@@ -2,7 +2,7 @@
 
 Bu dosya, proje bağlamının güncel durum kaydıdır. Bir görev tamamlandığında yalnızca bu dosyadaki ilgili bölümleri güncelle; `AI_BAGLAM.md` dosyasını yalnızca kalıcı karar değiştiğinde değiştir.
 
-**Son güncelleme:** 28 Eylül 2026
+**Son güncelleme:** 1 Ekim 2026
 
 ## Tamamlanan çalışma: kullanıcı teması ve PWA duyurusu
 
@@ -13,6 +13,8 @@ Sürüm duyurusu `2026-2027 Dönemi` için 13 Eylül 2026 13:23 TSİ'de bir kez 
 Antigravity MCP model seçimi yerel eklentiye eklendi ve kuruldu; 61/61 test ile gerçek `gemini-3.1-pro-high` bağlantı testi geçti. Yeni araç şeması için yeni görev açılmalı. Özel proje kaynaklarının dış servise aktarımıyla ilgili önceki onay engeli devir notunda açıklanmıştır.
 
 ## Takvimler ve PR
+
+1 Ekim SKS sadeleştirmesi: SKS yetkisi yalnız aktif Genel Sekreter ve Süper Yöneticiler olarak güncellendi. Etkinlik sahibi, ortak koordinatör ve eski SKS sorumlusu SKS durumunu değiştiremez. Ekip listesi/seçimi/yönetimi ve ilgili kullanılmayan kod kaldırıldı; yalnız durum alanı kaldı. `20261001120000_restrict_sks_to_secretary_and_admin.sql` eski migration'ları değiştirmeden yeni kuralı uygular. Lint/build ve bağlı veritabanında migration + rollback testi geçti; gerçek kullanıcı kayıtları ve bildirimler değiştirilmedi.
 
 17 Eylül çoklu PR atama güncellemesi: `pr_calendar_entry_assignees` tablosu manuel, etkinlik sahibi ve farkındalık Basın-Yayın sorumlusu kaynaklarını ayrı tutar; aynı kişi birden fazla kaynaktan atanabilir. Tüm aktif üyeler aktif PR takvimini görür. Açık PR yöneticileri ve aktif Süper Yöneticiler tam yönetir; herhangi bir kaynaktan atanmış aktif üye yalnız kendi PR kaydının operasyonel alanlarını düzenleyebilir. Atanmamış üyeler salt-okunurdur. Yeni atomic RPC, RLS, alan-kısıtlayıcı trigger, audit ve legacy `responsible_id` uyumluluğu `20260917143000_add_pr_entry_assignees.sql` ile canlı Supabase'e uygulandı. Mevcut bir legacy sorumlu satırının manuel atamaya taşındığı ve eksik backfill bulunmadığı doğrulandı. Migration-in-transaction ile post-deploy rollback senaryoları; lint, build, diff kontrolü ve PR testleri (9/9) geçti. Özellik commit'i `0a8ce5a`, yayın/devir commit'i `c6c7f87`; canlı Vercel paketi yeni RPC ve atama arayüzü metinlerini içeriyor. Bildirim gönderilmedi.
 

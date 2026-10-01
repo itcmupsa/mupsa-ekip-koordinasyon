@@ -40,6 +40,7 @@ Uygulama zamanla şunları kapsayacaktır:
 - Görev atamalarında `primary` ve `supporting` ayrımı vardır.
 - Geciken görevlerde ilk anda ve 24 saat sonra bir kez daha bildirim üretilir.
 - SKS durum değişiminde aktif dönemdeki tüm ekibe bildirim üretilir.
+- SKS durumunu yalnız etkinliğin aktif dönemindeki Genel Sekreter ve Süper Yöneticiler değiştirebilir. Etkinlik sahibi, ortak koordinatör ve eski SKS ataması bu yetkiyi vermez. SKS ekranında ekip seçimi yoktur; yalnız durum gösterilir/seçilir. Geçmiş atama verileri saklanır.
 - PR takvimi kayıtlarında planlanan saat gelince uygulama içi bildirim ve 24 saat sonrası için yönetici/yetkili takip hatırlatması üretilir.
 - Etkinliklerin ve farkındalık paylaşımlarının tahmini/kesin tarihleri geçtiğinde ertesi gün MUPİ hatırlatmaları gönderilir.
 - Görev bağımlılıkları SKS durumu, başka bir görevin ilerlemesi veya etkinlik tarihine göre tanımlanabilir.
