@@ -18,7 +18,7 @@ Antigravity MCP model seçimi yerel eklentiye eklendi ve kuruldu; 61/61 test ile
 
 Kullanıcının ekran görüntüsündeki düz Etkinlikler/Farkındalıklar checkbox'ları ikon, kaynak sayısı rozeti ve seçili durum işareti içeren 44 px toggle düğmelerine dönüştürüldü. `aria-pressed`, klavye odak halkası ve mevcut aç/kapat davranışı korundu. 375 px görünümde iki düğme yan yana sığıyor; Farkındalıklar kapatılınca üst şerit ve günlük etiketlerin kaybolduğu yerel tarayıcıda gözlemlendi. Sayı rozetleri aktif dönem toplamını gösterir; açıklayıcı title var. Üst farkındalık alanı kompakt, daha hafif bir şerit oldu; başlık, kaynak adı ve tarih aralığı ayrıldı. PR haftalık özetinin gereksiz boşluğu/ikinci ayıracı kaldırıldı. Ortak şerit Farkındalık Takvimi'nde de aynı düzeni kullanır.
 
-Lint, diff, tam build ve 6 render regresyon testi geçti. Veritabanı, yetki veya kayıt davranışı değişmedi. Yayın için main/Vercel gönderimi yapılıyor; dağıtım sonucu ayrıca doğrulanacak.
+Lint, diff, tam build ve 6 render regresyon testi geçti. Veritabanı, yetki veya kayıt davranışı değişmedi. Görsel revizyon `59e1d73` ile main üzerinden canlıya alındı. Vercel success / Deployment has completed ve üretimde `index-DlZSv3fr.js` içindeki yeni Takvimde gösterilecek kaynaklar kontrolü doğrulandı; yerel deneme anahtarı yok.
 
 
 ### 1 Ekim — Takvim ve form düzeltmeleri canlıya alındı
