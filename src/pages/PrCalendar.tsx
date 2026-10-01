@@ -472,7 +472,7 @@ export default function PrCalendar({ session }: { session: Session }) {
         <ReferenceToggles showEvents={showEventRefs} setShowEvents={setShowEventRefs} showAwareness={showAwarenessRefs} setShowAwareness={setShowAwarenessRefs} eventCount={eventReferences.length} awarenessCount={awarenessReferences.length} />
 
         {view === 'week' ? <>
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-canvas-border pb-3 text-xs text-ink-soft sm:text-sm">
+          <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink-soft sm:text-sm">
             <span className="font-semibold text-ink">Bu hafta: <strong>{weekEntries.length} PR kaydı / {(() => {
               const visibleWeekEnd = addDays(weekStart, 6)
               let eList: { id: string }[] = []

@@ -14,6 +14,13 @@ Antigravity MCP model seçimi yerel eklentiye eklendi ve kuruldu; 61/61 test ile
 
 ## Takvimler ve PR
 
+### 1 Ekim — Takvim kaynak düğmelerinin modernleştirilmesi
+
+Kullanıcının ekran görüntüsündeki düz Etkinlikler/Farkındalıklar checkbox'ları ikon, kaynak sayısı rozeti ve seçili durum işareti içeren 44 px toggle düğmelerine dönüştürüldü. `aria-pressed`, klavye odak halkası ve mevcut aç/kapat davranışı korundu. 375 px görünümde iki düğme yan yana sığıyor; Farkındalıklar kapatılınca üst şerit ve günlük etiketlerin kaybolduğu yerel tarayıcıda gözlemlendi. Sayı rozetleri aktif dönem toplamını gösterir; açıklayıcı title var. Üst farkındalık alanı kompakt, daha hafif bir şerit oldu; başlık, kaynak adı ve tarih aralığı ayrıldı. PR haftalık özetinin gereksiz boşluğu/ikinci ayıracı kaldırıldı. Ortak şerit Farkındalık Takvimi'nde de aynı düzeni kullanır.
+
+Lint, diff, tam build ve 6 render regresyon testi geçti. Veritabanı, yetki veya kayıt davranışı değişmedi. Yayın için main/Vercel gönderimi yapılıyor; dağıtım sonucu ayrıca doğrulanacak.
+
+
 ### 1 Ekim — Takvim ve form düzeltmeleri canlıya alındı
 
 Uygulama commit'i `81b8804` GitHub main dalına gönderildi. GitHub commit durumunda **Vercel – mupsa-ekip-koordinasyon: success / Deployment has completed** doğrulandı; dağıtım: https://vercel.com/mupsa/mupsa-ekip-koordinasyon/6UrC7aZAHjk9MVBu1aHtg8QCeYA8 . Üretim adresi yeni `index-9w9R24oV.js` paketini sunuyor. Kaynak Referansı, Bu kayıt için yayın planla, yeni geçerli HTTP(S) bağlantı hata metni ve takvim yenileme uyarısı pakette doğrulandı. Yerel deneme publishable değeri üretim paketinde yok; uygulama tam derlenmiş. Yayın öncesi 38/38 test, lint, build ve diff kontrolü temiz.
