@@ -1142,6 +1142,7 @@ export default function EventDetail() {
   const [ownerName, setOwnerName] = useState<string | null>(null)
   const [ownerCoordinatorRoleName, setOwnerCoordinatorRoleName] = useState<string | null>(null)
   const [activeDetailTab, setActiveDetailTab] = useState<EventDetailTab>('overview')
+  const [expandPrPlan, setExpandPrPlan] = useState(false)
   const publicationPlan = usePublicationPlan(hasActiveMembership ? periodId : null)
   const [isEventDescriptionExpanded, setIsEventDescriptionExpanded] = useState(false)
   const [isSksSectionOpen, setIsSksSectionOpen] = useState(false)
@@ -3945,57 +3946,10 @@ export default function EventDetail() {
             </section>
 
 
-            <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
-              <div className="flex items-center gap-3">
-                <EventIconBadge name="operations" />
-                <div>
-                  <h2 className="text-base font-semibold text-ink">Süreçler</h2>
-                  <p className="mt-1 text-xs text-ink-soft">Tasarım hazırlığını takip edin. Güncel paylaşım planı bağlı PR kayıtlarında gösterilir.</p>
-                </div>
-              </div>
-              <div className="mt-4 divide-y divide-canvas-border rounded-lg border border-canvas-border bg-canvas">
-                <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-ink">Tasarım</p>
-                    <p className="mt-0.5 text-xs text-ink-soft">Brief, tasarım ve revize aşamaları</p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                    <span className="inline-flex w-fit rounded-full bg-canvas-surface px-3 py-1 text-xs font-semibold text-ink">
-                      {availableEventDesignAnnouncementStatuses.find((status) => status.slug === event.designAnnouncementStatus)?.label ?? event.designAnnouncementStatus}
-                    </span>
-                    <button type="button" onClick={() => openOperations('event-process-teams')} className="inline-flex min-h-10 items-center rounded-md px-2 text-xs font-semibold text-ink-soft hover:bg-canvas-surface hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-                      Süreçlerde aç
-                    </button>
-                  </div>
-                </div>
-                <details className="px-4 py-3">
-                  <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-ink-soft">Duyuru çalışma ayrıntıları</summary>
-                <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-ink">Kayıtlı duyuru durumu</p>
-                    <p className="mt-0.5 text-xs text-ink-soft">Metin hazırlığı ve çalışma kaydı</p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                    <span className="inline-flex w-fit rounded-full bg-canvas-surface px-3 py-1 text-xs font-semibold text-ink">
-                      {availableEventAnnouncementStatuses.find((status) => status.slug === event.announcementStatus)?.label ?? event.announcementStatus}
-                    </span>
-                    <button type="button" onClick={() => openOperations('event-process-teams')} className="inline-flex min-h-10 items-center rounded-md px-2 text-xs font-semibold text-ink-soft hover:bg-canvas-surface hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-                      Süreçlerde aç
-                    </button>
-                  </div>
-                </div>
-                </details>
-              </div>
-              {designAnnouncementStatusError ? <p className="mt-3 text-xs text-red-600">{designAnnouncementStatusError}</p> : null}
-              {designAnnouncementStatusSuccess ? <p className="mt-3 text-xs text-green-600">{designAnnouncementStatusSuccess}</p> : null}
-              {announcementStatusError ? <p className="mt-3 text-xs text-red-600">{announcementStatusError}</p> : null}
-              {announcementStatusSuccess ? <p className="mt-3 text-xs text-green-600">{announcementStatusSuccess}</p> : null}
-              <p className="mt-3 text-xs text-ink-soft">Güncel yayın planı Yayınlar bölümünde; bu alanlarda çalışma ve önceki süreç bilgileri korunur.</p>
-            </section>
-          </div>
+                      </div>
 
           <aside className="space-y-4">
-            {eventId ? <LinkedPublications plan={publicationPlan} sourceKind="event" sourceId={eventId} mode="summary" onOpenFull={() => openOperations()} /> : null}
+            {eventId ? <LinkedPublications plan={publicationPlan} sourceKind="event" sourceId={eventId} onOpenFull={() => { setExpandPrPlan(true); openOperations('event-publication-plan') }} /> : null}
             <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3"><EventIconBadge name="calendar" /><h2 className="text-base font-semibold text-ink">Tarihler</h2></div>
@@ -4088,16 +4042,8 @@ export default function EventDetail() {
                 </p>
               )}
               {decisionsLoadState === 'ready' && decisions.length === 0 && (
-                <div className="flex min-h-[340px] flex-col items-center justify-center px-5 py-10 text-center">
-                  <div className="flex items-center gap-5 text-canvas-border" aria-hidden="true">
-                    <span className="h-px w-12 bg-canvas-border" />
-                    <span className="flex h-16 w-16 items-center justify-center rounded-full border border-brand/20 bg-brand-soft text-brand-dark">
-                      <EventIcon name="decision" className="h-7 w-7" />
-                    </span>
-                    <span className="h-px w-12 bg-canvas-border" />
-                  </div>
-                  <h3 className="mt-5 text-base font-semibold text-ink">Henüz karar bulunmuyor</h3>
-                  <p className="mt-2 text-sm text-ink-soft">Bu etkinlik için henüz karar eklenmemiş.</p>
+                <div className="flex min-h-[80px] items-center justify-center rounded-xl border border-dashed border-canvas-border bg-canvas px-5 py-4 text-center">
+                  <p className="text-sm text-ink-soft">Bu etkinlik için henüz karar eklenmemiş.</p>
                 </div>
               )}
               {decisionsLoadState === 'ready' && decisions.length > 0 && (
@@ -4276,10 +4222,8 @@ export default function EventDetail() {
             </p>
           )}
           {reportsLoadState === 'ready' && reports.length === 0 && (
-            <div className="mt-4 rounded-xl border border-dashed border-canvas-border bg-canvas px-4 py-9 text-center">
-              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-sky-50 text-sky-700"><EventIcon name="report" className="h-5 w-5" /></span>
-              <p className="mt-3 text-sm font-semibold text-ink">Henüz rapor eklenmedi</p>
-              <p className="mt-1 text-xs text-ink-soft">Etkinlik değerlendirmeleri burada listelenecek.</p>
+            <div className="mt-4 flex min-h-[80px] items-center justify-center rounded-xl border border-dashed border-canvas-border bg-canvas px-4 py-4 text-center">
+              <p className="text-sm text-ink-soft">Henüz rapor eklenmedi.</p>
             </div>
           )}
           {reportsLoadState === 'ready' && reports.length > 0 && (
@@ -4432,10 +4376,8 @@ export default function EventDetail() {
             </p>
           )}
           {linksLoadState === 'ready' && links.length === 0 && (
-            <div className="mt-4 rounded-xl border border-dashed border-canvas-border bg-canvas px-4 py-9 text-center">
-              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft text-brand-dark"><EventIcon name="link" className="h-5 w-5" /></span>
-              <p className="mt-3 text-sm font-semibold text-ink">Henüz bağlantı eklenmedi</p>
-              <p className="mt-1 text-xs text-ink-soft">Formlar ve dış kaynaklar burada listelenecek.</p>
+            <div className="mt-4 flex min-h-[80px] items-center justify-center rounded-xl border border-dashed border-canvas-border bg-canvas px-4 py-4 text-center">
+              <p className="text-sm text-ink-soft">Henüz bağlantı eklenmedi.</p>
             </div>
           )}
           {linksLoadState === 'ready' && links.length > 0 && (
@@ -4605,10 +4547,8 @@ export default function EventDetail() {
             </p>
           )}
           {filesLoadState === 'ready' && files.length === 0 && (
-            <div className="mt-4 rounded-xl border border-dashed border-canvas-border bg-canvas px-4 py-9 text-center">
-              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-violet-50 text-violet-700"><EventIcon name="file" className="h-5 w-5" /></span>
-              <p className="mt-3 text-sm font-semibold text-ink">Henüz dosya eklenmedi</p>
-              <p className="mt-1 text-xs text-ink-soft">Etkinlik belgeleri burada listelenecek.</p>
+            <div className="mt-4 flex min-h-[80px] items-center justify-center rounded-xl border border-dashed border-canvas-border bg-canvas px-4 py-4 text-center">
+              <p className="text-sm text-ink-soft">Henüz dosya eklenmedi.</p>
             </div>
           )}
           {filesLoadState === 'ready' && files.length > 0 && (
@@ -4685,8 +4625,6 @@ export default function EventDetail() {
         </div>
 
         <div id="event-operations" className={activeDetailTab === 'operations' ? 'mt-6 flex scroll-mt-28 flex-col gap-4' : 'hidden'}>
-        {eventId ? <LinkedPublications plan={publicationPlan} sourceKind="event" sourceId={eventId} /> : null}
-
         <section id="event-flow" className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
           <div className="flex items-center gap-3"><EventIconBadge name="overview" /><div><h2 className="text-base font-semibold text-ink">Etkinlik akışı</h2><p className="mt-1 text-xs text-ink-soft">Sonraki işlem, tarihler ve mekân burada yönetilir.</p></div></div>
           <div className="mt-4 grid gap-3 lg:grid-cols-3">
@@ -4703,39 +4641,11 @@ export default function EventDetail() {
           </div>
         </section>
 
-        <section id="event-process-teams" className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
-          <div className="flex items-center gap-3"><EventIconBadge name="operations" /><div><h2 className="text-base font-semibold text-ink">Süreç yönetimi</h2><p className="mt-1 text-xs text-ink-soft">Tasarım ve önceki süreç sorumlulukları. Yayın tarihi, saati ve paylaşımı Yayınlar bölümündeki PR kayıtlarında yönetin.</p></div></div>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {([
-              ['design', 'Tasarım', designProcessMembers],
-              ['press', 'Duyuru hazırlığı', pressProcessMembers],
-            ] as const).map(([processType, label, members]) => {
-              const owner = members.find((member) => member.responsibilityType === 'owner')
-              const supporting = members.filter((member) => member.responsibilityType === 'supporting')
-              const informed = members.filter((member) => member.responsibilityType === 'informed')
-              const statusLabel = processType === 'design'
-                ? (availableEventDesignAnnouncementStatuses.find((status) => status.slug === event.designAnnouncementStatus)?.label ?? event.designAnnouncementStatus)
-                : (availableEventAnnouncementStatuses.find((status) => status.slug === event.announcementStatus)?.label ?? event.announcementStatus)
-              const canChangeStatus = processType === 'design' ? canChangeDesignAnnouncementStatus : canChangeAnnouncementStatus
-              return (
-                <div key={processType} className="rounded-lg border border-canvas-border bg-canvas p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div><h3 className="text-sm font-semibold text-ink">{label}</h3><span className="mt-2 inline-flex rounded-full bg-canvas-surface px-2.5 py-1 text-xs font-semibold text-ink">{statusLabel}</span></div>
-                    {canChangeStatus ? <button type="button" onClick={processType === 'design' ? openDesignStatusEditing : openAnnouncementStatusEditing} className="min-h-9 rounded-md border border-brand/40 px-2.5 text-xs font-semibold text-brand-dark hover:bg-brand-soft">Durumu düzenle</button> : null}
-                  </div>
-                  <div className="mt-4 space-y-2 border-t border-canvas-border pt-3 text-xs">
-                    <p><span className="font-semibold text-ink-soft">Ana sorumlu:</span> <span className="text-ink">{owner?.displayName ?? 'Atanmamış'}</span></p>
-                    <p><span className="font-semibold text-ink-soft">Destekleyen:</span> <span className="text-ink">{supporting.length > 0 ? supporting.map((member) => member.displayName).join(', ') : 'Atanmamış'}</span></p>
-                    <p><span className="font-semibold text-ink-soft">Bilgilendirilen:</span> <span className="text-ink">{informed.length > 0 ? informed.map((member) => member.displayName).join(', ') : 'Atanmamış'}</span></p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </section>
+        {eventId ? <div id="event-publication-plan" className="scroll-mt-28"><LinkedPublications plan={publicationPlan} sourceKind="event" sourceId={eventId} defaultExpanded={expandPrPlan} /></div> : null}
+
 
         {/* SKS Süreci */}
-        <section className="order-2 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card">
+        <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card">
           <button type="button" onClick={() => setIsSksSectionOpen((open) => !open)} aria-expanded={isSksSectionOpen} className="flex min-h-[44px] w-full items-center justify-between gap-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
             <div className="flex items-center gap-3"><EventIconBadge name="sks" /><div><h2 className="text-base font-semibold text-ink">SKS</h2><p className="mt-1 text-xs text-ink-soft">SKS sürecinin güncel durumunu takip edin.</p></div></div>
             <div className="flex items-center gap-2">
@@ -4786,8 +4696,182 @@ export default function EventDetail() {
           </div>
         </section>
 
+        <section id="event-process-teams" className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
+          <div className="flex items-center gap-3"><EventIconBadge name="operations" /><div><h2 className="text-base font-semibold text-ink">Süreç yönetimi</h2><p className="mt-1 text-xs text-ink-soft">Tasarım ve önceki süreç sorumlulukları. Yayın tarihi, saati ve paylaşımı Yayınlar bölümündeki PR kayıtlarında yönetin.</p></div></div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {([
+              ['design', 'Tasarım', designProcessMembers],
+              ['press', 'Duyuru hazırlığı', pressProcessMembers],
+            ] as const).map(([processType, label, members]) => {
+              const owner = members.find((member) => member.responsibilityType === 'owner')
+              const supporting = members.filter((member) => member.responsibilityType === 'supporting')
+              const informed = members.filter((member) => member.responsibilityType === 'informed')
+              const statusLabel = processType === 'design'
+                ? (availableEventDesignAnnouncementStatuses.find((status) => status.slug === event.designAnnouncementStatus)?.label ?? event.designAnnouncementStatus)
+                : (availableEventAnnouncementStatuses.find((status) => status.slug === event.announcementStatus)?.label ?? event.announcementStatus)
+              const canChangeStatus = processType === 'design' ? canChangeDesignAnnouncementStatus : canChangeAnnouncementStatus
+              return (
+                <div key={processType} className="rounded-lg border border-canvas-border bg-canvas p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div><h3 className="text-sm font-semibold text-ink">{label}</h3><span className="mt-2 inline-flex rounded-full bg-canvas-surface px-2.5 py-1 text-xs font-semibold text-ink">{statusLabel}</span></div>
+                    {canChangeStatus ? <button type="button" onClick={processType === 'design' ? openDesignStatusEditing : openAnnouncementStatusEditing} className="min-h-9 rounded-md border border-brand/40 px-2.5 text-xs font-semibold text-brand-dark hover:bg-brand-soft">Durumu düzenle</button> : null}
+                  </div>
+                  <div className="mt-4 space-y-2 border-t border-canvas-border pt-3 text-xs">
+                    <p><span className="font-semibold text-ink-soft">Ana sorumlu:</span> <span className="text-ink">{owner?.displayName ?? 'Atanmamış'}</span></p>
+                    <p><span className="font-semibold text-ink-soft">Destekleyen:</span> <span className="text-ink">{supporting.length > 0 ? supporting.map((member) => member.displayName).join(', ') : 'Atanmamış'}</span></p>
+                    <p><span className="font-semibold text-ink-soft">Bilgilendirilen:</span> <span className="text-ink">{informed.length > 0 ? informed.map((member) => member.displayName).join(', ') : 'Atanmamış'}</span></p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+
+        {designAnnouncementStatusSuccess ? <p role="status" className="text-sm text-success">{designAnnouncementStatusSuccess}</p> : null}
+        {announcementStatusSuccess ? <p role="status" className="text-sm text-success">{announcementStatusSuccess}</p> : null}
+        <EventCoordinatorsPanel eventId={eventId ?? ''} />
+
+        <section id="event-tasks" className="scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3"><EventIconBadge name="task" /><div><h2 className="text-base font-semibold text-ink">Görevler</h2><p className="mt-1 text-xs text-ink-soft">Etkinliğe bağlı görevleri yönetin.</p></div></div>
+              {isSuperAdmin && (
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
+                  <input
+                    type="checkbox"
+                    checked={showInactiveTasks}
+                    onChange={(event) => setShowInactiveTasks(event.target.checked)}
+                    className="rounded border-canvas-border text-ink focus:ring-ink"
+                  />
+                  Pasif görevleri göster
+                </label>
+              )}
+            </div>
+            {canEdit && !isTaskFormOpen && (
+              <button
+                type="button"
+                onClick={openTaskForm}
+                className="shrink-0 rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-sm font-medium text-ink hover:bg-canvas-surface"
+              >
+                Görev oluştur
+              </button>
+            )}
+          </div>
+
+          {taskSuccessMessage && !isTaskFormOpen && (
+            <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+              {taskSuccessMessage}
+            </p>
+          )}
+
+          {isTaskFormOpen && (
+            <div className="mt-4 overflow-hidden rounded-xl border border-canvas-border bg-canvas shadow-card">
+              <div className="flex items-center justify-between gap-3 border-b border-canvas-border bg-canvas-surface px-4 py-3 sm:px-5">
+                <div className="flex items-center gap-3"><EventIconBadge name="task" /><div><h3 className="text-sm font-semibold text-ink">Yeni görev oluştur</h3><p className="mt-0.5 text-xs text-ink-soft">Görevin kapsamını, zamanını ve ana sorumlusunu belirleyin.</p></div></div>
+                <button type="button" onClick={cancelTaskForm} disabled={isCreatingTask} aria-label="Görev formunu kapat" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xl text-ink-soft hover:bg-canvas disabled:opacity-60">×</button>
+              </div>
+              <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(16rem,0.55fr)] lg:p-5">
+                <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4">
+                  <div className="flex items-center gap-2"><EventIconBadge name="content" /><h4 className="text-sm font-semibold text-ink">Görev bilgileri</h4></div>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <label className="grid gap-1.5 text-xs font-medium text-ink-soft sm:col-span-2">Görev adı<input id="task-title" type="text" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} disabled={isCreatingTask} placeholder="Yapılacak işi kısa ve net yazın" className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /></label>
+                    <label className="grid gap-1.5 text-xs font-medium text-ink-soft sm:col-span-2">Açıklama<textarea id="task-description" value={newTaskDescription} onChange={(e) => setNewTaskDescription(e.target.value)} disabled={isCreatingTask} rows={4} placeholder="Görevin kapsamını ve beklenen sonucu açıklayın" className="resize-y rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /></label>
+                    <label className="grid gap-1.5 text-xs font-medium text-ink-soft">Son tarih<input id="task-deadline" type="datetime-local" value={newTaskDeadline} onChange={(e) => setNewTaskDeadline(e.target.value)} disabled={isCreatingTask} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /></label>
+                    <label className="grid gap-1.5 text-xs font-medium text-ink-soft">Öncelik<select id="task-priority" value={newTaskPriority} onChange={(e) => setNewTaskPriority(e.target.value)} disabled={isCreatingTask} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink">{TASK_PRIORITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+                  </div>
+                </section>
+
+                <aside className="rounded-xl border border-canvas-border bg-canvas-surface p-4">
+                  <div className="flex items-center gap-2"><EventIconBadge name="person" /><h4 className="text-sm font-semibold text-ink">Sorumluluk</h4></div>
+                  <label className="mt-4 grid gap-1.5 text-xs font-medium text-ink-soft">Ana sorumlu <span className="sr-only">isteğe bağlı</span><select id="task-primary-assignee" value={newTaskPrimaryProfileId} onChange={(e) => setNewTaskPrimaryProfileId(e.target.value)} disabled={isCreatingTask || periodMembersLoadState === 'loading'} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink disabled:opacity-60"><option value="">{periodMembersLoadState === 'loading' ? 'Koordinatörler yükleniyor…' : 'Atanmamış bırak'}</option>{periodMembers.map((member) => <option key={member.profileId} value={member.profileId}>{member.displayName}{member.coordinatorRoleName ? ` — ${member.coordinatorRoleName}` : ''}</option>)}</select></label>
+                  <p className="mt-3 rounded-lg border border-brand/15 bg-brand-soft/40 p-3 text-xs leading-5 text-ink-soft">Destekleyen ve bilgilendirilen kişiler görev oluşturulduktan sonra Atama yönetiminden eklenebilir.</p>
+                  {periodMembersLoadState === 'error' ? <p className="mt-3 text-xs text-danger">Koordinatör listesi yüklenemedi. Görevi atanmamış oluşturabilirsiniz.</p> : null}
+                  <div className="mt-4 grid grid-cols-2 gap-2 text-xs"><div className="rounded-lg border border-canvas-border bg-canvas p-3"><p className="text-ink-soft">Öncelik</p><p className="mt-1 font-semibold text-ink">{TASK_PRIORITY_LABELS[newTaskPriority] ?? newTaskPriority}</p></div><div className="rounded-lg border border-canvas-border bg-canvas p-3"><p className="text-ink-soft">Ana sorumlu</p><p className="mt-1 truncate font-semibold text-ink">{periodMembers.find((member) => member.profileId === newTaskPrimaryProfileId)?.displayName ?? 'Atanmamış'}</p></div></div>
+                </aside>
+                {createTaskError ? <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 lg:col-span-2">{createTaskError}</p> : null}
+              </div>
+              <div className="flex flex-col gap-2 border-t border-canvas-border bg-canvas-surface px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
+                <button type="button" onClick={cancelTaskForm} disabled={isCreatingTask} className="min-h-[44px] rounded-md border border-canvas-border px-5 text-sm font-medium text-ink-soft disabled:opacity-60">İptal</button>
+                <button type="button" onClick={handleCreateTask} disabled={isCreatingTask} className="min-h-[44px] rounded-md bg-brand-dark px-6 text-sm font-medium text-white disabled:opacity-60">{isCreatingTask ? 'Oluşturuluyor…' : 'Görevi oluştur'}</button>
+              </div>
+            </div>
+          )}
+
+          {tasksLoadState === 'loading' && (
+            <p className="mt-3 text-sm text-ink-soft">Görevler yükleniyor…</p>
+          )}
+          {tasksLoadState === 'error' && (
+            <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {tasksError ?? TASKS_ERROR_MESSAGE}
+            </p>
+          )}
+          {tasksLoadState === 'ready' && tasks.length === 0 && (
+            <p className="mt-3 text-sm text-ink-soft">{TASKS_NOT_FOUND_MESSAGE}</p>
+          )}
+          {tasksLoadState === 'ready' && tasks.length > 0 && (
+            <div className="mt-3 flex flex-col gap-3">
+              {[...tasks].sort((a, b) => Number(b.progressStatusSlug === 'completed') - Number(a.progressStatusSlug === 'completed')).map((task) => {
+                const isTaskAssigneeWithPermission = task.assignees.some(
+                  (assignee) =>
+                    assignee.profileId === profileId &&
+                    (assignee.assignmentType === 'primary' || assignee.assignmentType === 'supporting'),
+                )
+                const canUpdateStatus = isSuperAdmin || isOwner || isTaskAssigneeWithPermission
+
+                return (
+                  <TaskCard
+                    key={task.id}
+                    eventId={eventId ?? ''}
+                    task={task}
+                    allTasks={tasks}
+                    isSuperAdmin={isSuperAdmin}
+                    canEditTask={canEdit}
+                    canManageAssignments={canEdit}
+                    canUpdateStatus={canUpdateStatus}
+                    isPanelOpen={openAssignmentTaskId === task.id}
+                    onTogglePanel={() => toggleAssignmentPanel(task.id)}
+                    members={periodMembers}
+                    membersLoadState={periodMembersLoadState}
+                    availableTaskStatuses={availableTaskStatuses}
+                    availableSksStatuses={availableSksStatuses}
+                    selectedProfileId={openAssignmentTaskId === task.id ? selectedAssigneeProfileId : ''}
+                    onSelectedProfileIdChange={setSelectedAssigneeProfileId}
+                    selectedAssignmentType={selectedAssignmentType}
+                    onSelectedAssignmentTypeChange={setSelectedAssignmentType}
+                    onAssign={() => handleAssignMember(task.id)}
+                    isAssigning={isAssigning && openAssignmentTaskId === task.id}
+                    assignError={openAssignmentTaskId === task.id ? assignError : null}
+                    onRemove={handleRemoveAssignment}
+                    removingAssignmentId={removingAssignmentId}
+                    removeError={openAssignmentTaskId === task.id ? removeError : null}
+                    onUpdateStatus={handleUpdateTaskStatus}
+                    isUpdatingStatus={updatingStatusTaskId === task.id}
+                    updateStatusError={updateStatusErrorMap[task.id] ?? null}
+                    onUpdateNote={handleUpdateTaskNote}
+                    isUpdatingNote={updatingNoteTaskId === task.id}
+                    updateNoteError={updateNoteErrorMap[task.id] ?? null}
+                    updateNoteSuccess={updateNoteSuccessMap[task.id] ?? null}
+                    onUpdateTaskInfo={handleUpdateTaskInfo}
+                    isUpdatingTaskInfo={updatingTaskInfoId === task.id}
+                    updateTaskInfoError={updateTaskInfoErrorMap[task.id] ?? null}
+                    onDeactivateTask={handleDeactivateTask}
+                    onReactivateTask={handleReactivateTask}
+                    onActivateTask={handleActivateTask}
+                    isProcessingActiveStatus={processingActiveStatusTaskId === task.id}
+                    onAddDependency={handleAddDependency}
+                    onDeleteDependency={handleDeleteDependency}
+                    isProcessingDependency={processingDependencyTaskId === task.id}
+                    dependencyError={dependencyErrorMap[task.id] ?? null}
+                  />
+                )
+              })}
+            </div>
+
+          )}
+        </section>
+
         {/* Bütçe Süreci */}
-        {hasBudgetAccess ? <section id="event-budget" className="order-3 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card">
+        {hasBudgetAccess ? <section id="event-budget" className="scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card">
           <button type="button" onClick={() => setIsBudgetSectionOpen((open) => !open)} aria-expanded={isBudgetSectionOpen} className="flex min-h-[44px] w-full items-center justify-between gap-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
             <div className="flex items-center gap-3"><EventIconBadge name="budget" /><div><h2 className="text-base font-semibold text-ink">Bütçe ve sponsorlar</h2><p className="mt-1 text-xs text-ink-soft">Bütçe durumunu ve sponsor kayıtlarını yönetin.</p></div></div>
             <span aria-hidden="true" className={`text-xl text-ink-soft transition-transform ${isBudgetSectionOpen ? 'rotate-180' : ''}`}>⌄</span>
@@ -5127,145 +5211,6 @@ export default function EventDetail() {
           </div>
         </section> : null}
 
-        <EventCoordinatorsPanel eventId={eventId ?? ''} />
-
-        <section id="event-tasks" className="order-1 scroll-mt-28 rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3"><EventIconBadge name="task" /><div><h2 className="text-base font-semibold text-ink">Görevler</h2><p className="mt-1 text-xs text-ink-soft">Etkinliğe bağlı görevleri yönetin.</p></div></div>
-              {isSuperAdmin && (
-                <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-soft">
-                  <input
-                    type="checkbox"
-                    checked={showInactiveTasks}
-                    onChange={(event) => setShowInactiveTasks(event.target.checked)}
-                    className="rounded border-canvas-border text-ink focus:ring-ink"
-                  />
-                  Pasif görevleri göster
-                </label>
-              )}
-            </div>
-            {canEdit && !isTaskFormOpen && (
-              <button
-                type="button"
-                onClick={openTaskForm}
-                className="shrink-0 rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-sm font-medium text-ink hover:bg-canvas-surface"
-              >
-                Görev oluştur
-              </button>
-            )}
-          </div>
-
-          {taskSuccessMessage && !isTaskFormOpen && (
-            <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
-              {taskSuccessMessage}
-            </p>
-          )}
-
-          {isTaskFormOpen && (
-            <div className="mt-4 overflow-hidden rounded-xl border border-canvas-border bg-canvas shadow-card">
-              <div className="flex items-center justify-between gap-3 border-b border-canvas-border bg-canvas-surface px-4 py-3 sm:px-5">
-                <div className="flex items-center gap-3"><EventIconBadge name="task" /><div><h3 className="text-sm font-semibold text-ink">Yeni görev oluştur</h3><p className="mt-0.5 text-xs text-ink-soft">Görevin kapsamını, zamanını ve ana sorumlusunu belirleyin.</p></div></div>
-                <button type="button" onClick={cancelTaskForm} disabled={isCreatingTask} aria-label="Görev formunu kapat" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xl text-ink-soft hover:bg-canvas disabled:opacity-60">×</button>
-              </div>
-              <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(16rem,0.55fr)] lg:p-5">
-                <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4">
-                  <div className="flex items-center gap-2"><EventIconBadge name="content" /><h4 className="text-sm font-semibold text-ink">Görev bilgileri</h4></div>
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                    <label className="grid gap-1.5 text-xs font-medium text-ink-soft sm:col-span-2">Görev adı<input id="task-title" type="text" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} disabled={isCreatingTask} placeholder="Yapılacak işi kısa ve net yazın" className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /></label>
-                    <label className="grid gap-1.5 text-xs font-medium text-ink-soft sm:col-span-2">Açıklama<textarea id="task-description" value={newTaskDescription} onChange={(e) => setNewTaskDescription(e.target.value)} disabled={isCreatingTask} rows={4} placeholder="Görevin kapsamını ve beklenen sonucu açıklayın" className="resize-y rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /></label>
-                    <label className="grid gap-1.5 text-xs font-medium text-ink-soft">Son tarih<input id="task-deadline" type="datetime-local" value={newTaskDeadline} onChange={(e) => setNewTaskDeadline(e.target.value)} disabled={isCreatingTask} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink" /></label>
-                    <label className="grid gap-1.5 text-xs font-medium text-ink-soft">Öncelik<select id="task-priority" value={newTaskPriority} onChange={(e) => setNewTaskPriority(e.target.value)} disabled={isCreatingTask} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink">{TASK_PRIORITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-                  </div>
-                </section>
-
-                <aside className="rounded-xl border border-canvas-border bg-canvas-surface p-4">
-                  <div className="flex items-center gap-2"><EventIconBadge name="person" /><h4 className="text-sm font-semibold text-ink">Sorumluluk</h4></div>
-                  <label className="mt-4 grid gap-1.5 text-xs font-medium text-ink-soft">Ana sorumlu <span className="sr-only">isteğe bağlı</span><select id="task-primary-assignee" value={newTaskPrimaryProfileId} onChange={(e) => setNewTaskPrimaryProfileId(e.target.value)} disabled={isCreatingTask || periodMembersLoadState === 'loading'} className="min-h-[44px] rounded-md border border-canvas-border bg-canvas px-3 py-2 text-sm font-normal text-ink disabled:opacity-60"><option value="">{periodMembersLoadState === 'loading' ? 'Koordinatörler yükleniyor…' : 'Atanmamış bırak'}</option>{periodMembers.map((member) => <option key={member.profileId} value={member.profileId}>{member.displayName}{member.coordinatorRoleName ? ` — ${member.coordinatorRoleName}` : ''}</option>)}</select></label>
-                  <p className="mt-3 rounded-lg border border-brand/15 bg-brand-soft/40 p-3 text-xs leading-5 text-ink-soft">Destekleyen ve bilgilendirilen kişiler görev oluşturulduktan sonra Atama yönetiminden eklenebilir.</p>
-                  {periodMembersLoadState === 'error' ? <p className="mt-3 text-xs text-danger">Koordinatör listesi yüklenemedi. Görevi atanmamış oluşturabilirsiniz.</p> : null}
-                  <div className="mt-4 grid grid-cols-2 gap-2 text-xs"><div className="rounded-lg border border-canvas-border bg-canvas p-3"><p className="text-ink-soft">Öncelik</p><p className="mt-1 font-semibold text-ink">{TASK_PRIORITY_LABELS[newTaskPriority] ?? newTaskPriority}</p></div><div className="rounded-lg border border-canvas-border bg-canvas p-3"><p className="text-ink-soft">Ana sorumlu</p><p className="mt-1 truncate font-semibold text-ink">{periodMembers.find((member) => member.profileId === newTaskPrimaryProfileId)?.displayName ?? 'Atanmamış'}</p></div></div>
-                </aside>
-                {createTaskError ? <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 lg:col-span-2">{createTaskError}</p> : null}
-              </div>
-              <div className="flex flex-col gap-2 border-t border-canvas-border bg-canvas-surface px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
-                <button type="button" onClick={cancelTaskForm} disabled={isCreatingTask} className="min-h-[44px] rounded-md border border-canvas-border px-5 text-sm font-medium text-ink-soft disabled:opacity-60">İptal</button>
-                <button type="button" onClick={handleCreateTask} disabled={isCreatingTask} className="min-h-[44px] rounded-md bg-brand-dark px-6 text-sm font-medium text-white disabled:opacity-60">{isCreatingTask ? 'Oluşturuluyor…' : 'Görevi oluştur'}</button>
-              </div>
-            </div>
-          )}
-
-          {tasksLoadState === 'loading' && (
-            <p className="mt-3 text-sm text-ink-soft">Görevler yükleniyor…</p>
-          )}
-          {tasksLoadState === 'error' && (
-            <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {tasksError ?? TASKS_ERROR_MESSAGE}
-            </p>
-          )}
-          {tasksLoadState === 'ready' && tasks.length === 0 && (
-            <p className="mt-3 text-sm text-ink-soft">{TASKS_NOT_FOUND_MESSAGE}</p>
-          )}
-          {tasksLoadState === 'ready' && tasks.length > 0 && (
-            <div className="mt-3 flex flex-col gap-3">
-              {[...tasks].sort((a, b) => Number(b.progressStatusSlug === 'completed') - Number(a.progressStatusSlug === 'completed')).map((task) => {
-                const isTaskAssigneeWithPermission = task.assignees.some(
-                  (assignee) =>
-                    assignee.profileId === profileId &&
-                    (assignee.assignmentType === 'primary' || assignee.assignmentType === 'supporting'),
-                )
-                const canUpdateStatus = isSuperAdmin || isOwner || isTaskAssigneeWithPermission
-
-                return (
-                  <TaskCard
-                    key={task.id}
-                    eventId={eventId ?? ''}
-                    task={task}
-                    allTasks={tasks}
-                    isSuperAdmin={isSuperAdmin}
-                    canEditTask={canEdit}
-                    canManageAssignments={canEdit}
-                    canUpdateStatus={canUpdateStatus}
-                    isPanelOpen={openAssignmentTaskId === task.id}
-                    onTogglePanel={() => toggleAssignmentPanel(task.id)}
-                    members={periodMembers}
-                    membersLoadState={periodMembersLoadState}
-                    availableTaskStatuses={availableTaskStatuses}
-                    availableSksStatuses={availableSksStatuses}
-                    selectedProfileId={openAssignmentTaskId === task.id ? selectedAssigneeProfileId : ''}
-                    onSelectedProfileIdChange={setSelectedAssigneeProfileId}
-                    selectedAssignmentType={selectedAssignmentType}
-                    onSelectedAssignmentTypeChange={setSelectedAssignmentType}
-                    onAssign={() => handleAssignMember(task.id)}
-                    isAssigning={isAssigning && openAssignmentTaskId === task.id}
-                    assignError={openAssignmentTaskId === task.id ? assignError : null}
-                    onRemove={handleRemoveAssignment}
-                    removingAssignmentId={removingAssignmentId}
-                    removeError={openAssignmentTaskId === task.id ? removeError : null}
-                    onUpdateStatus={handleUpdateTaskStatus}
-                    isUpdatingStatus={updatingStatusTaskId === task.id}
-                    updateStatusError={updateStatusErrorMap[task.id] ?? null}
-                    onUpdateNote={handleUpdateTaskNote}
-                    isUpdatingNote={updatingNoteTaskId === task.id}
-                    updateNoteError={updateNoteErrorMap[task.id] ?? null}
-                    updateNoteSuccess={updateNoteSuccessMap[task.id] ?? null}
-                    onUpdateTaskInfo={handleUpdateTaskInfo}
-                    isUpdatingTaskInfo={updatingTaskInfoId === task.id}
-                    updateTaskInfoError={updateTaskInfoErrorMap[task.id] ?? null}
-                    onDeactivateTask={handleDeactivateTask}
-                    onReactivateTask={handleReactivateTask}
-                    onActivateTask={handleActivateTask}
-                    isProcessingActiveStatus={processingActiveStatusTaskId === task.id}
-                    onAddDependency={handleAddDependency}
-                    onDeleteDependency={handleDeleteDependency}
-                    isProcessingDependency={processingDependencyTaskId === task.id}
-                    dependencyError={dependencyErrorMap[task.id] ?? null}
-                  />
-                )
-              })}
-            </div>
-          )}
-        </section>
         </div>
 
         {isAnnouncementStatusEditorOpen ? (

@@ -783,7 +783,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
                   </div>
                   <details className="mt-2 rounded-lg border border-canvas-border bg-canvas/60 px-3" open={post.id === selectedRecordId || undefined}>
                     <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">Yayınlar ({postPublications.length})</summary>
-                    <div className="pb-3"><LinkedPublications plan={publicationPlan} sourceKind="awareness" sourceId={post.id} mode="full" showManagement={false} /></div>
+                    <div className="pb-3"><LinkedPublications plan={publicationPlan} sourceKind="awareness" sourceId={post.id} embedded defaultExpanded /></div>
                   </details>
                   <details className="mt-2 rounded-lg border border-canvas-border px-3" open={post.id === selectedRecordId || undefined}>
                     <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-ink-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">Çalışma ayrıntıları</summary>
