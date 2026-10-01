@@ -14,6 +14,8 @@ Antigravity MCP model seçimi yerel eklentiye eklendi ve kuruldu; 61/61 test ile
 
 ## Takvimler ve PR
 
+1 Ekim Özet boşluk düzeltmesi: Etkinlik özeti, PR planı, tarihler ve mekân bağımsız iki sütunlu kart ızgarasına yerleştirildi; kısa sol sütun yanında uzayan sağ kolon kaldırıldı. Mobilde tek sütun korunur. Lint/build/diff kontrolü geçti.
+
 Son PR yerleşimi revizyonu: Etkinlik akışı önce gösterilir; PR planı kapalı küçük şerittir, açıldığında Başlık / Tarih-saat / Kanal / Durum sütunları ve çekim/paylaşım grupları görünür. Özetin Tümünü aç düğmesi plan bölümünü açarak oraya kaydırır. Farkındalık kendi açılır alanında satırları doğrudan gösterir. Boş karar/rapor/bağlantı/dosya durumları küçültüldü. AGY düzeltme çağrısı başarısız olduğundan kalan JSX ve erişilebilirlik sorunlarını ana ajan düzeltti; son lint/build/diff kontrolü ve 13 test geçti. Yetki/veritabanı/bildirim değişikliği yok.
 
 Yeni ekran geri bildirimi için ikinci yerel etkinlik/PR planı arayüz takibi (1 Ekim 2026): Amaç PR'ı etkinlik akışının altına kompakt bir plan şeridi olarak almak, kayıtları açılabilir ve mobil uyumlu satırlarda göstermek, etkinlik boş durumlarını kısaltmaktır. AGY Fixed / Gemini 3.1 Pro High ana işi tamamlandı bildirdi; aynı konuşmadaki düzeltme işi `failed` sonuçlandı. Kod şu an kök ajanın JSX yapısı ve bölüm sıralaması düzeltmesinde. Son yerel kontrolde PR takvim testleri 9/9 ve publicationPlan testleri 4/4 geçti; lint/build EventDetail'daki eksik JSX kapanışları nedeniyle başarısız, `git diff --check` LinkedPublications'ta boşluk bildiriyor. Bu takip işi doğrulanıp tamamlanana kadar önceki arayüz sürümü canlı kaynak olarak geçerlidir; bu değişiklikler için veritabanı veya gerçek kullanıcı verisi kullanılmadı.

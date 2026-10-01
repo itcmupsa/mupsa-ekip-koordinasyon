@@ -3903,8 +3903,8 @@ export default function EventDetail() {
           </section>
         ) : null}
 
-        <div id="event-notes" className={activeDetailTab === 'overview' ? 'mt-4 grid scroll-mt-28 gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.85fr)]' : 'hidden'}>
-          <div className="space-y-4">
+        <div id="event-notes" className={activeDetailTab === 'overview' ? 'mt-4 grid scroll-mt-28 items-start gap-4 lg:grid-cols-2' : 'hidden'}>
+          <div className="contents">
 
             <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-6">
               <div className="flex items-center justify-between gap-3">
@@ -3948,14 +3948,14 @@ export default function EventDetail() {
 
                       </div>
 
-          <aside className="space-y-4">
+          <aside className="contents">
             {eventId ? <LinkedPublications plan={publicationPlan} sourceKind="event" sourceId={eventId} onOpenFull={() => { setExpandPrPlan(true); openOperations('event-publication-plan') }} /> : null}
             <section className="rounded-xl border border-canvas-border bg-canvas-surface p-4 shadow-card sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3"><EventIconBadge name="calendar" /><h2 className="text-base font-semibold text-ink">Tarihler</h2></div>
                 <button type="button" onClick={() => openOperations('event-flow')} className="min-h-[40px] shrink-0 rounded-md px-2 text-xs font-semibold text-ink-soft hover:bg-canvas hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">Süreçlerde aç</button>
               </div>
-              <div className="relative mt-5 space-y-5 pl-5 before:absolute before:bottom-3 before:left-[5px] before:top-3 before:border-l before:border-dashed before:border-brand/30">
+              <div className="relative mt-4 space-y-3 pl-5 before:absolute before:bottom-3 before:left-[5px] before:top-3 before:border-l before:border-dashed before:border-brand/30">
                 {([
                   ['Planlama tarihi', event.planningDate, 'bg-brand-dark'],
                   ['Hazırlık başlangıç tarihi', event.preparationStartDate, 'bg-sky-500'],
