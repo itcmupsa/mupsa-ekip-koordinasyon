@@ -1,5 +1,7 @@
 # Calendar Hub and PR data contract
 
+Current SKS override (1 October 2026): `20261001120000_restrict_sks_to_secretary_and_admin.sql` replaces the four-group SKS permission rule below. Only an active General Secretary or super admin in the event's active target period receives SKS process permission. Event owners, co-coordinators and historical SKS assignments do not grant it. The event detail SKS card now shows only status, with a picker for authorized roles; the team panel has been removed. Historical assignment rows and other process permissions are preserved. Migration and post-deploy rollback checks passed; frontend commit `cb51de0` is deployed.
+
 `calendar_entries` remains the source for manually created calendar records. Each record now has `calendar_scopes` and `color`. Existing records receive `['events', 'awareness']`, so they deliberately stay off the PR calendar until an authorized editor opts in. A scope is a nonempty, duplicate-free subset of `events`, `awareness`, and `pr`. `color` is always a six-digit hex colour and defaults to `#7c3aed`.
 
 `pr_calendar_entries` is the separate source for Basın Yayın planning. `scheduled_date` is required and `scheduled_time` is optional. The time is a wall time in `Europe/Istanbul`, not a timestamp. `entry_kind` is `publication`, `shooting`, or `other`; `status` is `draft`, `planned`, `in_progress`, `ready`, `completed`, or `cancelled`. There is intentionally no approval state or approval workflow.
