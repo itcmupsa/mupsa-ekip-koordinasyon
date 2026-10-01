@@ -14,6 +14,13 @@ Antigravity MCP model seçimi yerel eklentiye eklendi ve kuruldu; 61/61 test ile
 
 ## Takvimler ve PR
 
+### 1 Ekim — Takvim ve form düzeltmeleri canlıya alındı
+
+Uygulama commit'i `81b8804` GitHub main dalına gönderildi. GitHub commit durumunda **Vercel – mupsa-ekip-koordinasyon: success / Deployment has completed** doğrulandı; dağıtım: https://vercel.com/mupsa/mupsa-ekip-koordinasyon/6UrC7aZAHjk9MVBu1aHtg8QCeYA8 . Üretim adresi yeni `index-9w9R24oV.js` paketini sunuyor. Kaynak Referansı, Bu kayıt için yayın planla, yeni geçerli HTTP(S) bağlantı hata metni ve takvim yenileme uyarısı pakette doğrulandı. Yerel deneme publishable değeri üretim paketinde yok; uygulama tam derlenmiş. Yayın öncesi 38/38 test, lint, build ve diff kontrolü temiz.
+
+Yeni takvim referansları, manuel aralık tekrarının kaldırılması, pasif/manuel kaynak ayrımı, tarih aralığına bağlı ayrıntı paneli, filtre düzeltmesi, farkındalık bağlantı kontrolü ve kayıt sürerken görev/etkinlik panelini kapatmama korumaları artık canlıda. Veritabanı/migration/yetki/bildirim değişikliği yapılmadı. Bu üretim doğrulaması dağıtım durumu ve paketi kapsar; gerçek kullanıcıyla kalıcı kayıt kaydetme testi yapılmadı. Görev oluşturma + kişi atamasının iki ayrı istek olması sonraki inceleme konusu olarak açık kalıyor.
+
+
 ### 1 Ekim — Yayın öncesi son kontrol ve diğer sayfalardaki düzeltmeler
 
 Kullanıcı doğrudan canlıya alma talimatı verdi. Son tam kontrol: frontend testleri **38/38**, lint, tam uygulama build'i (yerel deneme Supabase değerleriyle) ve diff kontrolü geçti. Vercel GitHub main entegrasyonu üzerinden kendi üretim ortamıyla derleyecek; yerel deneme dist gönderilmeyecek. Bu kayıt yayın öncesidir; üretim sonucu aşağıda ayrıca doğrulanmalıdır.
