@@ -360,6 +360,7 @@ export default function EventsList({ session }: { session: Session }) {
   }
 
   async function handleCreateEvent() {
+    if (createState === 'submitting') return
     setCreateError(null)
     if (!periodId || !profileId) {
       setCreateError('Aktif dönem veya kullanıcı bilgisi bulunamadı.')

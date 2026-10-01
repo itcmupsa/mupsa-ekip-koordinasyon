@@ -5,6 +5,7 @@ import AppShell from '../components/AppShell'
 import LinkedPublications from '../components/calendar/LinkedPublications'
 import { usePublicationPlan } from '../hooks/usePublicationPlan'
 import { publicationProgress } from '../lib/publicationPlan'
+import { isSafeExternalUrl } from '../lib/prCalendar'
 import PermanentDeleteDialog from '../components/PermanentDeleteDialog'
 import { supabase } from '../lib/supabaseClient'
 import { deleteAwarenessPostPermanently } from '../lib/permanentDeletion'
@@ -173,7 +174,7 @@ function formatMonthYear(value: string | null): string {
 
 function isValidUrl(value: string): boolean {
   if (!value.trim()) return true
-  return /^https?:\/\//i.test(value.trim())
+  return isSafeExternalUrl(value.trim())
 }
 
 function CenteredMessage({ text }: { text: string }) {
@@ -232,7 +233,8 @@ export default function AwarenessPosts({ session }: { session: Session }) {
 
   useEffect(() => {
     if (!selectedRecordId || !posts.some((post) => post.id === selectedRecordId)) return
-    window.setTimeout(() => document.getElementById(`awareness-${selectedRecordId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
+    const timeout = window.setTimeout(() => document.getElementById(`awareness-${selectedRecordId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
+    return () => window.clearTimeout(timeout)
   }, [posts, selectedRecordId])
   const [driveFolderUrl, setDriveFolderUrl] = useState('')
   const [designUrl, setDesignUrl] = useState('')
@@ -520,7 +522,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
   }
 
   async function handleSave() {
-    if (!periodId || !profileId) return
+    if (!periodId || !profileId || isSaving) return
     setFormError(null)
     if (!awarenessName.trim()) {
       setFormError('Farkındalık adı zorunludur.')
@@ -531,7 +533,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
       return
     }
     if (![driveFolderUrl, designUrl, shareUrl].every(isValidUrl)) {
-      setFormError('Linkler http:// veya https:// ile başlamalıdır.')
+      setFormError('Linkler geçerli bir http:// veya https:// adresi olmalıdır.')
       return
     }
 
@@ -691,7 +693,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
                           <div><p className="font-semibold text-ink">Taslak metin</p><p className="mt-1 whitespace-pre-wrap leading-5 text-ink-soft">{payload.draft_text}</p></div>
                           <div><p className="font-semibold text-ink">Görsel fikri</p><p className="mt-1 leading-5 text-ink-soft">{payload.visual_idea}</p></div>
                           <div className="rounded-lg bg-brand-soft/70 p-3"><p className="font-semibold text-brand-dark">Neden MUPSA için uygun?</p><p className="mt-1 leading-5 text-ink-soft">{payload.pharmacy_relevance}</p></div>
-                          <a href={payload.source_url} target="_blank" rel="noreferrer" className="w-fit font-semibold text-brand-dark hover:underline">Kaynak: {payload.source_name} ↗</a>
+                          {payload.source_url && isSafeExternalUrl(payload.source_url) ? <a href={payload.source_url} target="_blank" rel="noreferrer" className="w-fit font-semibold text-brand-dark hover:underline">Kaynak: {payload.source_name} ↗</a> : <p className="text-ink-soft">Kaynak: {payload.source_name} · Geçerli bağlantı bulunamadı.</p>}
                           <div className="grid gap-2 min-[420px]:grid-cols-2">
                             <button type="button" onClick={() => transferSuggestionToForm(suggestion)} className="min-h-[44px] rounded-lg bg-brand px-4 text-sm font-semibold text-white hover:brightness-95">Farkındalık formuna aktar</button>
                             <button type="button" onClick={() => void dismissSuggestion(suggestion.id)} className="min-h-[44px] rounded-lg border border-canvas-border px-4 text-sm font-semibold text-ink-soft hover:bg-canvas">Bu yıl kullanma</button>
@@ -756,7 +758,7 @@ export default function AwarenessPosts({ session }: { session: Session }) {
               { label: 'Drive klasörü', url: post.driveFolderUrl },
               { label: 'Tasarım', url: post.designUrl },
               { label: 'Paylaşım', url: post.shareUrl },
-            ].filter((item): item is { label: string; url: string } => Boolean(item.url))
+            ].filter((item): item is { label: string; url: string } => Boolean(item.url?.trim()) && isSafeExternalUrl(item.url))
 
             return (
               <article id={`awareness-${post.id}`} key={post.id} className={`overflow-hidden rounded-2xl border bg-canvas-surface shadow-card ${post.deletedAt ? 'border-danger/25 opacity-75' : 'border-canvas-border'} ${post.id === selectedRecordId ? 'ring-2 ring-brand ring-offset-2' : ''}`}>

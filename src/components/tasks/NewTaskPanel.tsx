@@ -108,6 +108,8 @@ export default function NewTaskPanel({
   const panelRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const previouslyFocusedRef = useRef<HTMLElement | null>(null)
+  const savingRef = useRef(saving)
+  savingRef.current = saving
 
   useEffect(() => {
     if (!isOpen) return
@@ -120,7 +122,7 @@ export default function NewTaskPanel({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
-        onClose()
+        if (!savingRef.current) onClose()
         return
       }
       if (event.key !== 'Tab') return
@@ -168,15 +170,15 @@ export default function NewTaskPanel({
 
   return (
     <div className="fixed inset-0 z-50">
-      <button type="button" aria-label="Yeni görev panelini kapat" tabIndex={-1} onClick={onClose} className="absolute inset-y-0 left-60 right-0 hidden bg-ink/35 backdrop-blur-[1px] lg:block" />
+      <button type="button" aria-label="Yeni görev panelini kapat" tabIndex={-1} onClick={onClose} disabled={saving} className="absolute inset-y-0 left-60 right-0 hidden bg-ink/35 backdrop-blur-[1px] lg:block" />
       <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="new-task-title" className="absolute inset-0 flex flex-col bg-canvas-surface shadow-2xl lg:inset-y-0 lg:left-auto lg:right-0 lg:w-full lg:max-w-[760px]">
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-canvas-border bg-gradient-to-r from-brand-soft/70 via-canvas-surface to-canvas-surface px-4 pb-3 lg:px-7 lg:py-5" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)' }}>
           <div className="flex min-w-0 items-center gap-3"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand text-white shadow-card"><TaskIcon /></span><div className="min-w-0"><h2 id="new-task-title" className="truncate text-lg font-semibold text-ink lg:text-xl">Yeni görev oluştur</h2><p className="mt-0.5 text-xs text-ink-soft lg:text-sm">Görevin kapsamını, zamanını ve görev dağılımını tek adımda belirleyin.</p></div></div>
-          <button ref={closeButtonRef} type="button" onClick={onClose} aria-label="Kapat" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-canvas-border text-ink-soft hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"><CloseIcon /></button>
+          <button ref={closeButtonRef} type="button" onClick={onClose} disabled={saving} aria-label="Kapat" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-canvas-border text-ink-soft hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"><CloseIcon /></button>
         </div>
 
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <div className="flex-1 overflow-y-auto bg-canvas px-4 py-5 lg:px-7 lg:py-6">
+          <fieldset disabled={saving} className="min-w-0 flex-1 overflow-y-auto bg-canvas px-4 py-5 lg:px-7 lg:py-6">
             <div className="mb-5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
               <div className="flex min-w-0 items-center gap-3 rounded-xl border border-brand/15 bg-canvas-surface p-3 shadow-[0_3px_12px_rgba(15,90,76,0.05)]"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-dark"><LinkIcon /></span><div className="min-w-0"><p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Bağlı kayıt</p><p className="truncate text-sm font-semibold text-ink">{selectedContextLabel}</p></div></div>
               <div className="flex min-w-0 items-center gap-3 rounded-xl border border-blue-100 bg-canvas-surface p-3 shadow-[0_3px_12px_rgba(15,90,76,0.05)]"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><CalendarIcon /></span><div className="min-w-0"><p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Son tarih</p><p className="truncate text-sm font-semibold text-ink">{formattedDeadline}</p></div></div>
@@ -210,11 +212,11 @@ export default function NewTaskPanel({
             </div>
 
             {error ? <p role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
-          </div>
+          </fieldset>
 
           <div className="shrink-0 border-t border-canvas-border bg-canvas-surface px-4 pt-3 lg:px-6 lg:py-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.875rem)' }}>
             <div className="flex items-center gap-3 lg:justify-end">
-              <button type="button" onClick={onClose} className="flex min-h-[44px] flex-1 items-center justify-center rounded-lg border border-brand bg-canvas-surface px-4 text-sm font-semibold text-brand-dark hover:bg-brand-soft lg:flex-none">İptal</button>
+              <button type="button" onClick={onClose} disabled={saving} className="flex min-h-[44px] flex-1 items-center justify-center rounded-lg border border-brand bg-canvas-surface px-4 text-sm font-semibold text-brand-dark hover:bg-brand-soft lg:flex-none">İptal</button>
               <button type="submit" disabled={saving || !contextSelection} className="flex min-h-[44px] flex-1 items-center justify-center rounded-lg bg-accent px-5 text-sm font-semibold text-white shadow-card hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60 lg:flex-none">{saving ? 'Oluşturuluyor…' : 'Görevi oluştur'}</button>
             </div>
           </div>

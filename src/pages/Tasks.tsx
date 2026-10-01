@@ -386,7 +386,7 @@ export default function Tasks({ session }: { session: Session }) {
   }
 
   async function createTask() {
-    if (!periodId || !profileId) return
+    if (!periodId || !profileId || saving) return
     const trimmedTitle = title.trim()
     if (!trimmedTitle) { setFormError('Görev adı zorunludur.'); return }
     if (new Set([primaryProfileId, supportingProfileId, informedProfileId].filter(Boolean)).size !== [primaryProfileId, supportingProfileId, informedProfileId].filter(Boolean).length) {

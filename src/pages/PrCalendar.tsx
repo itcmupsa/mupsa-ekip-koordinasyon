@@ -14,6 +14,8 @@ import AppShell from '../components/AppShell'
 import { useMembershipStatus } from '../hooks/useMembershipStatus'
 import { supabase } from '../lib/supabaseClient'
 import { extractManualAssignees, extractAutoAssignees, buildNonManagerPayload, computeLegacyResponsibleId, type PrEntryAssignee, PR_COLOR_PRESETS, PR_ENTRY_KINDS, PR_ENTRY_STATUSES, addDays, dateKeyInIstanbul, formatOptionalTime, formatWeekRange, isHexColor, isSafeExternalUrl, mondayOfWeek, normalizePrReferenceLinks, parseDateOnly, parsePrReferenceLinks, shiftMonth, validatePrReferenceLinks, weekDates, type PrEntryKind, type PrEntryStatus, type PrReferenceLink } from '../lib/prCalendar'
+import { classifyAwarenessReference, dateRangeIntersects, getEventReferenceDate, countDistinctSources, partitionManualCalendarRecords, isReferenceVisible } from '../lib/calendarReferences'
+import { AwarenessRangeStrip, EventReferenceChip, AwarenessReferenceChip, ReferenceToggles, SelectedSourcePanel } from '../components/calendar/CalendarSourceReferences'
 
 type LoadState = 'loading' | 'ready' | 'error'
 type ViewMode = 'week' | 'month'
@@ -42,7 +44,20 @@ interface PrEntry {
 }
 
 interface Member { id: string; name: string }
-interface Source { id: string; title: string; eventId?: string | null; awarenessPostId?: string | null }
+interface Source {
+  id: string
+  title: string
+  eventId?: string | null
+  awarenessPostId?: string | null
+  date?: string | null
+  confirmedDate?: string | null
+  estimatedDate?: string | null
+  startDate?: string | null
+  endDate?: string | null
+  shareDate?: string | null
+  isManual?: boolean
+  manualRecord?: ManualCalendarRecord
+}
 
 function upcomingSourcesFirst<T extends Source>(sources: T[], sourceDate: (source: T) => string | null): T[] {
   const today = dateKeyInIstanbul()
@@ -92,6 +107,8 @@ export default function PrCalendar({ session }: { session: Session }) {
   const [members, setMembers] = useState<Member[]>([])
   const [events, setEvents] = useState<Source[]>([])
   const [awareness, setAwareness] = useState<Source[]>([])
+  const [eventReferences, setEventReferences] = useState<Source[]>([])
+  const [awarenessReferences, setAwarenessReferences] = useState<Source[]>([])
   const [tasks, setTasks] = useState<Source[]>([])
   const [canManage, setCanManage] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
@@ -111,46 +128,82 @@ export default function PrCalendar({ session }: { session: Session }) {
   const [query, setQuery] = useState('')
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [showDeleted, setShowDeleted] = useState(false)
+  const [showEventRefs, setShowEventRefs] = useState(true)
+  const [showAwarenessRefs, setShowAwarenessRefs] = useState(true)
+  const [selectedSource, setSelectedSource] = useState<{ id: string; kind: 'event' | 'awareness' } | null>(null)
   const returnFocus = useRef<HTMLElement | null>(null)
   const dialogRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     if (statusLoading || !periodId) return
     let active = true
-    async function load() {
-      setLoadState('loading'); setLoadError(null)
-      const [entryResult, memberResult, eventResult, awarenessResult, taskResult, permissionResult, manualResult] = await Promise.all([
-        (showDeleted ? supabase.from('pr_calendar_entries').select('*, assignees:pr_calendar_entry_assignees(profile_id, assignment_source)').eq('period_id', periodId).order('scheduled_date').order('scheduled_time', { nullsFirst: false }) : supabase.from('pr_calendar_entries').select('*, assignees:pr_calendar_entry_assignees(profile_id, assignment_source)').eq('period_id', periodId).is('deleted_at', null).order('scheduled_date').order('scheduled_time', { nullsFirst: false })),
-        supabase.from('period_memberships').select('profile_id, period_display_name').eq('period_id', periodId).eq('is_active', true).order('period_display_name'),
-        supabase.from('events').select('id, title, confirmed_date, estimated_date').eq('period_id', periodId).is('deleted_at', null).order('title'),
-        supabase.from('awareness_posts').select('id, awareness_name, end_date, share_date, estimated_date, start_date').eq('period_id', periodId).is('deleted_at', null).order('awareness_name'),
-        supabase.from('tasks').select('id, title, event_id, awareness_post_id').eq('period_id', periodId).is('deleted_at', null).order('title'),
-        supabase.rpc('can_manage_pr_calendar', { target_period_id: periodId }),
-        (showDeleted ? supabase.from('calendar_entries').select('*').eq('period_id', periodId).contains('calendar_scopes', ['pr']) : supabase.from('calendar_entries').select('*').eq('period_id', periodId).contains('calendar_scopes', ['pr']).is('deleted_at', null)),
-      ])
-      if (!active) return
-      if (entryResult.error) {
-        setLoadState('error')
-        setLoadError(entryResult.error.message.includes('pr_calendar_entries') ? 'Basın-yayın takvimi henüz kullanıma açılmadı. Veritabanı güncellemesi tamamlandıktan sonra tekrar deneyin.' : entryResult.error.message)
-        return
-      }
-      if (memberResult.error || eventResult.error || awarenessResult.error || taskResult.error || manualResult.error || permissionResult.error) { setLoadState('error'); setLoadError('Takvim için bağlı kayıtlar yüklenemedi.'); return }
-      const prEntries = (entryResult.data ?? []).map((row) => ({ id: row.id, periodId: row.period_id, title: row.title, entryKind: row.entry_kind, scheduledDate: row.scheduled_date, scheduledTime: row.scheduled_time, color: row.color, status: row.status, channels: row.channels ?? (row.channel ? [row.channel] : []), format: row.format, notes: row.notes, responsibleId: row.responsible_id, eventId: row.event_id, awarenessPostId: row.awareness_post_id, taskId: row.task_id, relatedPrEntryId: row.related_pr_entry_id, referenceLinks: parsePrReferenceLinks(row.reference_links, row.reference_label, row.reference_url), deletedAt: row.deleted_at, assignees: Array.isArray(row.assignees) ? row.assignees.map((a: any) => ({ profileId: a.profile_id, assignmentSource: a.assignment_source })) : [] } as PrEntry))
-      const manualItems: PrEntry[] = (manualResult.data ?? []).flatMap((row: ManualCalendarRecord) => {
-        const items: PrEntry[] = []
-        for (let day = row.start_date; day <= (row.end_date ?? row.start_date); day = addDays(day, 1)) {
-          items.push({ id: `manual-${row.id}-${day}`, periodId: row.period_id, title: row.title, entryKind: 'other', scheduledDate: day, scheduledTime: null, color: row.color, status: 'planned', channels: [], format: 'Manuel kayıt', notes: row.note, responsibleId: null, eventId: null, awarenessPostId: null, taskId: null, relatedPrEntryId: null, referenceLinks: [], deletedAt: row.deleted_at, manualRecord: row, assignees: [] })
-        }
-        return items
-      })
-      setEntries([...prEntries, ...manualItems])
-      setMembers((memberResult.data ?? []).map((row) => ({ id: row.profile_id, name: row.period_display_name || 'Üye' })))
-      setEvents(upcomingSourcesFirst((eventResult.data ?? []).map((row) => ({ id: row.id, title: row.title, date: row.confirmed_date ?? row.estimated_date })), source => source.date))
-      setAwareness(upcomingSourcesFirst((awarenessResult.data ?? []).map((row) => ({ id: row.id, title: row.awareness_name, date: row.end_date ?? row.share_date ?? row.estimated_date ?? row.start_date })), source => source.date))
-      setTasks((taskResult.data ?? []).map((row) => ({ id: row.id, title: row.title, eventId: row.event_id, awarenessPostId: row.awareness_post_id })))
-      setCanManage(permissionResult.data === true); setLoadState('ready')
+    let busy = false
+    let loaded = false
+    setLoadState('loading'); setLoadError(null)
+    const fail = (message: string) => {
+      setLoadError(message)
+      if (!loaded) setLoadState('error')
     }
-    void load(); return () => { active = false }
+    async function load() {
+      if (busy) return
+      busy = true
+      try {
+        const [entryResult, memberResult, eventResult, awarenessResult, taskResult, permissionResult, manualResult] = await Promise.all([
+          (showDeleted ? supabase.from('pr_calendar_entries').select('*, assignees:pr_calendar_entry_assignees(profile_id, assignment_source)').eq('period_id', periodId).order('scheduled_date').order('scheduled_time', { nullsFirst: false }) : supabase.from('pr_calendar_entries').select('*, assignees:pr_calendar_entry_assignees(profile_id, assignment_source)').eq('period_id', periodId).is('deleted_at', null).order('scheduled_date').order('scheduled_time', { nullsFirst: false })),
+          supabase.from('period_memberships').select('profile_id, period_display_name').eq('period_id', periodId).eq('is_active', true).order('period_display_name'),
+          supabase.from('events').select('id, title, confirmed_date, estimated_date').eq('period_id', periodId).is('deleted_at', null).order('title'),
+          supabase.from('awareness_posts').select('id, awareness_name, end_date, share_date, estimated_date, start_date').eq('period_id', periodId).is('deleted_at', null).order('awareness_name'),
+          supabase.from('tasks').select('id, title, event_id, awareness_post_id').eq('period_id', periodId).is('deleted_at', null).order('title'),
+          supabase.rpc('can_manage_pr_calendar', { target_period_id: periodId }),
+          (showDeleted ? supabase.from('calendar_entries').select('*').eq('period_id', periodId).overlaps('calendar_scopes', ['pr', 'events', 'awareness']) : supabase.from('calendar_entries').select('*').eq('period_id', periodId).overlaps('calendar_scopes', ['pr', 'events', 'awareness']).is('deleted_at', null)),
+        ])
+        if (!active) return
+        if (entryResult.error) {
+          fail(entryResult.error.message.includes('pr_calendar_entries') ? 'Basın-yayın takvimi henüz kullanıma açılmadı. Veritabanı güncellemesi tamamlandıktan sonra tekrar deneyin.' : entryResult.error.message)
+          return
+        }
+        if (memberResult.error || eventResult.error || awarenessResult.error || taskResult.error || manualResult.error || permissionResult.error) { fail('Takvim için bağlı kayıtlar yüklenemedi.'); return }
+        const prEntries = (entryResult.data ?? []).map((row) => ({ id: row.id, periodId: row.period_id, title: row.title, entryKind: row.entry_kind, scheduledDate: row.scheduled_date, scheduledTime: row.scheduled_time, color: row.color, status: row.status, channels: row.channels ?? (row.channel ? [row.channel] : []), format: row.format, notes: row.notes, responsibleId: row.responsible_id, eventId: row.event_id, awarenessPostId: row.awareness_post_id, taskId: row.task_id, relatedPrEntryId: row.related_pr_entry_id, referenceLinks: parsePrReferenceLinks(row.reference_links, row.reference_label, row.reference_url), deletedAt: row.deleted_at, assignees: Array.isArray(row.assignees) ? row.assignees.map((a: { profile_id: string; assignment_source: PrEntryAssignee['assignmentSource'] }) => ({ profileId: a.profile_id, assignmentSource: a.assignment_source })) : [] } as PrEntry))
+        const manualRecords = partitionManualCalendarRecords((manualResult.data ?? []) as ManualCalendarRecord[])
+        const manualPrItems: PrEntry[] = manualRecords.pr.flatMap(row => {
+          const items: PrEntry[] = []
+          for (let day = row.start_date; day <= (row.end_date ?? row.start_date); day = addDays(day, 1)) {
+            items.push({ id: `manual-${row.id}-${day}`, periodId: row.period_id, title: row.title, entryKind: 'other', scheduledDate: day, scheduledTime: null, color: row.color, status: 'planned', channels: [], format: 'Manuel kayıt', notes: row.note, responsibleId: null, eventId: null, awarenessPostId: null, taskId: null, relatedPrEntryId: null, referenceLinks: [], deletedAt: row.deleted_at, manualRecord: row, assignees: [] })
+          }
+          return items
+        })
+        const manualEventSources: Source[] = manualRecords.events.map(row => ({ id: row.id, title: row.title, date: row.start_date, confirmedDate: row.start_date, isManual: true, manualRecord: row }))
+        const manualAwarenessSources: Source[] = manualRecords.awareness.map(row => ({ id: row.id, title: row.title, date: row.end_date ?? row.start_date, startDate: row.start_date, endDate: row.end_date, isManual: true, manualRecord: row }))
+        setEntries([...prEntries, ...manualPrItems])
+        setMembers((memberResult.data ?? []).map((row) => ({ id: row.profile_id, name: row.period_display_name || 'Üye' })))
+
+        const realEvents = upcomingSourcesFirst((eventResult.data ?? []).map((row) => ({ id: row.id, title: row.title, date: row.confirmed_date ?? row.estimated_date, confirmedDate: row.confirmed_date, estimatedDate: row.estimated_date })), source => source.date)
+        setEvents(realEvents)
+        setEventReferences([...realEvents, ...manualEventSources])
+
+        const realAwareness = upcomingSourcesFirst((awarenessResult.data ?? []).map((row) => ({ id: row.id, title: row.awareness_name, date: row.end_date ?? row.share_date ?? row.estimated_date ?? row.start_date, startDate: row.start_date, endDate: row.end_date, shareDate: row.share_date, estimatedDate: row.estimated_date })), source => source.date)
+        setAwareness(realAwareness)
+        setAwarenessReferences([...realAwareness, ...manualAwarenessSources])
+
+        setTasks((taskResult.data ?? []).map((row) => ({ id: row.id, title: row.title, eventId: row.event_id, awarenessPostId: row.awareness_post_id })))
+        setCanManage(permissionResult.data === true); setLoadError(null); setLoadState('ready'); loaded = true
+      } catch {
+        if (active) fail('Takvim güncellenemedi. Bağlantınızı kontrol edin; görünen bilgiler eski olabilir.')
+      } finally { busy = false }
+    }
+    void load()
+    const refresh = () => { if (document.visibilityState !== 'hidden') void load() }
+    window.addEventListener('focus', refresh)
+    window.addEventListener('mupsa-publications-changed', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    const timer = window.setInterval(refresh, 30000)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('mupsa-publications-changed', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
   }, [periodId, reloadKey, showDeleted, statusLoading])
 
   const closeDrawer = useCallback(() => { if (saving) return; setDrawerOpen(false); window.setTimeout(() => returnFocus.current?.focus(), 0) }, [saving])
@@ -184,13 +237,85 @@ export default function PrCalendar({ session }: { session: Session }) {
   const activeWeekEntry = weekEntries.find((entry) => entry.id === selected?.id) ?? weekEntries[0] ?? null
   const activeFilterCount = [statusFilter !== 'all', kindFilter !== 'all', responsibleFilter !== 'all', Boolean(query.trim())].filter(Boolean).length
 
-  const openDrawer = useCallback((entry?: PrEntry, date?: string, trigger?: HTMLElement | null, editExisting = false) => {
+  const sourceLayers = useMemo(() => {
+    const dailyEvents = new Map<string, { id: string; title: string; onClick: () => void }[]>()
+    const dailyAwareness = new Map<string, { id: string; title: string; onClick: () => void }[]>()
+    const rangeAwareness: { id: string; title: string; start: string; end: string; onClick: () => void }[] = []
+
+    if (showEventRefs) {
+      for (const e of eventReferences) {
+        const refDay = getEventReferenceDate(e.confirmedDate, e.estimatedDate)
+        if (refDay) {
+          const list = dailyEvents.get(refDay) ?? []
+          list.push({ id: e.id, title: e.title, onClick: () => {
+            setSelected(null)
+            if (e.manualRecord) { setSelectedSource(null); setManualSelection(e.manualRecord); setManualOpen(true); return }
+            setSelectedSource({ id: e.id, kind: 'event' })
+          } })
+          dailyEvents.set(refDay, list)
+        }
+      }
+    }
+
+    if (showAwarenessRefs) {
+      for (const a of awarenessReferences) {
+        const ref = classifyAwarenessReference(a.startDate, a.endDate, a.shareDate)
+        if (!ref) continue
+        const onClick = () => {
+          setSelected(null)
+          if (a.manualRecord) { setSelectedSource(null); setManualSelection(a.manualRecord); setManualOpen(true); return }
+          setSelectedSource({ id: a.id, kind: 'awareness' })
+        }
+        if (ref.kind === 'day') {
+          const list = dailyAwareness.get(ref.date) ?? []
+          list.push({ id: a.id, title: a.title, onClick })
+          dailyAwareness.set(ref.date, list)
+        } else {
+          rangeAwareness.push({ id: a.id, title: a.title, start: ref.start, end: ref.end, onClick })
+        }
+      }
+    }
+    return { dailyEvents, dailyAwareness, rangeAwareness }
+  }, [eventReferences, awarenessReferences, showEventRefs, showAwarenessRefs])
+
+  const awarenessRangesForWeek = useMemo(() => {
+    const visibleWeekEnd = addDays(weekStart, 6)
+    return sourceLayers.rangeAwareness.filter(r => dateRangeIntersects(r.start, r.end, weekStart, visibleWeekEnd))
+  }, [sourceLayers, weekStart])
+
+  const awarenessRangesForMonth = useMemo(() => {
+    const nextMonth = shiftMonth(month, 1)
+    const lastDayOfMonth = addDays(nextMonth, -1)
+    return sourceLayers.rangeAwareness.filter(r => dateRangeIntersects(r.start, r.end, month, lastDayOfMonth))
+  }, [sourceLayers, month])
+
+  const selectedSourceDetails = useMemo(() => {
+    if (!selectedSource) return null
+    const source = (selectedSource.kind === 'event' ? events : awareness).find(item => item.id === selectedSource.id)
+    if (!source) return null
+    const reference = selectedSource.kind === 'event'
+      ? (() => { const date = getEventReferenceDate(source.confirmedDate, source.estimatedDate); return date ? { kind: 'day' as const, date } : null })()
+      : classifyAwarenessReference(source.startDate, source.endDate, source.shareDate)
+    const windowEnd = view === 'week' ? addDays(weekStart, 6) : addDays(shiftMonth(month, 1), -1)
+    if (!reference || !isReferenceVisible(reference, view === 'week' ? weekStart : month, windowEnd)
+      || !(selectedSource.kind === 'event' ? showEventRefs : showAwarenessRefs)) return null
+    return {
+      id: source.id, kind: selectedSource.kind, title: source.title,
+      start: reference.kind === 'day' ? reference.date : reference.start,
+      end: reference.kind === 'range' ? reference.end : undefined,
+      typeLabel: selectedSource.kind === 'event' ? 'Etkinlik' : 'Farkındalık',
+      viewUrl: selectedSource.kind === 'event' ? `/app/etkinlikler/${source.id}` : `/app/farkindalik?record=${source.id}`,
+    }
+  }, [selectedSource, events, awareness, view, weekStart, month, showEventRefs, showAwarenessRefs])
+
+  const openDrawer = useCallback((entry?: PrEntry, date?: string, trigger?: HTMLElement | null, editExisting = false, prefillSource?: { id: string; kind: 'event' | 'awareness' }) => {
     if (entry?.manualRecord) { setManualSelection(entry.manualRecord); setManualOpen(true); return }
     if (!canManage && !entry) return
     setEditing(!entry || editExisting)
     returnFocus.current = trigger ?? document.activeElement as HTMLElement
     setSelected(entry ?? null)
-    setDraft(entry ? { title: entry.title, entryKind: entry.entryKind, scheduledDate: entry.scheduledDate, scheduledTime: entry.scheduledTime?.slice(0, 5) ?? '', color: entry.color, status: entry.status, channels: [...entry.channels], format: entry.format ?? '', notes: entry.notes ?? '', responsibleId: entry.responsibleId ?? '', manualAssigneeIds: entry ? extractManualAssignees(entry.assignees.map(a => ({ profile_id: a.profileId, assignment_source: a.assignmentSource }))) : [], eventId: entry.eventId ?? '', awarenessPostId: entry.awarenessPostId ?? '', taskId: entry.taskId ?? '', relatedPrEntryId: entry.relatedPrEntryId ?? '', referenceLinks: entry.referenceLinks.map((link) => ({ ...link })) } : { ...emptyDraft(), scheduledDate: date ?? dateKeyInIstanbul() })
+    setSelectedSource(null)
+    setDraft(entry ? { title: entry.title, entryKind: entry.entryKind, scheduledDate: entry.scheduledDate, scheduledTime: entry.scheduledTime?.slice(0, 5) ?? '', color: entry.color, status: entry.status, channels: [...entry.channels], format: entry.format ?? '', notes: entry.notes ?? '', responsibleId: entry.responsibleId ?? '', manualAssigneeIds: entry ? extractManualAssignees(entry.assignees.map(a => ({ profile_id: a.profileId, assignment_source: a.assignmentSource }))) : [], eventId: entry.eventId ?? '', awarenessPostId: entry.awarenessPostId ?? '', taskId: entry.taskId ?? '', relatedPrEntryId: entry.relatedPrEntryId ?? '', referenceLinks: entry.referenceLinks.map((link) => ({ ...link })) } : { ...emptyDraft(), scheduledDate: date ?? dateKeyInIstanbul(), eventId: prefillSource?.kind === 'event' ? prefillSource.id : '', awarenessPostId: prefillSource?.kind === 'awareness' ? prefillSource.id : '' })
     setFormError(null); setDrawerOpen(true)
   }, [canManage])
 
@@ -343,22 +468,51 @@ export default function PrCalendar({ session }: { session: Session }) {
           {activeFilterCount > 0 ? <button type="button" onClick={() => { setQuery(''); setStatusFilter('all'); setKindFilter('all'); setResponsibleFilter('all') }} className="min-h-11 rounded-lg px-3 text-sm font-medium text-brand-dark hover:bg-brand-soft">Temizle</button> : null}
         </div> : null}
 
+        {loadError ? <p role="alert" className="mt-3 rounded-lg bg-danger-soft p-3 text-sm text-danger">{loadError} Görünen bilgiler son başarılı yüklemeden kalmış olabilir.</p> : null}
+        <ReferenceToggles showEvents={showEventRefs} setShowEvents={setShowEventRefs} showAwareness={showAwarenessRefs} setShowAwareness={setShowAwarenessRefs} eventCount={eventReferences.length} awarenessCount={awarenessReferences.length} />
+
         {view === 'week' ? <>
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-canvas-border pb-3 text-xs text-ink-soft sm:text-sm">
-            <span className="font-semibold text-ink">Bu hafta: <strong>{weekEntries.length} kayıt</strong></span>
+            <span className="font-semibold text-ink">Bu hafta: <strong>{weekEntries.length} PR kaydı / {(() => {
+              const visibleWeekEnd = addDays(weekStart, 6)
+              let eList: { id: string }[] = []
+              let aList: { id: string }[] = []
+              if (showEventRefs) {
+                for (let day = weekStart; day <= visibleWeekEnd; day = addDays(day, 1)) {
+                  eList = eList.concat(sourceLayers.dailyEvents.get(day) ?? [])
+                }
+              }
+              if (showAwarenessRefs) {
+                for (let day = weekStart; day <= visibleWeekEnd; day = addDays(day, 1)) {
+                  aList = aList.concat(sourceLayers.dailyAwareness.get(day) ?? [])
+                }
+                aList = aList.concat(awarenessRangesForWeek)
+              }
+              return `${countDistinctSources(eList, (x) => x.id)} etkinlik / ${countDistinctSources(aList, (x) => x.id)} farkındalık`
+            })()}</strong></span>
             {weeklyStatusCounts.map((status) => <span key={status.value} className="inline-flex items-center gap-1.5"><span className={`h-2.5 w-2.5 rounded-full ${statusDotClass(status.value)}`} aria-hidden="true" />{status.count} {status.label.toLocaleLowerCase('tr-TR')}</span>)}
           </div>
+
+          <AwarenessRangeStrip title="Bu hafta devam eden farkındalıklar" ranges={awarenessRangesForWeek} />
+
           <div className="mt-3 grid grid-cols-7 gap-1 pb-2 lg:hidden">{counts.map(({ day, entries: dayEntries }, index) => <button type="button" key={day} aria-pressed={day === selectedDay} onClick={() => { setSelectedDay(day); setView('week'); requestAnimationFrame(() => { const target = document.getElementById(`pr-day-${day}`); if (target && boardRef.current) boardRef.current.scrollTo({ left: target.offsetLeft - boardRef.current.offsetLeft, behavior: 'smooth' }) }) }} className={`min-h-16 min-w-0 rounded-lg border px-1 py-2 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${day === selectedDay ? 'border-brand/40 bg-brand-soft text-brand-dark' : 'border-canvas-border bg-canvas text-ink'}`}><span className="block text-[11px] font-medium">{DAY_SHORT[index]}</span><span className="block text-sm font-semibold">{parseDateOnly(day).getUTCDate()}</span><span className="mt-0.5 block text-[10px] text-ink-soft">{dayEntries.length} kayıt</span></button>)}</div>
           <div ref={boardRef} className="relative mt-3 max-h-[70dvh] snap-x snap-mandatory overflow-auto rounded-xl border border-canvas-border lg:snap-none">
             <div className="grid min-w-[1120px] grid-cols-7 xl:min-w-0">{counts.map(({ day, entries: dayEntries }, index) => <section id={`pr-day-${day}`} key={day} className={`min-h-[430px] snap-start border-r border-canvas-border last:border-r-0 ${day === selectedDay ? 'bg-brand-soft/30' : 'bg-white'}`}>
               <header className={`sticky top-0 z-10 border-b border-canvas-border px-2 py-2 text-center backdrop-blur ${day === selectedDay ? 'bg-brand-soft/95' : 'bg-white/95'}`}><button type="button" onClick={() => setSelectedDay(day)} aria-current={day === dateKeyInIstanbul() ? 'date' : undefined} className="min-h-11 w-full rounded-lg px-2 text-ink transition-colors hover:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"><span className="block text-xs font-semibold">{DAY_SHORT[index]}</span><span className={`mt-0.5 block text-sm ${day === dateKeyInIstanbul() ? 'font-semibold text-brand-dark' : 'text-ink-soft'}`}>{dayLabel(day)}</span><span className="mt-0.5 block text-[11px] text-ink-soft">{dayEntries.length} kayıt</span></button></header>
-              <div className="space-y-2 p-1.5">{dayEntries.map((entry) => <button type="button" key={entry.id} aria-pressed={activeWeekEntry?.id === entry.id} onClick={() => { setSelected(entry); setSelectedDay(day) }} className={`w-full rounded-lg border bg-white p-2 text-left shadow-sm transition-[border-color,box-shadow,background-color] hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${activeWeekEntry?.id === entry.id ? 'ring-1 ring-brand' : ''} ${entry.deletedAt ? 'opacity-50' : ''}`} style={{ borderLeftWidth: 4, borderLeftColor: entry.color }}><span className="block text-[11px] font-semibold text-ink-soft">{formatOptionalTime(entry.scheduledTime)}</span><span className="mt-0.5 block line-clamp-2 text-xs font-semibold leading-snug text-ink">{entry.title}</span>{entry.channels.length > 0 || entry.format ? <span className="mt-1 block truncate text-[11px] text-ink-soft">{[...entry.channels, entry.format].filter(Boolean).join(' · ')}</span> : null}{entry.assignees.length > 0 ? <span className="mt-1 flex items-center gap-1 truncate text-[11px] text-ink-soft"><Icon><path d="M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" /></Icon>{uniqueAssigneeIds(entry.assignees).map(id => memberName(id)).join(', ')}</span> : null}<span className="mt-1.5 flex flex-wrap gap-1"><span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${statusClass(entry.status)}`}><span className={`h-1.5 w-1.5 rounded-full ${statusDotClass(entry.status)}`} aria-hidden="true" />{labelFor(PR_ENTRY_STATUSES, entry.status)}</span></span></button>)}{canManage ? <button type="button" onClick={(event) => openDrawer(undefined, day, event.currentTarget)} className="min-h-11 w-full rounded-lg border border-dashed border-canvas-border px-2 text-xs font-medium text-ink-soft transition-colors hover:border-brand hover:bg-brand-soft hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">+ Kayıt ekle</button> : null}</div>
+              <div className="space-y-2 p-1.5">
+                {sourceLayers.dailyAwareness.get(day)?.map(r => <AwarenessReferenceChip key={r.id} title={r.title} onClick={r.onClick} />)}
+                {sourceLayers.dailyEvents.get(day)?.map(r => <EventReferenceChip key={r.id} title={r.title} onClick={r.onClick} />)}
+                {dayEntries.map((entry) => <button type="button" key={entry.id} aria-pressed={activeWeekEntry?.id === entry.id} onClick={() => { setSelected(entry); setSelectedDay(day); setSelectedSource(null) }} className={`w-full rounded-lg border bg-white p-2 text-left shadow-sm transition-[border-color,box-shadow,background-color] hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${activeWeekEntry?.id === entry.id ? 'ring-1 ring-brand' : ''} ${entry.deletedAt ? 'opacity-50' : ''}`} style={{ borderLeftWidth: 4, borderLeftColor: entry.color }}><span className="block text-[11px] font-semibold text-ink-soft">{formatOptionalTime(entry.scheduledTime)}</span><span className="mt-0.5 block line-clamp-2 text-xs font-semibold leading-snug text-ink">{entry.title}</span>{entry.channels.length > 0 || entry.format ? <span className="mt-1 block truncate text-[11px] text-ink-soft">{[...entry.channels, entry.format].filter(Boolean).join(' · ')}</span> : null}{entry.assignees.length > 0 ? <span className="mt-1 flex items-center gap-1 truncate text-[11px] text-ink-soft"><Icon><path d="M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" /></Icon>{uniqueAssigneeIds(entry.assignees).map(id => memberName(id)).join(', ')}</span> : null}<span className="mt-1.5 flex flex-wrap gap-1"><span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${statusClass(entry.status)}`}><span className={`h-1.5 w-1.5 rounded-full ${statusDotClass(entry.status)}`} aria-hidden="true" />{labelFor(PR_ENTRY_STATUSES, entry.status)}</span></span></button>)}{canManage ? <button type="button" onClick={(event) => openDrawer(undefined, day, event.currentTarget)} className="min-h-11 w-full rounded-lg border border-dashed border-canvas-border px-2 text-xs font-medium text-ink-soft transition-colors hover:border-brand hover:bg-brand-soft hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">+ Kayıt ekle</button> : null}
+              </div>
             </section>)}</div>
           </div>
-          {activeWeekEntry ? <SelectedEntryPanel entry={activeWeekEntry} memberName={memberName} events={events} awareness={awareness} tasks={tasks} entries={entries} canManage={canManage} profileId={profileId} onOpen={(trigger) => openDrawer(activeWeekEntry, undefined, trigger, canManage || activeWeekEntry.assignees.some(a => a.profileId === profileId))} /> : <div className="mt-3 rounded-xl border border-dashed border-canvas-border bg-canvas px-4 py-8 text-center text-sm text-ink-soft">Bu haftada seçilebilecek PR kaydı yok.</div>}
+          {selectedSourceDetails ? <SelectedSourcePanel source={selectedSourceDetails} kind={selectedSourceDetails.kind} canManage={canManage} onCreatePlan={() => openDrawer(undefined, selectedSourceDetails.start, null, false, { id: selectedSourceDetails.id, kind: selectedSourceDetails.kind })} /> :
+           activeWeekEntry ? <SelectedEntryPanel entry={activeWeekEntry} memberName={memberName} events={events} awareness={awareness} tasks={tasks} entries={entries} canManage={canManage} profileId={profileId} onOpen={(trigger) => openDrawer(activeWeekEntry, undefined, trigger, canManage || activeWeekEntry.assignees.some(a => a.profileId === profileId))} /> : <div className="mt-3 rounded-xl border border-dashed border-canvas-border bg-canvas px-4 py-8 text-center text-sm text-ink-soft">Bu haftada seçilebilecek PR kaydı yok.</div>}
         </> : <>
           <p className="mt-3 text-sm text-ink-soft">Bu ay: <strong className="text-ink">{viewEntries.length} kayıt</strong></p>
-          <MonthBoard month={month} entries={filtered} canManage={canManage} onDay={(day) => { setWeekStart(mondayOfWeek(day)); setSelectedDay(day); setView('week') }} onSelect={(entry, trigger) => openDrawer(entry, undefined, trigger, canManage || entry.assignees.some(a => a.profileId === profileId))} onCreate={(day, trigger) => openDrawer(undefined, day, trigger)} />
+          <AwarenessRangeStrip title="Bu ay devam eden farkındalıklar" ranges={awarenessRangesForMonth} />
+          <MonthBoard month={month} entries={filtered} canManage={canManage} sourceLayers={sourceLayers} onDay={(day) => { setWeekStart(mondayOfWeek(day)); setSelectedDay(day); setView('week') }} onSelect={(entry, trigger) => { setSelectedSource(null); openDrawer(entry, undefined, trigger, canManage || entry.assignees.some(a => a.profileId === profileId)) }} onCreate={(day, trigger) => openDrawer(undefined, day, trigger)} />
+          {selectedSourceDetails ? <SelectedSourcePanel source={selectedSourceDetails} kind={selectedSourceDetails.kind} canManage={canManage} onCreatePlan={() => openDrawer(undefined, selectedSourceDetails.start, null, false, { id: selectedSourceDetails.id, kind: selectedSourceDetails.kind })} /> : null}
         </>}
       </section>
     </main>
@@ -368,9 +522,10 @@ export default function PrCalendar({ session }: { session: Session }) {
   </AppShell>
 }
 
-function MonthBoard({ month, entries, canManage, onSelect, onCreate, onDay }: { month: string; entries: PrEntry[]; canManage: boolean; onDay: (day: string) => void; onSelect: (entry: PrEntry, trigger: HTMLElement) => void; onCreate: (day: string, trigger: HTMLElement) => void }) {
+
+function MonthBoard({ month, entries, canManage, sourceLayers, onSelect, onCreate, onDay }: { month: string; entries: PrEntry[]; canManage: boolean; sourceLayers: { dailyEvents: Map<string, { id: string; title: string; onClick: () => void }[]>; dailyAwareness: Map<string, { id: string; title: string; onClick: () => void }[]>; rangeAwareness: { id: string; title: string; start: string; end: string; onClick: () => void; linkTo?: string }[] }; onDay: (day: string) => void; onSelect: (entry: PrEntry, trigger: HTMLElement) => void; onCreate: (day: string, trigger: HTMLElement) => void }) {
   const first = parseDateOnly(month); const start = mondayOfWeek(month); const days = Array.from({ length: 42 }, (_, index) => addDays(start, index))
-  return <div className="mt-4 overflow-x-auto"><div className="grid min-w-[840px] grid-cols-7 border-l border-t border-canvas-border">{DAY_SHORT.map((day) => <div key={day} className="border-b border-r border-canvas-border bg-canvas px-2 py-2 text-xs font-semibold text-ink-soft">{day}</div>)}{days.map((day) => { const dayEntries = sortEntries(entries.filter((entry) => entry.scheduledDate === day)); const inMonth = parseDateOnly(day).getUTCMonth() === first.getUTCMonth(); return <div key={day} className={`min-h-[126px] border-b border-r border-canvas-border p-2 ${inMonth ? 'bg-white' : 'bg-canvas/60'}`}><div className="mb-1 flex items-center justify-between"><span className={`text-xs font-semibold ${inMonth ? 'text-ink' : 'text-ink-soft'}`}>{parseDateOnly(day).getUTCDate()}</span>{canManage ? <button type="button" onClick={(event) => onCreate(day, event.currentTarget)} className="text-xs text-brand-dark" aria-label={`${day} için kayıt ekle`}>+</button> : null}</div>{dayEntries.slice(0, 3).map((entry) => <button type="button" key={entry.id} onClick={(event) => onSelect(entry, event.currentTarget)} className="mb-1 block w-full truncate rounded px-1.5 py-1 text-left text-xs font-medium text-ink" style={{ borderLeft: `3px solid ${entry.color}`, backgroundColor: `${entry.color}12` }}>{entry.scheduledTime ? `${formatOptionalTime(entry.scheduledTime)} ` : ''}{entry.title}</button>)}{dayEntries.length > 3 ? <button type="button" onClick={() => onDay(day)} className="min-h-9 text-xs text-brand-dark">+{dayEntries.length - 3} kayıt · Haftada aç</button> : null}</div> })}</div></div>
+  return <div className="mt-4 overflow-x-auto"><div className="grid min-w-[840px] grid-cols-7 border-l border-t border-canvas-border">{DAY_SHORT.map((day) => <div key={day} className="border-b border-r border-canvas-border bg-canvas px-2 py-2 text-xs font-semibold text-ink-soft">{day}</div>)}{days.map((day) => { const dayEntries = sortEntries(entries.filter((entry) => entry.scheduledDate === day)); const inMonth = parseDateOnly(day).getUTCMonth() === first.getUTCMonth(); return <div key={day} className={`min-h-[126px] border-b border-r border-canvas-border p-2 ${inMonth ? 'bg-white' : 'bg-canvas/60'}`}><div className="mb-1 flex items-center justify-between"><span className={`text-xs font-semibold ${inMonth ? 'text-ink' : 'text-ink-soft'}`}>{parseDateOnly(day).getUTCDate()}</span>{canManage ? <button type="button" onClick={(event) => onCreate(day, event.currentTarget)} className="text-xs text-brand-dark" aria-label={`${day} için kayıt ekle`}>+</button> : null}</div>{inMonth && sourceLayers.dailyAwareness.get(day)?.map((r) => <AwarenessReferenceChip key={r.id} title={r.title} onClick={r.onClick} />)}{inMonth && sourceLayers.dailyEvents.get(day)?.map((r) => <EventReferenceChip key={r.id} title={r.title} onClick={r.onClick} />)}{dayEntries.slice(0, 3).map((entry) => <button type="button" key={entry.id} onClick={(event) => onSelect(entry, event.currentTarget)} className="mb-1 block w-full truncate rounded px-1.5 py-1 text-left text-xs font-medium text-ink" style={{ borderLeft: `3px solid ${entry.color}`, backgroundColor: `${entry.color}12` }}>{entry.scheduledTime ? `${formatOptionalTime(entry.scheduledTime)} ` : ''}{entry.title}</button>)}{dayEntries.length > 3 ? <button type="button" onClick={() => onDay(day)} className="min-h-9 text-xs text-brand-dark">+{dayEntries.length - 3} kayıt · Haftada aç</button> : null}</div> })}</div></div>
 }
 
 function SelectedEntryPanel({ entry, memberName, events, awareness, tasks, entries, canManage, profileId, onOpen }: { entry: PrEntry; memberName: (id: string | null) => string; events: Source[]; awareness: Source[]; tasks: Source[]; entries: PrEntry[]; canManage: boolean; profileId: string | null; onOpen: (trigger: HTMLElement) => void }) {
@@ -414,7 +569,7 @@ function DetailItem({ label, value, children }: { label: string; value: string; 
 
 const EntryDrawer = ({ sourceContent, ref, entry, draft, setDraft, members, events, awareness, tasks, entries, memberName, error, saving, canManage, editing, profileId, onEdit, onClose, onSave, onDelete }: { sourceContent: ReactNode; ref: React.RefObject<HTMLDivElement | null>; entry: PrEntry | null; draft: ReturnType<typeof emptyDraft>; setDraft: React.Dispatch<React.SetStateAction<ReturnType<typeof emptyDraft>>>; members: Member[]; events: Source[]; awareness: Source[]; tasks: Source[]; entries: PrEntry[]; memberName: (id: string | null) => string; error: string | null; saving: boolean; canManage: boolean; editing: boolean; profileId: string | null; onEdit: () => void; onClose: () => void; onSave: () => void; onDelete: () => void }) => <div className="fixed inset-0 z-50 flex justify-end bg-ink/35 p-0 sm:p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><div ref={ref} role="dialog" aria-modal="true" aria-labelledby="pr-entry-title" className="flex h-full w-full max-w-xl flex-col overflow-y-auto bg-white shadow-2xl sm:rounded-2xl">
   <header className="sticky top-0 z-10 flex items-center justify-between border-b border-canvas-border bg-white px-5 py-4"><div><p className="text-xs font-medium text-brand-dark">Basın-yayın kaydı</p><h2 id="pr-entry-title" className="text-lg font-semibold text-ink">{entry ? entry.title : 'Yeni kayıt'}</h2></div><button type="button" onClick={onClose} aria-label="Paneli kapat" className="grid h-10 w-10 place-items-center rounded-lg border border-canvas-border text-ink-soft"><Icon><path d="m6 6 12 12M18 6 6 18" /></Icon></button></header>
-  {!editing && entry ? <div><EntryDetails entry={entry} memberName={memberName} events={events} awareness={awareness} tasks={tasks} entries={entries} sourceContent={sourceContent} />{(canManage || (entry && entry.assignees.some(a => a.profileId === profileId))) ? <button type="button" onClick={onEdit} className="m-5 min-h-11 rounded-lg bg-brand-dark px-5 text-white">Düzenle</button> : null}</div> : <div className="space-y-4 p-5"><label className="block text-sm font-medium text-ink">Başlık<input maxLength={240} value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} className="mt-1.5 min-h-[44px] w-full rounded-lg border border-canvas-border px-3 font-normal" /></label><div className="grid grid-cols-2 gap-3"><label className="text-sm font-medium">Tarih<input type="date" value={draft.scheduledDate} onChange={(event) => setDraft((current) => ({ ...current, scheduledDate: event.target.value }))} className="mt-1.5 min-h-[44px] w-full rounded-lg border border-canvas-border px-3 font-normal" /></label><label className="text-sm font-medium">Saat <span className="font-normal text-ink-soft">(isteğe bağlı)</span><input id="pr-scheduled-time" type="time" value={draft.scheduledTime} onChange={(event) => setDraft((current) => ({ ...current, scheduledTime: event.target.value }))} className="mt-1.5 min-h-[44px] w-full rounded-lg border border-canvas-border px-3 font-normal" /></label></div><div className="grid grid-cols-2 gap-3"><Select label="Tür" value={draft.entryKind} options={PR_ENTRY_KINDS} onChange={(value) => setDraft((current) => ({ ...current, entryKind: value as PrEntryKind }))} /><Select label="Durum" value={draft.status} options={PR_ENTRY_STATUSES} onChange={(value) => setDraft((current) => ({ ...current, status: value as PrEntryStatus }))} /></div><PrAssigneeSelect label="İçerik ekibi" manualAssigneeIds={draft.manualAssigneeIds} autoAssignees={entry ? extractAutoAssignees(entry.assignees.map(a => ({ profile_id: a.profileId, assignment_source: a.assignmentSource }))) : []} members={members} onChange={(manualAssigneeIds) => setDraft(current => ({ ...current, manualAssigneeIds }))} disabled={!canManage} /><div><span className="text-sm font-medium">Renk</span><div className="mt-2 flex flex-wrap items-center gap-2">{PR_COLOR_PRESETS.map((color) => <button type="button" key={color} onClick={() => setDraft((current) => ({ ...current, color }))} aria-label={`${color} rengini seç`} className={`h-8 w-8 rounded-full border-2 ${draft.color === color ? 'border-ink ring-2 ring-brand/30' : 'border-white'}`} style={{ backgroundColor: color }} />)}<input type="color" value={draft.color} onChange={(event) => setDraft((current) => ({ ...current, color: event.target.value }))} aria-label="Özel renk seç" className="h-8 w-10 rounded border border-canvas-border" /></div></div><div className="space-y-4"><ChannelPicker value={draft.channels} onChange={(channels) => setDraft((current) => ({ ...current, channels }))} /><Text label="Format" value={draft.format} onChange={(value) => setDraft((current) => ({ ...current, format: value }))} /></div><PrReferenceLinksField value={draft.referenceLinks} onChange={(referenceLinks) => setDraft((current) => ({ ...current, referenceLinks }))} /><div className="mt-4">{sourceContent}</div><div className="grid gap-3"><Select disabled={!canManage} label="Bağlı etkinlik" value={draft.eventId} options={[{ value: '', label: 'Seçilmedi' }, ...events]} onChange={(value) => setDraft((current) => ({ ...current, eventId: value, awarenessPostId: value ? '' : current.awarenessPostId, taskId: '' }))} /><Select disabled={!canManage} label="Bağlı farkındalık" value={draft.awarenessPostId} options={[{ value: '', label: 'Seçilmedi' }, ...awareness]} onChange={(value) => setDraft((current) => ({ ...current, awarenessPostId: value, eventId: value ? '' : current.eventId, taskId: '' }))} /><Select disabled={!canManage} label="İlgili görev" value={draft.taskId} options={[{ value: '', label: 'Seçilmedi' }, ...tasks]} onChange={(value) => setDraft((current) => ({ ...current, taskId: value, eventId: value ? tasks.find(t => t.id === value)?.eventId ?? '' : current.eventId, awarenessPostId: value ? tasks.find(t => t.id === value)?.awarenessPostId ?? '' : current.awarenessPostId }))} /><Select disabled={!canManage} label="İlgili PR kaydı" value={draft.relatedPrEntryId} options={[{ value: '', label: 'Seçilmedi' }, ...entries.filter((item) => !item.manualRecord && !item.deletedAt && item.id !== entry?.id).map((item) => ({ value: item.id, label: item.title }))]} onChange={(value) => setDraft((current) => ({ ...current, relatedPrEntryId: value }))} /></div><label className="block text-sm font-medium">Notlar<textarea value={draft.notes} onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))} rows={4} className="mt-1.5 w-full rounded-lg border border-canvas-border px-3 py-2 font-normal" /></label>{error ? <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}<div className="flex flex-wrap justify-between gap-2 border-t border-canvas-border pt-4">{(entry && canManage) ? <button type="button" onClick={onDelete} disabled={saving} className="min-h-[42px] rounded-lg border border-red-200 px-3 text-sm font-semibold text-danger">{entry.deletedAt ? 'Geri yükle' : 'Pasifleştir'}</button> : <span /> }<button type="button" onClick={onSave} disabled={saving} className="min-h-[42px] rounded-lg bg-accent px-4 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Kaydediliyor…' : 'Kaydet'}</button></div></div>}
+  {!editing && entry ? <div><EntryDetails entry={entry} memberName={memberName} events={events} awareness={awareness} tasks={tasks} entries={entries} sourceContent={sourceContent} />{(canManage || (entry && entry.assignees.some(a => a.profileId === profileId))) ? <button type="button" onClick={onEdit} className="m-5 min-h-11 rounded-lg bg-brand-dark px-5 text-white">Düzenle</button> : null}</div> : <div className="space-y-4 p-5"><label className="block text-sm font-medium text-ink">Başlık<input maxLength={240} value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} className="mt-1.5 min-h-[44px] w-full rounded-lg border border-canvas-border px-3 font-normal" /></label><div className="grid grid-cols-2 gap-3"><label className="text-sm font-medium">Tarih<input type="date" value={draft.scheduledDate} onChange={(event) => setDraft((current) => ({ ...current, scheduledDate: event.target.value }))} className="mt-1.5 min-h-[44px] w-full rounded-lg border border-canvas-border px-3 font-normal" /></label><label className="text-sm font-medium">Saat <span className="font-normal text-ink-soft">(isteğe bağlı)</span><input id="pr-scheduled-time" type="time" value={draft.scheduledTime} onChange={(event) => setDraft((current) => ({ ...current, scheduledTime: event.target.value }))} className="mt-1.5 min-h-[44px] w-full rounded-lg border border-canvas-border px-3 font-normal" /></label></div><div className="grid grid-cols-2 gap-3"><Select label="Tür" value={draft.entryKind} options={PR_ENTRY_KINDS} onChange={(value) => setDraft((current) => ({ ...current, entryKind: value as PrEntryKind }))} /><Select label="Durum" value={draft.status} options={PR_ENTRY_STATUSES} onChange={(value) => setDraft((current) => ({ ...current, status: value as PrEntryStatus }))} /></div><PrAssigneeSelect label="İçerik ekibi" manualAssigneeIds={draft.manualAssigneeIds} autoAssignees={entry ? extractAutoAssignees(entry.assignees.map(a => ({ profile_id: a.profileId, assignment_source: a.assignmentSource }))) : []} members={members} onChange={(manualAssigneeIds) => setDraft(current => ({ ...current, manualAssigneeIds }))} disabled={!canManage} /><div><span className="text-sm font-medium">Renk</span><div className="mt-2 flex flex-wrap items-center gap-2">{PR_COLOR_PRESETS.map((color) => <button type="button" key={color} onClick={() => setDraft((current) => ({ ...current, color }))} aria-label={`${color} rengini seç`} className={`h-8 w-8 rounded-full border-2 ${draft.color === color ? 'border-ink ring-2 ring-brand/30' : 'border-white'}`} style={{ backgroundColor: color }} />)}<input type="color" value={draft.color} onChange={(event) => setDraft((current) => ({ ...current, color: event.target.value }))} aria-label="Özel renk seç" className="h-8 w-10 rounded border border-canvas-border" /></div></div><div className="space-y-4"><ChannelPicker value={draft.channels} onChange={(channels) => setDraft((current) => ({ ...current, channels }))} /><Text label="Format" value={draft.format} onChange={(value) => setDraft((current) => ({ ...current, format: value }))} /></div><PrReferenceLinksField value={draft.referenceLinks} onChange={(referenceLinks) => setDraft((current) => ({ ...current, referenceLinks }))} /><div className="mt-4">{sourceContent}</div><div className="grid gap-3"><Select disabled={!canManage} label="Bağlı etkinlik" value={draft.eventId} options={[{ value: '', label: 'Seçilmedi' }, ...events.filter(item => !item.isManual)]} onChange={(value) => setDraft((current) => ({ ...current, eventId: value, awarenessPostId: value ? '' : current.awarenessPostId, taskId: '' }))} /><Select disabled={!canManage} label="Bağlı farkındalık" value={draft.awarenessPostId} options={[{ value: '', label: 'Seçilmedi' }, ...awareness.filter(item => !item.isManual)]} onChange={(value) => setDraft((current) => ({ ...current, awarenessPostId: value, eventId: value ? '' : current.eventId, taskId: '' }))} /><Select disabled={!canManage} label="İlgili görev" value={draft.taskId} options={[{ value: '', label: 'Seçilmedi' }, ...tasks]} onChange={(value) => setDraft((current) => ({ ...current, taskId: value, eventId: value ? tasks.find(t => t.id === value)?.eventId ?? '' : current.eventId, awarenessPostId: value ? tasks.find(t => t.id === value)?.awarenessPostId ?? '' : current.awarenessPostId }))} /><Select disabled={!canManage} label="İlgili PR kaydı" value={draft.relatedPrEntryId} options={[{ value: '', label: 'Seçilmedi' }, ...entries.filter((item) => !item.manualRecord && !item.deletedAt && item.id !== entry?.id).map((item) => ({ value: item.id, label: item.title }))]} onChange={(value) => setDraft((current) => ({ ...current, relatedPrEntryId: value }))} /></div><label className="block text-sm font-medium">Notlar<textarea value={draft.notes} onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))} rows={4} className="mt-1.5 w-full rounded-lg border border-canvas-border px-3 py-2 font-normal" /></label>{error ? <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}<div className="flex flex-wrap justify-between gap-2 border-t border-canvas-border pt-4">{(entry && canManage) ? <button type="button" onClick={onDelete} disabled={saving} className="min-h-[42px] rounded-lg border border-red-200 px-3 text-sm font-semibold text-danger">{entry.deletedAt ? 'Geri yükle' : 'Pasifleştir'}</button> : <span /> }<button type="button" onClick={onSave} disabled={saving} className="min-h-[42px] rounded-lg bg-accent px-4 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Kaydediliyor…' : 'Kaydet'}</button></div></div>}
 
 
 </div></div>

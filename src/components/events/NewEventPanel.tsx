@@ -194,6 +194,8 @@ export default function NewEventPanel({
   const desktopPanelRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const previouslyFocusedRef = useRef<HTMLElement | null>(null)
+  const submittingRef = useRef(submitting)
+  submittingRef.current = submitting
 
   useEffect(() => {
     if (!isOpen || !window.matchMedia('(min-width: 1024px)').matches) return
@@ -206,7 +208,7 @@ export default function NewEventPanel({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
-        onClose()
+        if (!submittingRef.current) onClose()
         return
       }
       if (event.key !== 'Tab') return

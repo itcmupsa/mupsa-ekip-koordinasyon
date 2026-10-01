@@ -9,6 +9,8 @@ import { useMembershipStatus } from '../hooks/useMembershipStatus'
 import { coordinatorRolePresentation } from '../lib/coordinatorRolePresentation'
 import { dateKeyInIstanbul } from '../lib/prCalendar'
 import CalendarTabs from '../components/calendar/CalendarTabs'
+import { classifyAwarenessReference, dateRangeIntersects, upcomingRangeDate } from '../lib/calendarReferences'
+import { AwarenessRangeStrip } from '../components/calendar/CalendarSourceReferences'
 
 type LoadState = 'loading' | 'ready' | 'error'
 type FormMode = 'closed' | 'create' | 'edit'
@@ -101,6 +103,7 @@ interface CalendarItem {
   coordinatorRoleName?: string | null
   coordinatorRoleSlug?: string | null
   color?: string
+  dateRangeLabel?: string
 }
 
 interface CalendarCell {
@@ -211,6 +214,7 @@ export default function Calendar({ session, calendarKind = 'events' }: { session
   const [activeFilter, setActiveFilter] = useState<CalendarFilter>('all')
   const [showAllUpcoming, setShowAllUpcoming] = useState(false)
   const [showStandaloneTasks, setShowStandaloneTasks] = useState(false)
+  const [showPreparationMarkers, setShowPreparationMarkers] = useState(false)
   const [events, setEvents] = useState<EventRow[]>([])
   const [awarenessPosts, setAwarenessPosts] = useState<AwarenessRow[]>([])
   const [manualEntries, setManualEntries] = useState<ManualEntry[]>([])
@@ -405,7 +409,7 @@ export default function Calendar({ session, calendarKind = 'events' }: { session
 
     if (calendarKind === 'events') for (const event of events) {
       const role = { coordinatorRoleName: event.ownerRoleName, coordinatorRoleSlug: event.ownerRoleSlug }
-      add(event.preparationStartDate, { id: `${event.id}-preparation`, label: `${event.title} · Hazırlık başlangıcı`, kind: 'event', linkTo: `/app/etkinlikler/${event.id}`, ...role })
+      if (showPreparationMarkers) add(event.preparationStartDate, { id: `${event.id}-preparation`, label: `${event.title} · Hazırlık başlangıcı`, kind: 'event', linkTo: `/app/etkinlikler/${event.id}`, ...role })
       const eventDate = event.confirmedDate ?? event.estimatedDate
       add(eventDate, {
         id: `${event.id}-${event.confirmedDate ? 'confirmed' : 'estimated'}`,
@@ -419,12 +423,15 @@ export default function Calendar({ session, calendarKind = 'events' }: { session
     if (calendarKind === 'awareness') for (const post of awarenessPosts) {
       if (post.startDate) {
         const end = post.endDate ?? post.startDate
-        for (const key of dateKeysBetween(post.startDate, end)) {
-          add(key, { id: `${post.id}-range-${key}`, label: `${post.awarenessName} · Farkındalık dönemi`, kind: 'awareness', linkTo: `/app/farkindalik?record=${encodeURIComponent(post.id)}` })
+        if (post.startDate === end) {
+          add(post.startDate, { id: `${post.id}-day-${post.startDate}`, label: `${post.awarenessName} · Farkındalık`, kind: 'awareness', linkTo: `/app/farkindalik?record=${encodeURIComponent(post.id)}` })
+        } else {
+          add(post.startDate, { id: `${post.id}-start`, label: `${post.awarenessName} · Başlangıç`, kind: 'awareness', linkTo: `/app/farkindalik?record=${encodeURIComponent(post.id)}` })
+          add(end, { id: `${post.id}-end`, label: `${post.awarenessName} · Bitiş`, kind: 'awareness', linkTo: `/app/farkindalik?record=${encodeURIComponent(post.id)}` })
         }
       }
       const linkTo = `/app/farkindalik?record=${encodeURIComponent(post.id)}`
-      add(post.preparationStartDate, { id: `${post.id}-preparation`, label: `${post.awarenessName} · Hazırlık başlangıcı`, kind: 'awareness', linkTo })
+      if (showPreparationMarkers) add(post.preparationStartDate, { id: `${post.id}-preparation`, label: `${post.awarenessName} · Hazırlık başlangıcı`, kind: 'awareness', linkTo })
       add(post.estimatedDate, { id: `${post.id}-estimated`, label: `${post.awarenessName} · Tahmini paylaşım`, kind: 'awareness', linkTo })
       add(post.shareDate, { id: `${post.id}-share`, label: `${post.awarenessName} · Paylaşım`, kind: 'awareness', linkTo })
       add(post.closingDate, { id: `${post.id}-closing`, label: `${post.awarenessName} · Kapanış`, kind: 'awareness', linkTo })
@@ -450,7 +457,7 @@ export default function Calendar({ session, calendarKind = 'events' }: { session
     }
 
     return map
-  }, [awarenessPosts, calendarKind, events, manualEntries, showStandaloneTasks, tasks])
+  }, [awarenessPosts, calendarKind, events, manualEntries, showStandaloneTasks, showPreparationMarkers, tasks])
 
   const calendarCells = useMemo(() => {
     const first = new Date(Date.UTC(viewYear, viewMonth, 1))
@@ -497,12 +504,12 @@ export default function Calendar({ session, calendarKind = 'events' }: { session
 
     const eventCount = calendarKind === 'events' ? events.filter((event) => {
       const eventDate = event.confirmedDate ?? event.estimatedDate
-      return isInMonth(event.preparationStartDate) || isInMonth(eventDate)
+      return (showPreparationMarkers && isInMonth(event.preparationStartDate)) || isInMonth(eventDate)
     }).length : 0
 
     const awarenessCount = calendarKind === 'awareness' ? awarenessPosts.filter((post) => (
       rangeIntersectsMonth(post.startDate, post.endDate)
-      || isInMonth(post.preparationStartDate)
+      || (showPreparationMarkers && isInMonth(post.preparationStartDate))
       || isInMonth(post.estimatedDate)
       || isInMonth(post.shareDate)
       || isInMonth(post.closingDate)
@@ -519,9 +526,39 @@ export default function Calendar({ session, calendarKind = 'events' }: { session
     }).length
 
     return { eventCount, taskCount, awarenessCount }
-  }, [awarenessPosts, calendarKind, events, showStandaloneTasks, tasks, viewMonth, viewYear])
+  }, [awarenessPosts, calendarKind, events, showStandaloneTasks, showPreparationMarkers, tasks, viewMonth, viewYear])
 
-  const selectedItems = selectedDate ? filteredItemsByDate.get(selectedDate) ?? [] : []
+  const selectedItems = useMemo(() => {
+    if (!selectedDate) return []
+    const items = [...(filteredItemsByDate.get(selectedDate) ?? [])]
+    if (calendarKind === 'awareness' && (activeFilter === 'all' || activeFilter === 'awareness')) {
+      for (const post of awarenessPosts) {
+        const ref = classifyAwarenessReference(post.startDate, post.endDate, post.shareDate)
+        if (ref?.kind === 'range' && selectedDate > ref.start && selectedDate < ref.end) {
+          items.push({
+            id: `${post.id}-ongoing`,
+            label: `${post.awarenessName} · devam eden dönem`,
+            kind: 'awareness',
+            linkTo: `/app/farkindalik?record=${encodeURIComponent(post.id)}`
+          })
+        }
+      }
+    }
+    return items
+  }, [selectedDate, filteredItemsByDate, calendarKind, awarenessPosts, activeFilter])
+
+  const awarenessRangesForMonth = useMemo(() => {
+    if (calendarKind !== 'awareness' || (activeFilter !== 'all' && activeFilter !== 'awareness')) return []
+    const start = new Date(Date.UTC(viewYear, viewMonth, 1)).toISOString().slice(0, 10)
+    const end = new Date(Date.UTC(viewYear, viewMonth + 1, 0)).toISOString().slice(0, 10)
+    return awarenessPosts.flatMap(post => {
+      const ref = classifyAwarenessReference(post.startDate, post.endDate, post.shareDate)
+      if (ref?.kind === 'range' && dateRangeIntersects(ref.start, ref.end, start, end)) {
+        return { id: post.id, title: post.awarenessName, start: ref.start, end: ref.end, linkTo: `/app/farkindalik?record=${encodeURIComponent(post.id)}` }
+      }
+      return []
+    })
+  }, [awarenessPosts, calendarKind, activeFilter, viewYear, viewMonth])
 
   const scopedManualEntries = useMemo(() => manualEntries.filter((entry) => entry.calendarScopes.includes(calendarKind)), [calendarKind, manualEntries])
   const scopedTasks = useMemo(() => tasks.filter((task) => {
@@ -540,13 +577,26 @@ export default function Calendar({ session, calendarKind = 'events' }: { session
   }, [awarenessPosts.length, calendarKind, events.length, scopedManualEntries, scopedTasks.length])
 
   const upcomingItems = useMemo(() => {
-    const now = new Date()
-    const startKey = dateKey(new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())))
-    return Array.from(filteredItemsByDate.entries())
+    const startKey = dateKeyInIstanbul()
+    const datedItems = Array.from(filteredItemsByDate.entries())
       .filter(([key]) => key >= startKey)
-      .flatMap(([key, items]) => items.map((item) => ({ key, item })))
+      .flatMap(([key, items]) => items.filter(item => item.kind !== 'manual').map((item) => ({ key, item })))
+    const manualItems = activeFilter === 'all' || activeFilter === 'manual'
+      ? scopedManualEntries.flatMap(entry => {
+        if (entry.deletedAt) return []
+        const key = upcomingRangeDate(entry.startDate, entry.endDate, startKey)
+        if (!key) return []
+        const item: CalendarItem = {
+          id: `${entry.id}-upcoming`, kind: 'manual', color: entry.color,
+          label: entry.title,
+          dateRangeLabel: entry.endDate && entry.endDate !== entry.startDate
+            ? `${formatDate(entry.startDate)} – ${formatDate(entry.endDate)}` : undefined,
+        }
+        return [{ key, item }]
+      }) : []
+    return [...datedItems, ...manualItems]
       .sort((first, second) => first.key.localeCompare(second.key) || first.item.label.localeCompare(second.item.label, 'tr-TR'))
-  }, [filteredItemsByDate])
+  }, [filteredItemsByDate, activeFilter, scopedManualEntries])
 
   function changeMonth(amount: number) {
     const next = new Date(Date.UTC(viewYear, viewMonth + amount, 1))
@@ -787,13 +837,22 @@ export default function Calendar({ session, calendarKind = 'events' }: { session
           ))}
         </div>
 
-        <label className="mt-3 inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-canvas-border bg-canvas-surface px-3 text-sm text-ink-soft shadow-card">
-          <input type="checkbox" checked={showStandaloneTasks} onChange={(event) => setShowStandaloneTasks(event.target.checked)} className="h-4 w-4 accent-brand" />
-          Görevlerim (bağımsız görevler)
-        </label>
+        <div className="flex flex-wrap gap-4">
+          <label className="mt-3 inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-canvas-border bg-canvas-surface px-3 text-sm text-ink-soft shadow-card">
+            <input type="checkbox" checked={showStandaloneTasks} onChange={(event) => setShowStandaloneTasks(event.target.checked)} className="h-4 w-4 accent-brand" />
+            Görevlerim (bağımsız görevler)
+          </label>
+          <label className="mt-3 inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-canvas-border bg-canvas-surface px-3 text-sm text-ink-soft shadow-card">
+            <input type="checkbox" checked={showPreparationMarkers} onChange={(event) => setShowPreparationMarkers(event.target.checked)} className="h-4 w-4 accent-brand" />
+            Hazırlık başlangıçları
+          </label>
+        </div>
 
         <div className="mt-4 grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <section className="min-w-0 rounded-xl border border-canvas-border bg-canvas-surface p-3 shadow-card sm:p-5">
+            {calendarKind === 'awareness' && awarenessRangesForMonth.length > 0 && (
+              <AwarenessRangeStrip title="Bu ay devam eden farkındalıklar" ranges={awarenessRangesForMonth} />
+            )}
             <div className="mb-4 flex items-center justify-between gap-3">
               <button type="button" onClick={() => changeMonth(-1)} aria-label="Önceki ay" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-canvas-border text-ink-soft hover:bg-canvas hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"><ChevronIcon direction="left" /></button>
               <div className="text-center">
@@ -877,7 +936,7 @@ export default function Calendar({ session, calendarKind = 'events' }: { session
                     const content = (
                       <span className="grid min-h-[56px] grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-2 py-2.5">
                         <span className="text-center"><span className="block text-sm font-semibold text-ink">{day}</span><span className="block text-[10px] text-ink-soft">{month}</span></span>
-                        <span className="min-w-0"><span className="flex items-center gap-2"><span style={item.kind === 'manual' ? { backgroundColor: item.color } : undefined} className={`h-2 w-2 shrink-0 rounded-full ${calendarItemStyle(item).dot}`} /><span className="truncate text-xs font-medium text-ink">{item.label}</span></span></span>
+                        <span className="min-w-0"><span className="flex items-center gap-2"><span style={item.kind === 'manual' ? { backgroundColor: item.color } : undefined} className={`h-2 w-2 shrink-0 rounded-full ${calendarItemStyle(item).dot}`} /><span className="break-words text-xs font-medium text-ink">{item.label}</span></span>{item.dateRangeLabel ? <span className="mt-1 block break-words text-[11px] text-ink-soft">{item.dateRangeLabel}</span> : null}</span>
                         <span className={`rounded border px-1.5 py-1 text-[10px] font-medium ${calendarItemStyle(item).badge}`}>{ITEM_STYLES[item.kind].label}</span>
                       </span>
                     )

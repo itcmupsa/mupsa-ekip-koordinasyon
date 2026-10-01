@@ -36,6 +36,9 @@ test('month navigation and optional times are stable', () => {
 test('external links and colours are safely validated', () => {
   assert.equal(isSafeExternalUrl('https://mupsa.example/path'), true)
   assert.equal(isSafeExternalUrl('javascript:alert(1)'), false)
+  assert.equal(isSafeExternalUrl('https://'), false)
+  assert.equal(isSafeExternalUrl('https://exa mple.invalid'), false)
+  assert.equal(isSafeExternalUrl('data:text/html,test'), false)
   assert.equal(isHexColor('#16a34a'), true)
   assert.equal(isHexColor('#bad'), false)
 })

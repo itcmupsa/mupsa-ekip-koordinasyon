@@ -14,6 +14,35 @@ Antigravity MCP model seçimi yerel eklentiye eklendi ve kuruldu; 61/61 test ile
 
 ## Takvimler ve PR
 
+### 1 Ekim — Yayın öncesi son kontrol ve diğer sayfalardaki düzeltmeler
+
+Kullanıcı doğrudan canlıya alma talimatı verdi. Son tam kontrol: frontend testleri **38/38**, lint, tam uygulama build'i (yerel deneme Supabase değerleriyle) ve diff kontrolü geçti. Vercel GitHub main entegrasyonu üzerinden kendi üretim ortamıyla derleyecek; yerel deneme dist gönderilmeyecek. Bu kayıt yayın öncesidir; üretim sonucu aşağıda ayrıca doğrulanmalıdır.
+
+Diğer sayfalar: farkındalıkta eksik HTTP(S) adresi doğrulaması gerçek URL ayrıştırmasıyla değiştirildi; geçersiz kayıtlı/öneri bağlantıları tıklanabilir olarak sunulmuyor ve derin bağlantı kaydırma zamanlayıcısı temizleniyor. Görev oluşturma panelinde kaydetme sürerken Escape/kapatma/iptal engellendi ve alanlar kilitlendi. Etkinlik oluşturma panelinin Escape yolu da aynı korumayı aldı. Üç oluşturma paneli render regresyon testi eklendi; mevcut bağlantı testleri genişletildi.
+
+Yerel, sahte verili tarayıcı kontrolünde Etkinlikler listesi ve oluşturma formu açıldı, form aşağı kaydırılıp alt düğme görüldü. Görev listesi ve oluşturma formu açıldı; 375 px mobil form aşağı kaydırılıp atama alanları ve sabit alt düğmeler görüldü. Farkındalık sayfasının bu son turdaki görsel kontrolü tamamlanamadı (deneme ekranı boş kaldı, CUA AX/screenshot farklı sekmeler gösterdi); bu bir üretim hata kanıtı değildir. Üye yönetimi, hesap/ayarlar ve etkinlik detayının tüm akışları kapsamlı yeniden test edilmedi.
+
+Kalan somut bulgu: Tasks.tsx görev kaydı ile kişi atamalarını iki ayrı istemci isteğiyle kaydediyor. Atama isteği başarısız olduğunda görev sorumlusuz kalabiliyor; mevcut uyarı gösteriliyor. Bu işlem bu turda atomik hale getirilmedi; ayrıca veritabanı/RPC tasarımı ve yetki testi gerektirir. Migration/veritabanı/bildirim değişikliği yok.
+
+
+### 1 Ekim — Takvim kaynak katmanı bağımsız incelemesi (yerel; yayımlanmadı)
+
+Son Luna/Gemini teslimi mevcut dosyalar ve önceki sohbetin kabul koşulları üzerinden yeniden incelendi. Önceki 14 testin geçmesi aşağıdaki davranış sorunlarını yakalamamıştı:
+
+- Manuel `calendar_entries` kimlikleri PR formunun gerçek etkinlik/farkındalık seçeneklerine karışıyordu; kayıt sırasında yanlış tablo ilişkisi hatası oluşturabilirdi. Gerçek kaynak listeleri ile görüntüleme referansları ayrıldı; formda ayrıca manuel kayıtlar dışlanıyor.
+- Pasifleri göster açıldığında pasif manuel kaynaklar aktif referans gibi görünüyordu. PR kapsamlı manuel kartlar mevcut pasif/geri yükleme davranışını koruyor; pasif diğer kayıtlar referans katmanına eklenmiyor. Çok kapsamlı kayıt kimlik başına bir kez gösteriliyor.
+- Manuel kaynak bağlantısındaki `selected` parametresi hedef takvimde işlenmiyordu. Manuel referanslar artık mevcut manuel kayıt panelini açıyor; yalnız Süper Yönetici yazabilir. Gerçek kaynaklar kaynak ayrıntı panelinden PR planlayabilir.
+- Önceki hafta/ayın kaynak ayrıntısı gezinmede veya referans katmanı kapatıldığında açık kalabiliyordu. Panel güncel kaynak verisinden ve görünür tarih aralığından türetiliyor; kaldırılan/gizlenen kaynak için kayboluyor. Aylık komşu günlerin kaynak etiketleri bu nedenle gösterilmiyor.
+- Farkındalık takvimindeki üst aralık şeridi manuel/görev filtresini yok sayıyordu; artık filtreye uyuyor. PR kaynak verisi odak/sekme dönüşü, yayın değişikliği ve görünürken 30 saniyede yenileniyor; açık taslak değiştirilmiyor. Geçici yenileme hatasında son başarılı görünüm korunup uyarı gösteriliyor.
+- Yeni kaynak kontrollerinin hedef alanları 44 px oldu, türler metinle ayrıldı, dekoratif ikonlar erişilebilirlik ağacından çıkarıldı ve kaynak paneli başlığına odak aktarımı eklendi.
+
+Doğrulama: lint ve `git diff --check` temiz; PR (9), tarih/kaynak (7), publicationPlan (4) ve gerçek TSX bileşeninin sunucu tarafı render (6) testleri toplam **26/26** geçti. Supabase değişkenleri olmadan `npm run build` geçse de Vite uygulama ekranlarını paketten çıkarıyor; bu sonuç gerçek uygulama paketi doğrulaması sayılmamalı. Gerçek anahtar kullanmadan `.invalid` Supabase URL ve deneme publishable değeriyle tam build yapıldı; yeni ekran metinlerinin pakette bulunduğu doğrulandı. Bu deneme `dist` paketi üretime gönderilmemeli. Tam paket 500 kB sınırını aştığı için Vite boyut uyarısı veriyor.
+
+Tarayıcı kontrolü: İlk CUA başlangıç hatasından sonra Chrome'a doğrudan erişim çalıştı. `/tmp/mupsa-calendar-review` altındaki izole Vite harness gerçek Calendar/PrCalendar/AppShell bileşenlerini, sahte üyelik/Supabase/yayın verileriyle çalıştırdı; canlı sunucuya bağlantı yok. 1280 px masaüstü ve 375 px mobil görünümlerde sayfalar aşağı kaydırıldı; mobil haftalık panoda sağ günlere geçilip alt kaynak paneli ve düğmeler incelendi. Etkinlik etiketinin doğru kaynağı açması, PR formunda etkinliğin hazır seçilmesi ve manuel kaydın ilişki listesinde bulunmaması, saat uyarısı, manuel referansın kendi panelini açması, aylık kaynak seçimi, Kasım'a geçince Ekim paneli/şeridinin kaybolması, farkındalıkta seçili günün devam eden aralığı göstermesi ve manuel filtrede şeridin gizlenmesi gözlemlendi. Görüntüleme rolünde kaynak açılabildi ve yayın planlama düğmesi gösterilmedi. Yerel fixture RPC adı düzeltilmeden önceki sahte kaydetme denemesi veri isteği kanıtı sayılmadı; gerçek kalıcı kaydetme/SQL yetki testi bu turda yapılmadı.
+
+Kalan sınır: canlı ortamda kalıcı kayıt kaydetme testi ve yayın doğrulaması yapılmadı. Veritabanı/migration/yetki veya gerçek kullanıcı verisi değiştirilmedi; commit/push/deploy yapılmadı. Takip düzeltmesi (kullanıcının hataları çöz isteği): çok günlük manuel kayıtlar Yaklaşan kayıtlar listesinde artık kimlik başına bir kez, tam tarih aralığıyla gösteriliyor. Günlük takvim hücreleri korunuyor. Biten/pasif/bozuk tarih aralıkları yaklaşan listesine girmiyor; başlamış ama bitmemiş aralıklar İstanbul gününe göre bugün sıralanıyor. Filtreler korunuyor. İki regresyon testi eklendi; toplam 28/28 test, lint, diff ve sahte yerel ayarlarla tam build geçti. Yerel Chrome ekranında 1–31 Ekim manuel aralığının tek satır olduğu ve tek günlük toplantının ayrıca korunduğu doğrulandı. Mobil görünüm açıldı; son aşağı kaydırma/screenshot çağrısı noWindowsAvailable hatası verdi, bu son değişiklik için yeni mobil görüntü doğrulaması tamamlanmış sayılmamalı. Commit/push/deploy yapılmadı. Yerel logo yolu harness'te servis edilmediği için önizlemede logo yüklenmiyor; üretim logo hatası kanıtı değildir.
+
+
 PR kaynak seçimi: Etkinlik/farkındalık seçeneklerinde tarihi geçmiş kayıtlar en sona sıralanır; her grupta Türkçe ada göre sıralama korunur. Etkinlik kesin/tahmini tarihi, farkındalık bitiş/paylaşım/tahmini/başlangıç tarihi önceliği kullanılır. Bugün ve tarihsiz kayıtlar üst gruptadır; geçmiş kayıtlar seçilebilir. Lint/build/diff kontrolü geçti.
 
 1 Ekim Özet boşluk düzeltmesi: Etkinlik özeti, PR planı, tarihler ve mekân bağımsız iki sütunlu kart ızgarasına yerleştirildi; kısa sol sütun yanında uzayan sağ kolon kaldırıldı. Mobilde tek sütun korunur. Lint/build/diff kontrolü geçti.
