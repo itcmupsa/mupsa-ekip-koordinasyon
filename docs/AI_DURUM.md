@@ -14,6 +14,8 @@ Antigravity MCP model seçimi yerel eklentiye eklendi ve kuruldu; 61/61 test ile
 
 ## Takvimler ve PR
 
+PR kaynak seçimi: Etkinlik/farkındalık seçeneklerinde tarihi geçmiş kayıtlar en sona sıralanır; her grupta Türkçe ada göre sıralama korunur. Etkinlik kesin/tahmini tarihi, farkındalık bitiş/paylaşım/tahmini/başlangıç tarihi önceliği kullanılır. Bugün ve tarihsiz kayıtlar üst gruptadır; geçmiş kayıtlar seçilebilir. Lint/build/diff kontrolü geçti.
+
 1 Ekim Özet boşluk düzeltmesi: Etkinlik özeti, PR planı, tarihler ve mekân bağımsız iki sütunlu kart ızgarasına yerleştirildi; kısa sol sütun yanında uzayan sağ kolon kaldırıldı. Mobilde tek sütun korunur. Lint/build/diff kontrolü geçti.
 
 Son PR yerleşimi revizyonu: Etkinlik akışı önce gösterilir; PR planı kapalı küçük şerittir, açıldığında Başlık / Tarih-saat / Kanal / Durum sütunları ve çekim/paylaşım grupları görünür. Özetin Tümünü aç düğmesi plan bölümünü açarak oraya kaydırır. Farkındalık kendi açılır alanında satırları doğrudan gösterir. Boş karar/rapor/bağlantı/dosya durumları küçültüldü. AGY düzeltme çağrısı başarısız olduğundan kalan JSX ve erişilebilirlik sorunlarını ana ajan düzeltti; son lint/build/diff kontrolü ve 13 test geçti. Yetki/veritabanı/bildirim değişikliği yok.

@@ -44,6 +44,12 @@ interface PrEntry {
 interface Member { id: string; name: string }
 interface Source { id: string; title: string; eventId?: string | null; awarenessPostId?: string | null }
 
+function upcomingSourcesFirst<T extends Source>(sources: T[], sourceDate: (source: T) => string | null): T[] {
+  const today = dateKeyInIstanbul()
+  const isPast = (source: T) => { const date = sourceDate(source); return Boolean(date && date < today) }
+  return [...sources].sort((a, b) => Number(isPast(a)) - Number(isPast(b)) || a.title.localeCompare(b.title, 'tr'))
+}
+
 const DAY_SHORT = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
 const emptyDraft = () => ({ title: '', entryKind: 'publication' as PrEntryKind, scheduledDate: dateKeyInIstanbul(), scheduledTime: '', color: '#166534', status: 'planned' as PrEntryStatus, channels: [] as string[], format: '', notes: '', responsibleId: '', manualAssigneeIds: [] as string[], eventId: '', awarenessPostId: '', taskId: '', relatedPrEntryId: '', referenceLinks: [] as PrReferenceLink[] })
 
@@ -116,8 +122,8 @@ export default function PrCalendar({ session }: { session: Session }) {
       const [entryResult, memberResult, eventResult, awarenessResult, taskResult, permissionResult, manualResult] = await Promise.all([
         (showDeleted ? supabase.from('pr_calendar_entries').select('*, assignees:pr_calendar_entry_assignees(profile_id, assignment_source)').eq('period_id', periodId).order('scheduled_date').order('scheduled_time', { nullsFirst: false }) : supabase.from('pr_calendar_entries').select('*, assignees:pr_calendar_entry_assignees(profile_id, assignment_source)').eq('period_id', periodId).is('deleted_at', null).order('scheduled_date').order('scheduled_time', { nullsFirst: false })),
         supabase.from('period_memberships').select('profile_id, period_display_name').eq('period_id', periodId).eq('is_active', true).order('period_display_name'),
-        supabase.from('events').select('id, title').eq('period_id', periodId).is('deleted_at', null).order('title'),
-        supabase.from('awareness_posts').select('id, awareness_name').eq('period_id', periodId).is('deleted_at', null).order('awareness_name'),
+        supabase.from('events').select('id, title, confirmed_date, estimated_date').eq('period_id', periodId).is('deleted_at', null).order('title'),
+        supabase.from('awareness_posts').select('id, awareness_name, end_date, share_date, estimated_date, start_date').eq('period_id', periodId).is('deleted_at', null).order('awareness_name'),
         supabase.from('tasks').select('id, title, event_id, awareness_post_id').eq('period_id', periodId).is('deleted_at', null).order('title'),
         supabase.rpc('can_manage_pr_calendar', { target_period_id: periodId }),
         (showDeleted ? supabase.from('calendar_entries').select('*').eq('period_id', periodId).contains('calendar_scopes', ['pr']) : supabase.from('calendar_entries').select('*').eq('period_id', periodId).contains('calendar_scopes', ['pr']).is('deleted_at', null)),
@@ -139,8 +145,8 @@ export default function PrCalendar({ session }: { session: Session }) {
       })
       setEntries([...prEntries, ...manualItems])
       setMembers((memberResult.data ?? []).map((row) => ({ id: row.profile_id, name: row.period_display_name || 'Üye' })))
-      setEvents((eventResult.data ?? []).map((row) => ({ id: row.id, title: row.title })))
-      setAwareness((awarenessResult.data ?? []).map((row) => ({ id: row.id, title: row.awareness_name })))
+      setEvents(upcomingSourcesFirst((eventResult.data ?? []).map((row) => ({ id: row.id, title: row.title, date: row.confirmed_date ?? row.estimated_date })), source => source.date))
+      setAwareness(upcomingSourcesFirst((awarenessResult.data ?? []).map((row) => ({ id: row.id, title: row.awareness_name, date: row.end_date ?? row.share_date ?? row.estimated_date ?? row.start_date })), source => source.date))
       setTasks((taskResult.data ?? []).map((row) => ({ id: row.id, title: row.title, eventId: row.event_id, awarenessPostId: row.awareness_post_id })))
       setCanManage(permissionResult.data === true); setLoadState('ready')
     }
