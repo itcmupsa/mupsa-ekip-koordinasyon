@@ -315,3 +315,10 @@ Sabit kurumsal/kişisel Auth hesabı korunarak dönem bazlı görünen ad modeli
 3. Sonra yalnızca tek küçük görev ver.
 4. Teslimde kaynak dosyaları içeren ZIP iste; ZIP'te `node_modules`, `dist` veya `.env.local` bulunmamalı.
 5. ZIP teknik inceleme, entegrasyon, test ve GitHub işlemleri için ana teknik asistana verilir.
+
+## 30 Ekim 2026 — Safari FetchEvent navigasyon hatası
+
+Kullanıcı iPhone ekranında `FetchEvent.respondWith received an error: TypeError: Load failed` hatasını bildirdi. Canlı HTML/JS/CSS 200; TLS sertifikası geçerli ve Mac Safari mevcut oturumda açıldı. Vercel resmi durumunda o sırada aktif olay yoktu. Bu kanıt alttaki ağ hatasının nedenini belirlemiyor; ancak worker'ın gereksiz `respondWith(fetch(request))` yolu ekranda görülen worker navigasyon hatasını üretebilir.
+
+`public/sw.js` fetch dinleyicisi kaldırıldı; sayfa/asset/API istekleri tarayıcının doğal ağ katmanında. Push, click ve subscriptionchange korunuyor. `/sw.js` no-cache/no-store başlığı ve register `updateViaCache: none` eklendi; worker URL/scope değişmedi, abonelik veya oturum silinmedi. 41 test, lint, tam build ve diff kontrolü geçti. Worker VM testleri ağ müdahalesi olmadığını, push gösterimini ve güvenli notificationclick hedeflerini doğruluyor; iPhone'daki özgün ağ koşulu yeniden üretilemedi. Düzeltilen sürümü almak için kullanıcı uygulama ve Safari sekmesini kapatıp güncel adresi tekrar açmalı; ilk ziyarette eski worker çalışabilir, sonraki açılışta yeni worker devreye girebilir. Gerçek ağ/operatör hatası ayrıca sürebilir.
+

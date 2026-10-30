@@ -82,12 +82,6 @@ self.addEventListener('pushsubscriptionchange', (event) => {
   })())
 })
 
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url)
-
-  // Supabase/auth/veritabanı ve yazma istekleri hiçbir şekilde cache'lenmez.
-  if (url.origin.includes('supabase.co') || event.request.method !== 'GET') return
-
-  // Şimdilik uygulama verisi cache'lenmez; istek ağdan alınır.
-  event.respondWith(fetch(event.request))
-})
+// Bu worker yalnız bildirimleri yönetir. Sayfa, dosya ve API isteklerini
+// tarayıcının normal ağ katmanı karşılar. Cache/fallback sağlamayan bir
+// respondWith(fetch(...)) Safari'de ağ hatasını worker navigasyon hatasına çevirir.
