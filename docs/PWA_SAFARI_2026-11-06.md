@@ -38,3 +38,49 @@ Birden fazla iPhone kullanıcısı ana ekrandaki MUPSA simgesini açınca `Fetch
 ## Yayın
 
 Yayın: uygulama commit'i `4ea372a` main üzerinden Vercel üretimine alındı; GitHub Vercel durumu success / Deployment has completed. Dağıtım: https://vercel.com/mupsa/mupsa-ekip-koordinasyon/6qQCchTEP1kVthgggnarFUJX3Rzd . Canlı worker/bootstrap/recovery dosyaları kaynakla birebir eşleşiyor ve no-cache/no-store başlığı var. Canlı HTML erken bootstrap'ı içeriyor. Üretim `/pwa-recovery.html` Mac Safari'de açıldı, Açılışı onar seçilerek hem etkin hem controller sürümü `2026-11-06.1` mesaj yanıtıyla doğrulandı. Son testler 56/56 frontend ve 5/5 push politikası (toplam 61); lint ve tam build temiz. Gerçek iPhone ana ekran kurulumundan sonuç henüz yok; aynı hata devam ederse ayrı PWA veri alanı/eski origin ve gerçek cihaz Web Inspector kontrolü hâlâ gerekli.
+
+## Aynı gün ek bildirim — Normal Safari de açılmıyor
+
+Kullanıcı daha sonra normal Safari'den de giriş yapılamadığını bildirdi. Yeni Safari hatasının önceki FetchEvent metniyle aynı olup olmadığı, iOS sürümü ve mobil operatör henüz verilmedi. Bu nedenle olayı yalnız kurulu PWA/worker güncellemesiyle açıklayan teşhis yeterli değildir. Sonraki incelemede uygulama kodu değiştirilmedi ve yeni yama yayımlanmadı.
+
+Bağımsız Globalping HTTPS ölçümleri (6 Kasım 2026, yaklaşık 18:00 TSİ):
+
+| Sağlayıcı | Nokta | /login | Üretim JavaScript | HTTPS |
+| --- | ---: | --- | --- | --- |
+| Türk Telekom AS9121 | 3 (İstanbul/Sancaktepe) | 3/3 HTTP 200 | 3/3 HTTP 200 | Geçerli |
+| Superonline AS34984 | 2 (Trabzon/Ankara) | 2/2 HTTP 200 | 2/2 HTTP 200 | Geçerli |
+| TurkNet AS12735 | 2 (Antalya/Ankara) | 2/2 HTTP 200 | 2/2 HTTP 200 | Geçerli |
+
+Kanıt bağlantıları:
+- HTML: https://api.globalping.io/v1/measurements/2ALUrUkBtE9lFQ1I400021SFw
+- Üretim JS: https://api.globalping.io/v1/measurements/2cFQj4cYdrHHNQMI200021SFx
+- Auth endpoint ağ erişimi: https://api.globalping.io/v1/measurements/2CRkorwtrnp565whZ00021SFx (anahtarsız çağrı için beklenen HTTP 401 alındı; bu kayıt giriş işleminin başarı testi değildir).
+
+Yerel istemciden HTTP/1.1, HTTP/2, TLS 1.2 ve farklı Vercel IP'leriyle /login 200 döndü. Vercel resmi durumunda aktif incident yoktu. Ölçümler bu sabit ağlardaki test noktalarını kapsar; etkilenen telefon, mobil şebeke, özel DNS/VPN/Private Relay veya Safari depolama bağlamını kapsamaz. Güncel deployment'ın benzersiz alias'ları Vercel SSO korumalı olduğundan kullanıcıya temiz-origin test bağlantısı diye verilmedi, koruma kapatılmadı.
+
+Açık sınır: sorunu yaşayan telefondaki yeni hata metni ve aynı ağda temiz/özel Safari sekmesi sonucu gerekli. Normal Safari de o site için worker tutabilir; normal sekmede başarısızlık tek başına ağ/operatör veya Vercel arızasını kanıtlamaz. Bu testler sunucuya ulaşan diğer ağların çalıştığını gösterir; olay çözüldü sayılmaz.
+
+## Kullanıcıya iş devretmeden sürdürülen ek inceleme — Eski giriş dosyaları
+
+Kullanıcı telefondan ek test/ekran görüntüsü istemek yerine incelemeyi ajanın sürdürmesini istedi. Aynı hata yalnız kurulu PWA'ya bağlanmadı; yeni yama öncesi kaynak geçmişi ve üretim dosya yönlendirmeleri ayrıca incelendi.
+
+### Doğrulanan üretim kusuru
+
+Canlı `/assets/index-DlZSv3fr.js`, `/assets/index-BbJ-skmL.js` ve bilinmeyen asset isteği HTTP 200 + `text/html` ile güncel index.html döndürüyordu. Eski sürümün açılış belgesindeki module script böyle bir yanıtla çalışamaz. Mevcut geçerli üretim JS dosyası ise doğru JavaScript içerik tipiyle sunuluyordu. Bu, eski açılış belgesi taşıyan istemcileri etkileyebilen gerçek bir deployment uyumluluğu kusurudur. Fotoğraftaki üst seviye FetchEvent ağ hatasının tek/birebir nedeni olduğu kanıtlanmadı.
+
+### Düzeltme
+
+- Geniş tüm yolları HTML'e çeviren rewrite kaldırıldı. SPA HTML dönüşü `/app`, alt yolları, `/login` ve `/auth/callback` ile sınırlandı. Gerçek statik dosyalar Vercel'in filesystem önceliğiyle korunur.
+- Vite build eklentisi `_mupsa/entry.js` ve `_mupsa/style.css` üretir; bu küçük dosyalar o build'in gerçek hash'li JavaScript/CSS dosyasına mutlak uygulama içi URL ile işaret eder. Eksik eski `assets/index-HASH.js/css` istekleri bu uyumluluk girişlerine gider. Genel eksik dosyalar HTML'e çevrilmez. Çoklu entry/CSS düzenine geçilirse build sessizce yanlış dosyayı seçmek yerine hata verir.
+- Açılış HTML'ine açık no-store/no-cache eklendi. Module script başlamazsa boş root yerine statik yükleniyor/yenile bağlantısı kalır. Otomatik reload, oturum/storage/abonelik temizliği yok.
+- `@vercel/routing-utils` geçici `/tmp` klasöründe kurularak gerçek route dönüşümü doğrulandı: önce filesystem, sonra sadece eksik eski entry adları için compatibility; geçerli hash'li asset'ler shim'e yönlenmez. Depo bağımlılıklarına paket eklenmedi.
+
+### Test
+
+Uygulama içi tarayıcıda yerel `127.0.0.1:4192` test sunucusu aynı eski HTML'i, eski `index-BbJ-skmL.js` ve `index-DJag-tWX.css` adlarıyla açtı. Hatalı production davranışı taklidinde eski HTML kaldı ve uygulama başlamadı. Yalnız yönlendirme modu değiştirildi; aynı eski HTML yeniden yüklendiğinde gerçek derlenmiş uygulamanın giriş ekranı açıldı. Yerel build sahte Supabase ayarlarıyla çalıştı; gerçek hesapla giriş veya veri yazma yapılmadı. Bu son test uygulama içi tarayıcıdadır; fiziksel iPhone/Safari testi diye raporlanmamalı.
+
+Frontend testleri 59/59, push politikası 5/5 (toplam 64), lint, build ve diff kontrolü geçti. Sonraki adım üretim yayını sonrası eski JS/CSS adlarının doğru içerik tipiyle çalıştığını ve mevcut dosyaların değişmediğini doğrulamaktır. Önceki controlled FetchEvent testi yanında üretimde doğrulanan bu farklı açılış kusuru ayrı tutulur.
+
+### Ek ağ sonucu
+
+Eski `pages.dev` adresi Globalping Türk Telekom noktasında DNS `ECONNREFUSED` verdi; Superonline, Almanya ve ABD noktalarında HTTP 200 döndü. Ölçüm: https://api.globalping.io/v1/measurements/20j6MjulWqhFC5GQY00021SG5 . Kullanıcı simgesinin origin'i bilinmediği için bu ağ sonucu güncel Vercel kurulumuna genellenmedi.
