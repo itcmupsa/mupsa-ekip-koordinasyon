@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#0F6B5C" />
+    <title>MUPSA · Açılış desteği</title>
+    <script src="/pwa-bootstrap.js" defer></script>
+    <script src="/pwa-recovery.js" defer></script>
+    <style>
+      * { box-sizing: border-box; } body { margin: 0; color: #14201d; background: #f7f8f7; font: 16px/1.6 system-ui, sans-serif; }
+      main { max-width: 520px; margin: 8vh auto; padding: 24px; } .brand { color: #0f6b5c; font-weight: 700; letter-spacing: .08em; }
+      h1 { font-size: 28px; line-height: 1.2; letter-spacing: -.025em; } .card { background: white; border: 1px solid #e1e6e3; border-radius: 18px; padding: 24px; margin: 24px 0; }
+      button, .open { display: block; width: 100%; min-height: 48px; padding: 12px 16px; border-radius: 12px; font: inherit; font-weight: 600; text-align: center; }
+      button { border: 0; background: #0f6b5c; color: white; cursor: pointer; } button:disabled { opacity: .6; cursor: wait; }
+      .open { color: #0f6b5c; border: 1px solid #e1e6e3; text-decoration: none; margin-top: 12px; } :focus-visible { outline: 3px solid #c98a2c; outline-offset: 3px; }
+      #status { margin-top: 0; } .muted { color: #5b6b66; font-size: 14px; } details { font-size: 13px; overflow-wrap: anywhere; } summary { cursor: pointer; min-height: 44px; } pre { white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="brand">MUPSA</p>
+      <h1>Uygulama açılmıyor mu?</h1>
+      <p>Telefonda kalmış eski uygulama sürümünü kontrol edip güncelleyebilirsin.</p>
+      <section class="card" aria-label="Açılış kontrolü">
+        <p id="status" role="status" aria-live="polite">Açılış bileşeni kontrol ediliyor…</p>
+        <button id="repair" type="button" disabled>Açılışı onar</button>
+        <a class="open" href="/app">Uygulamayı aç</a>
+        <p class="muted">Hesabın, kayıtların ve mevcut bildirim aboneliğin silinmez. Onarımdan sonra bu sayfayı nereden açtıysan o tarayıcı veya uygulama güncellenir.</p>
+      </section>
+      <p class="muted">Safari’den açtıysan onarımın ardından ana ekrandaki MUPSA’yı da kapatıp tekrar dene. Bu sayfa da açılmıyorsa Wi-Fi ve mobil interneti ayrı ayrı dene; bağlantı hatasının ekran görüntüsünü yöneticiye ilet.</p>
+      <details><summary>Kontrol bilgileri</summary><pre id="diagnostics">Kontrol bekleniyor.</pre></details>
+      <noscript>Kontrol için JavaScript gerekli. Safari’de JavaScript’i destekleyen normal bir sekmede aç.</noscript>
+    </main>
+  </body>
+</html>

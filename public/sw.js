@@ -1,9 +1,18 @@
-self.addEventListener('install', () => {
-  self.skipWaiting()
+const WORKER_VERSION = '2026-11-06.1'
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(self.skipWaiting())
 })
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim())
+})
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'MUPSA_WORKER_STATUS' && event.ports?.[0]) {
+    event.ports[0].postMessage({ type: 'MUPSA_WORKER_STATUS', version: WORKER_VERSION, handlesFetch: false })
+  }
+  if (event.data?.type === 'MUPSA_SKIP_WAITING') event.waitUntil(self.skipWaiting())
 })
 
 self.addEventListener('push', (event) => {
@@ -40,14 +49,18 @@ function safeNotificationTarget(candidate) {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const targetUrl = safeNotificationTarget(event.notification.data && event.notification.data.url)
+  const targetUrl = new URL(safeNotificationTarget(event.notification.data && event.notification.data.url), self.location.origin).href
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clientList) => {
       for (const client of clientList) {
-        if ('focus' in client) {
-          client.navigate(targetUrl)
-          return client.focus()
+        if ('navigate' in client && 'focus' in client) {
+          try {
+            const navigated = await client.navigate(targetUrl)
+            if (navigated) return await navigated.focus()
+          } catch {
+            // Ask the browser to open a window if an existing iOS client cannot navigate.
+          }
         }
       }
       return self.clients.openWindow(targetUrl)

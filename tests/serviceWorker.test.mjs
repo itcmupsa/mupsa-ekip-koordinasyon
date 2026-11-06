@@ -4,7 +4,7 @@ import test from 'node:test'
 import vm from 'node:vm'
 
 const source = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8')
-function worker() {
+function worker(clients = []) {
   const handlers = new Map()
   const notifications = []
   const opened = []
@@ -12,7 +12,7 @@ function worker() {
     addEventListener: (name, handler) => handlers.set(name, handler),
     skipWaiting: async () => {},
     location: { origin: 'https://mupsa.example' },
-    clients: { claim: async () => {}, matchAll: async () => [], openWindow: async url => opened.push(url) },
+    clients: { claim: async () => {}, matchAll: async () => clients, openWindow: async url => opened.push(url) },
     registration: { showNotification: async (title, options) => notifications.push({ title, options }) },
   }
   vm.runInNewContext(source, { self, URL })
@@ -39,6 +39,44 @@ test('notification clicks preserve internal links and reject external destinatio
     let work
     handlers.get('notificationclick')({ notification: { close() {}, data: { url: target } }, waitUntil: promise => { work = promise } })
     await work
-    assert.deepEqual(opened, [expected])
+    assert.deepEqual(opened, [`https://mupsa.example${expected}`])
   }
+})
+
+test('worker reports a verifiable version without intercepting network requests', () => {
+  const { handlers } = worker()
+  let status
+  handlers.get('message')({ data: { type: 'MUPSA_WORKER_STATUS' }, ports: [{ postMessage: value => { status = value } }] })
+  assert.equal(status.type, 'MUPSA_WORKER_STATUS')
+  assert.equal(status.version, '2026-11-06.1')
+  assert.equal(status.handlesFetch, false)
+})
+
+test('notification click keeps navigation alive before focusing an existing client', async () => {
+  const actions = []
+  let finishNavigation
+  const client = {
+    navigate: url => {
+      actions.push(url)
+      return new Promise(resolve => { finishNavigation = () => resolve(client) })
+    },
+    focus: async () => { actions.push('focus') },
+  }
+  const { handlers, opened } = worker([client])
+  let work
+  handlers.get('notificationclick')({ notification: { close() {}, data: { url: '/app/gorevler' } }, waitUntil: promise => { work = promise } })
+  await Promise.resolve()
+  assert.deepEqual(actions, ['https://mupsa.example/app/gorevler'])
+  finishNavigation()
+  await work
+  assert.deepEqual(actions, ['https://mupsa.example/app/gorevler', 'focus'])
+  assert.deepEqual(opened, [])
+})
+
+test('a failed existing iOS window falls back to opening the safe destination', async () => {
+  const { handlers, opened } = worker([{ navigate: async () => { throw new TypeError('Load failed') }, focus() { throw new Error('must not focus failed navigation') } }])
+  let work
+  handlers.get('notificationclick')({ notification: { close() {}, data: { url: '/app' } }, waitUntil: promise => { work = promise } })
+  await work
+  assert.deepEqual(opened, ['https://mupsa.example/app'])
 })
