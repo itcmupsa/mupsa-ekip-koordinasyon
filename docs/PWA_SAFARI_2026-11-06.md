@@ -37,4 +37,4 @@ Birden fazla iPhone kullanıcısı ana ekrandaki MUPSA simgesini açınca `Fetch
 
 ## Yayın
 
-Bu kayıt yayın öncesidir; deployment sonucu AI_DURUM.md ve devir notuna ayrıca işlenecek.
+Yayın: uygulama commit'i `4ea372a` main üzerinden Vercel üretimine alındı; GitHub Vercel durumu success / Deployment has completed. Dağıtım: https://vercel.com/mupsa/mupsa-ekip-koordinasyon/6qQCchTEP1kVthgggnarFUJX3Rzd . Canlı worker/bootstrap/recovery dosyaları kaynakla birebir eşleşiyor ve no-cache/no-store başlığı var. Canlı HTML erken bootstrap'ı içeriyor. Üretim `/pwa-recovery.html` Mac Safari'de açıldı, Açılışı onar seçilerek hem etkin hem controller sürümü `2026-11-06.1` mesaj yanıtıyla doğrulandı. Son testler 56/56 frontend ve 5/5 push politikası (toplam 61); lint ve tam build temiz. Gerçek iPhone ana ekran kurulumundan sonuç henüz yok; aynı hata devam ederse ayrı PWA veri alanı/eski origin ve gerçek cihaz Web Inspector kontrolü hâlâ gerekli.
